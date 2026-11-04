@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,12 +13,13 @@ import { colors, ui } from '../theme';
 
 export default function ProfileScreen() {
   const account = useAccount();
-  const [draft, setDraft] = useState(account.profile);
+  const [editedProfile, setEditedProfile] = useState<{ uid: string; value: typeof account.profile } | null>(null);
+  const draft = editedProfile && editedProfile.uid === account.user?.uid ? editedProfile.value : account.profile;
+  const setDraft = (value: typeof account.profile) => setEditedProfile({ uid: account.user?.uid ?? '', value });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  useEffect(() => setDraft(account.profile), [account.profile]);
   async function run(action: () => Promise<unknown>, success = '') {
     setBusy(true); setMessage('');
     try { await action(); setPassword(''); setMessage(success); } catch (e) { setMessage(errorMessage(e)); }
@@ -43,7 +44,7 @@ export default function ProfileScreen() {
           <Field label="Telefon" value={draft.phone} keyboardType="phone-pad" placeholder="+998 90 123 45 67" maxLength={24} onChangeText={(phone) => setDraft({ ...draft, phone })} />
           <Field label="Yetkazish manzili" value={draft.address} maxLength={300} multiline onChangeText={(address) => setDraft({ ...draft, address })} />
           <Field label="Avtomobil modeli" value={draft.car} maxLength={80} onChangeText={(car) => setDraft({ ...draft, car })} />
-          <ActionButton label={busy ? 'Saqlanmoqda…' : 'Saqlash'} disabled={busy || !commerceEnabled} onPress={() => void run(() => account.saveProfile(draft), 'Profil saqlandi.')} />
+          <ActionButton label={busy ? 'Saqlanmoqda…' : 'Saqlash'} disabled={busy || !commerceEnabled} onPress={() => void run(async () => { await account.saveProfile(draft); setEditedProfile(null); }, 'Profil saqlandi.')} />
         </View>
         <ActionButton label="Hisobdan chiqish" disabled={busy} onPress={() => void run(() => signOut(auth))} />
       </> : <View style={ui.card}>

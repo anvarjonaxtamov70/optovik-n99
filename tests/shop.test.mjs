@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { cartLines, cartSummary, filterProducts, initialShopState, readProducts, shopReducer } from '../src/store/shop.ts';
+import { cartLines, cartSummary, filterProducts, initialShopState, readCachedProducts, readProducts, shopReducer } from '../src/store/shop.ts';
 
 const raw = {
   motor: {
@@ -134,4 +134,17 @@ test('optional product fields keep legacy records valid and reject insecure imag
   assert.equal(p.rasm, undefined);
   assert.equal(p.eskiNarx, 1500);
   assert.equal(p.revision, 3);
+});
+
+test('offline catalog cache displays products without enabling purchases or changing saved quantities', () => {
+  let state = shopReducer(initialShopState, { type: 'restore', quantities: { 'motor/001': 7 } });
+  state = shopReducer(state, { type: 'cache', products: readCachedProducts(products) });
+  assert.equal(state.products.length, 3);
+  assert.equal(state.status, 'loading');
+  assert.equal(state.quantities['motor/001'], 7);
+  state = change(state, 'motor/001');
+  assert.equal(state.quantities['motor/001'], 7);
+  state = update(state, products);
+  assert.equal(state.quantities['motor/001'], 3);
+  assert.deepEqual(readCachedProducts([{ id: 'too/many/segments' }, { id: 'x/y', nomi: 'X', narxi: -1, qoldiq: 1 }]), []);
 });

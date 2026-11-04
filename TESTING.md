@@ -24,7 +24,7 @@ npx firebase-tools emulators:exec --only auth,database,functions --project demo-
 2. Mahsulotni oching. Rasm yo‘q yoki HTTPS rasm ochilmay qolsa fallback ko‘rinishi kerak. Matnlar katta fontda kesilmasin.
 3. Sevimlilar va savatga qo‘shing. Ilovani to‘liq yoping, qayta oching. Ikkalasi tiklansin.
 4. Firebase’da test tovar narxini/qoldig‘ini o‘zgartiring. Savat summasi va soni yangilansin. Nol qoldiqni qo‘shib bo‘lmasin.
-5. Internetni uzing: ulanish holati chiqsin, savat saqlansin, yangi miqdor/buyurtma bloklansin. Qayta ulang.
+5. Internetni uzing, ilovani to‘liq yopib qayta oching: saqlangan katalog va savat ko‘rinsin, ulanish holati chiqsin, yangi miqdor/buyurtma bloklansin. Qayta ulang, jonli narx/qoldiq kelgach xarid ochilsin.
 6. Server yoqilmagan holatda buyurtma xizmati ochiq deb ko‘rsatilmasin. Katalog/savat ishlashi davom etsin.
 7. Server yoqilgach email hisob yarating, xatni tasdiqlang, profilni saqlang. Hisobdan chiqib qayta kiring. Boshqa hisob avvalgisining profil/buyurtmasini ko‘rmasin.
 8. Buyurtma bering. Ikki qurilma bir dona qolgan mahsulotni olsa faqat biri o‘tsin. Admin ro‘yxatida bir marta ko‘rinsin.

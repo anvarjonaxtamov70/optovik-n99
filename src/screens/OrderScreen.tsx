@@ -17,16 +17,18 @@ const transitions: Record<OrderStatus, OrderStatus[]> = { pending: ['accepted', 
 export default function OrderScreen() {
   const { uid, id } = useLocalSearchParams<{ uid: string; id: string }>();
   const { user, admin } = useAccount();
+  if (!user || (!admin && user.uid !== uid) || typeof uid !== 'string' || typeof id !== 'string' || !/^[a-f0-9]{24}$/.test(id) || !uid || /[.#$\[\]/]/.test(uid)) return <View style={ui.screen}><EmptyState title="Buyurtma topilmadi" message="Bu buyurtmani ko‘rish uchun hisobingizga kiring." /></View>;
+  return <OrderDetails key={uid + ':' + id + ':' + user.uid} uid={uid} id={id} admin={admin} />;
+}
+function OrderDetails({ uid, id, admin }: { uid: string; id: string; admin: boolean }) {
   const [order, setOrder] = useState<Order | null>(null);
   const [problem, setProblem] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    setOrder(null); setLoaded(false);
-    if (!user || (!admin && user.uid !== uid) || !uid || !id || /[.#$\[\]/]/.test(uid + id)) { setLoaded(true); return; }
     return onValue(ref(db, 'orders/' + uid + '/' + id), (s) => { setOrder(s.val()); setLoaded(true); setProblem(''); }, () => { setProblem('Buyurtmani yuklab bo‘lmadi.'); setLoaded(true); });
-  }, [user, admin, uid, id, attempt]);
+  }, [uid, id, attempt]);
   async function change(status: OrderStatus) {
     if (!order || busy) return;
     setBusy(true); setProblem('');
@@ -37,7 +39,7 @@ export default function OrderScreen() {
       { text: 'Orqaga', style: 'cancel' }, { text: 'Tasdiqlash', onPress: () => void change(status) },
     ]);
   }
-  if (!order) return <View style={[ui.screen, { padding: 20 }]}><EmptyState title={loaded ? 'Buyurtma topilmadi' : 'Yuklanmoqda…'} message={problem || 'Buyurtmani faqat uning egasi va do‘kon admini ko‘ra oladi.'} action={problem ? { label: 'Qayta urinish', onPress: () => setAttempt((n) => n + 1) } : undefined} /></View>;
+  if (!order) return <View style={[ui.screen, { padding: 20 }]}><EmptyState title={loaded ? 'Buyurtma topilmadi' : 'Yuklanmoqda…'} message={problem || 'Buyurtmani faqat uning egasi va do‘kon admini ko‘ra oladi.'} action={problem ? { label: 'Qayta urinish', onPress: () => { setLoaded(false); setOrder(null); setProblem(''); setAttempt((n) => n + 1); } } : undefined} /></View>;
   return <SafeAreaView style={ui.screen} edges={['bottom', 'left', 'right']}><ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
     <View style={ui.card}><Text style={ui.name}>Buyurtma #{id.slice(-6).toUpperCase()}</Text><Text style={ui.price}>{statusLabels[order.status]}</Text><Text style={ui.secondary}>{new Date(order.createdAt).toLocaleString('ru-RU')}</Text></View>
     {order.items.map((item) => <View key={item.id} style={ui.card}><Text style={ui.name}>{item.name}</Text><Text style={ui.secondary}>{item.quantity} × {formatMoney(item.price)}</Text></View>)}

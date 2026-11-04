@@ -16,9 +16,13 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const [admin, setAdmin] = useState(false);
-  const [profile, setProfile] = useState(emptyProfile);
-  const [balance, setBalance] = useState(0);
-  const [problem, setProblem] = useState('');
+  const [remoteProfile, setProfile] = useState<{ uid: string; value: CustomerProfile } | null>(null);
+  const [remoteBalance, setBalance] = useState<{ uid: string; value: number } | null>(null);
+  const [remoteProblem, setProblem] = useState<{ uid: string; value: string } | null>(null);
+  const uid = user?.uid;
+  const profile = remoteProfile && remoteProfile.uid === uid ? remoteProfile.value : emptyProfile;
+  const balance = remoteBalance && remoteBalance.uid === uid ? remoteBalance.value : 0;
+  const problem = remoteProblem && remoteProblem.uid === uid ? remoteProblem.value : '';
   useEffect(() => onIdTokenChanged(auth, (next) => {
     setUser(next); setAdmin(false); setReady(true);
     if (next) void next.getIdTokenResult().then((t) => {
@@ -26,20 +30,19 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     }).catch(() => {});
   }), []);
   useEffect(() => {
-    setProfile(emptyProfile); setBalance(0); setProblem('');
-    if (!user || !commerceEnabled) return;
-    const failed = () => setProblem('Profilni yuklab bo‘lmadi. Internetni tekshiring.');
-    const offProfile = onValue(ref(db, 'customers/' + user.uid + '/profile'), (s) => {
+    if (!uid || !commerceEnabled) return;
+    const failed = () => setProblem({ uid, value: 'Profilni yuklab bo‘lmadi. Internetni tekshiring.' });
+    const offProfile = onValue(ref(db, 'customers/' + uid + '/profile'), (s) => {
       const p = s.val() ?? {};
-      setProfile(Object.fromEntries(Object.keys(emptyProfile).map((k) => [k, typeof p[k] === 'string' ? p[k] : ''])) as CustomerProfile);
-      setProblem('');
+      setProfile({ uid, value: Object.fromEntries(Object.keys(emptyProfile).map((k) => [k, typeof p[k] === 'string' ? p[k] : ''])) as CustomerProfile });
+      setProblem({ uid, value: '' });
     }, failed);
-    const offBalance = onValue(ref(db, 'customers/' + user.uid + '/balance'), (s) => setBalance(Number(s.val()) || 0), failed);
+    const offBalance = onValue(ref(db, 'customers/' + uid + '/balance'), (s) => setBalance({ uid, value: Number(s.val()) || 0 }), failed);
     return () => { offProfile(); offBalance(); };
-  }, [user]);
+  }, [uid]);
   async function saveProfile(value: CustomerProfile) {
     if (!user || !commerceEnabled) throw new Error('unavailable');
-    await set(ref(db, 'customers/' + user.uid + '/profile'), value);
+    await set(ref(db, 'customers/' + uid + '/profile'), value);
   }
   return <AccountContext.Provider value={{ user, ready, admin, profile, balance, problem, saveProfile }}>{children}</AccountContext.Provider>;
 }

@@ -26,18 +26,19 @@ export function changeOrder(uid: string, id: string, status: OrderStatus, expect
   return httpsCallable(functions, 'changeOrderStatus', { timeout: 30000 })({ uid, id, status, expectedStatus });
 }
 export function useOrders(uid: string | undefined, adminIndex = false) {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [problem, setProblem] = useState('');
+  const [result, setResult] = useState<{ key: string; orders: Order[]; problem: string } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const key = (uid ?? '') + ':' + adminIndex + ':' + attempt;
   useEffect(() => {
-    setOrders([]); setProblem(''); setLoading(true);
-    if (!uid || !commerceEnabled) { setLoading(false); return; }
+    if (!uid || !commerceEnabled) return;
     return onValue(query(ref(db, adminIndex ? 'orderIndex' : 'orders/' + uid), orderByChild('createdAt'), limitToLast(100)), (s) => {
-      setOrders(Object.values(s.val() ?? {}).sort((a, b) => (b as Order).createdAt - (a as Order).createdAt) as Order[]); setLoading(false);
-    }, () => { setProblem('Buyurtmalarni yuklab bo‘lmadi.'); setLoading(false); });
-  }, [uid, adminIndex, attempt]);
-  return { orders, loading, problem, retry: () => setAttempt((n) => n + 1) };
+      const orders = Object.values(s.val() ?? {}).sort((a, b) => (b as Order).createdAt - (a as Order).createdAt) as Order[];
+      setResult({ key, orders, problem: '' });
+    }, () => setResult({ key, orders: [], problem: 'Buyurtmalarni yuklab bo‘lmadi.' }));
+  }, [uid, adminIndex, key]);
+  const current = result?.key === key ? result : null;
+  return { orders: current?.orders ?? [], loading: !!uid && commerceEnabled && !current,
+    problem: current?.problem ?? '', retry: () => setAttempt((n) => n + 1) };
 }
 export function useCommerceSettings() {
   const [settings, setSettings] = useState({ courierEnabled: false, shippingFee: 0 });

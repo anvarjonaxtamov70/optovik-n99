@@ -6,7 +6,7 @@ Android va iPhone uchun mustaqil ehtiyot qismlar do‘koni. Expo SDK 58 + React 
 
 - Katalog: bo‘lim, nom/artikul/model qidiruvi, mavjud mahsulotlar, aksiyalar, narx bo‘yicha saralash.
 - Mahsulot sahifasi: HTTPS rasm, tavsif, artikul, model va jonli qoldiq. Eski `tovarlar/kategoriya/id/{nomi,narxi,qoldiq}` bazasi saqlanadi.
-- Sevimlilar va savat telefonda saqlanadi. Narx va qoldiq bazadan qayta tekshiriladi.
+- Sevimlilar, savat va oxirgi katalog telefonda saqlanadi. Offline katalogni ko‘rish mumkin; xarid uchun narx va qoldiq bazadan qayta tekshiriladi.
 - Email/parol hisobi, email tasdiqlash, parol tiklash, profil va manzil.
 - Naqd to‘lovli buyurtma, tarix, holat kuzatuvi va kutilayotgan buyurtmani bekor qilish.
 - Admin: mahsulot yaratish/tahrirlash, qoldiq, narx, aksiya, buyurtmalar va holatlar.

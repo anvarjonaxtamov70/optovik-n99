@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useReducer, useState, type Dispat
 
 import { db } from '../../firebaseConfig';
 import { readLocal, saveLocal } from '../lib/storage';
-import { initialShopState, readProducts, shopReducer, type ShopAction, type ShopState } from './shop';
+import { initialShopState, readCachedProducts, readProducts, shopReducer, type ShopAction, type ShopState } from './shop';
 
 const ShopContext = createContext<{
   state: ShopState; dispatch: Dispatch<ShopAction>; retry: () => void;
@@ -14,21 +14,37 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(shopReducer, initialShopState);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [canPersist, setCanPersist] = useState(false);
+  const [hasCache, setHasCache] = useState(false);
   const [storageProblem, setStorageProblem] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let active = true;
-    void readLocal<{ quantities?: Record<string, number>; favorites?: string[] }>('shop').then((saved) => {
+    void Promise.allSettled([
+      readLocal<{ quantities?: Record<string, number>; favorites?: string[] }>('shop'),
+      readLocal<unknown>('catalog'),
+    ]).then(([shop, catalog]) => {
       if (!active) return;
-      if (saved?.quantities && typeof saved.quantities === 'object') dispatch({ type: 'restore', quantities: saved.quantities });
-      if (Array.isArray(saved?.favorites)) setFavorites(saved.favorites.filter((x) => typeof x === 'string').slice(0, 500));
-    }).catch(() => { if (active) setStorageProblem(true); }).finally(() => { if (active) setHydrated(true); });
+      if (shop.status === 'fulfilled') {
+        const saved = shop.value;
+        if (saved?.quantities && typeof saved.quantities === 'object') dispatch({ type: 'restore', quantities: saved.quantities });
+        if (Array.isArray(saved?.favorites)) setFavorites(saved.favorites.filter((x) => typeof x === 'string').slice(0, 500));
+        setCanPersist(true);
+      } else setStorageProblem(true);
+      if (catalog.status === 'fulfilled') {
+        const products = readCachedProducts(catalog.value);
+        if (products.length) { dispatch({ type: 'cache', products }); setHasCache(true); }
+      }
+      // Do not start the live listener until BOTH reads settle. A late disk
+      // restore must never replace a fresh catalog or resurrect old quantities.
+      setHydrated(true);
+    });
     return () => { active = false; };
   }, []);
   useEffect(() => {
-    if (!hydrated) return;
+    if (!canPersist) return;
     void saveLocal('shop', { quantities: state.quantities, favorites }).then(() => setStorageProblem(false)).catch(() => setStorageProblem(true));
-  }, [hydrated, state.quantities, favorites]);
+  }, [canPersist, state.quantities, favorites]);
   useEffect(() => {
     if (!hydrated) return;
     let active = true;
@@ -39,7 +55,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     const offConnection = onValue(ref(db, '.info/connected'), (s) => {
       connected = s.val() === true;
       if (!active) return;
-      if (!connected && latest) dispatch({ type: 'slow' });
+      if (!connected && (latest || hasCache)) dispatch({ type: 'slow' });
       else if (latest) dispatch({ type: 'products', ...latest });
     });
     const unsubscribe = onValue(ref(db, 'tovarlar'), (snapshot) => {
@@ -48,10 +64,11 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       const products = readProducts(snapshot.val());
       latest = { products, message: products.length ? '' : snapshot.exists() ? 'Mahsulot ma’lumotlarini tekshirish kerak.' : 'Hozircha mahsulotlar yo‘q.' };
       dispatch({ type: 'products', ...latest });
+      void saveLocal('catalog', products).catch(() => {});
       if (!connected) dispatch({ type: 'slow' });
     }, () => { if (active) { clearTimeout(timer); latest = null; dispatch({ type: 'error' }); } });
     return () => { active = false; clearTimeout(timer); unsubscribe(); offConnection(); };
-  }, [attempt, hydrated]);
+  }, [attempt, hydrated, hasCache]);
   return <ShopContext.Provider value={{ state, dispatch, favorites, storageProblem,
     retry: () => setAttempt((n) => n + 1),
     toggleFavorite: (id) => setFavorites((ids) => ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id].slice(-500)),

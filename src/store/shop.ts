@@ -21,6 +21,7 @@ export type ShopState = {
 };
 
 export type ShopAction =
+  | { type: 'cache'; products: Product[] }
   | { type: 'restore'; quantities: Record<string, number> }
   | { type: 'ordered'; quantities: Record<string, number> }
   | { type: 'products'; products: Product[]; message: string }
@@ -74,6 +75,16 @@ export function readProducts(value: unknown): Product[] {
   return products;
 }
 
+// Device cache is display-only. Validate it as strictly as the live catalog.
+export function readCachedProducts(value: unknown): Product[] {
+  if (!Array.isArray(value) || value.length > 10000) return [];
+  return value.flatMap((p: unknown) => {
+    if (!isRecord(p) || typeof p.id !== 'string' || !/^[^.#$\[\]/]+\/[^.#$\[\]/]+$/.test(p.id)) return [];
+    const [category, id] = p.id.split('/');
+    return readProducts({ [category]: { [id]: p } });
+  });
+}
+
 export function filterProducts(products: Product[], query: string, category: string | null) {
   const words = query.trim().toLowerCase().replace(/[‘’ʼ`']/g, '').split(/\s+/).filter(Boolean);
   return products.filter((p) =>
@@ -105,6 +116,7 @@ export function cartSummary(state: ShopState) {
 }
 
 export function shopReducer(state: ShopState, action: ShopAction): ShopState {
+  if (action.type === 'cache') return { ...state, products: action.products };
   if (action.type === 'restore') {
     const quantities = Object.fromEntries(Object.entries(action.quantities).filter(([id, qty]) => /^[^.#$\[\]/]+\/[^.#$\[\]/]+$/.test(id) && Number.isSafeInteger(qty) && qty > 0 && qty <= 999));
     return { ...state, quantities };
