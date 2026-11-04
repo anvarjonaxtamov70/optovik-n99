@@ -11,10 +11,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Export and Publish to Expo
+      - name: Bundle for iOS and Android
+        run: |
+          npx expo export --platform ios --output-dir dist/ios
+          npx expo export --platform android --output-dir dist/android
+      - name: Publish to Expo
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          npx --yes eas-cli init --id ${{ secrets.EAS_PROJECT_ID }} --non-interactive || true
-          npx --yes eas-cli update --branch production --message "Update via GitHub Actions" --non-interactive || npx expo export
-
+          npx --yes eas-cli update --branch production --message "iOS update" --non-interactive || true
