@@ -4,6 +4,12 @@ export type Product = {
   nomi: string;
   narxi: number;
   qoldiq: number;
+  rasm?: string;
+  tavsif?: string;
+  artikul?: string;
+  model?: string;
+  eskiNarx?: number;
+  revision?: number;
 };
 
 export type ShopState = {
@@ -15,6 +21,8 @@ export type ShopState = {
 };
 
 export type ShopAction =
+  | { type: 'restore'; quantities: Record<string, number> }
+  | { type: 'ordered'; quantities: Record<string, number> }
   | { type: 'products'; products: Product[]; message: string }
   | { type: 'quantity'; id: string; delta: 1 | -1 }
   | { type: 'remove'; id: string }
@@ -54,6 +62,12 @@ export function readProducts(value: unknown): Product[] {
         nomi: p.nomi.trim(),
         narxi: p.narxi,
         qoldiq: Math.max(0, Math.floor(p.qoldiq)),
+        revision: typeof p.revision === 'number' ? p.revision : 0,
+        rasm: typeof p.rasm === 'string' && p.rasm.startsWith('https://') ? p.rasm : undefined,
+        tavsif: typeof p.tavsif === 'string' ? p.tavsif : undefined,
+        artikul: typeof p.artikul === 'string' ? p.artikul : undefined,
+        model: typeof p.model === 'string' ? p.model : undefined,
+        eskiNarx: typeof p.eskiNarx === 'number' && Number.isFinite(p.eskiNarx) && p.eskiNarx > p.narxi ? p.eskiNarx : undefined,
       });
     }
   }
@@ -61,9 +75,9 @@ export function readProducts(value: unknown): Product[] {
 }
 
 export function filterProducts(products: Product[], query: string, category: string | null) {
-  const search = query.trim().toLowerCase();
+  const words = query.trim().toLowerCase().replace(/[‘’ʼ`']/g, '').split(/\s+/).filter(Boolean);
   return products.filter((p) =>
-    (category === null || p.kategoriya === category) && p.nomi.toLowerCase().includes(search)
+    (category === null || p.kategoriya === category) && words.every((word) => [p.nomi, p.artikul, p.model].join(' ').toLowerCase().replace(/[‘’ʼ`']/g, '').includes(word))
   );
 }
 
@@ -91,6 +105,19 @@ export function cartSummary(state: ShopState) {
 }
 
 export function shopReducer(state: ShopState, action: ShopAction): ShopState {
+  if (action.type === 'restore') {
+    const quantities = Object.fromEntries(Object.entries(action.quantities).filter(([id, qty]) => /^[^.#$\[\]/]+\/[^.#$\[\]/]+$/.test(id) && Number.isSafeInteger(qty) && qty > 0 && qty <= 999));
+    return { ...state, quantities };
+  }
+  if (action.type === 'ordered') {
+    const quantities = { ...state.quantities };
+    for (const [id, qty] of Object.entries(action.quantities)) {
+      const remaining = (quantities[id] ?? 0) - qty;
+      if (remaining > 0) quantities[id] = remaining;
+      else delete quantities[id];
+    }
+    return { ...state, quantities };
+  }
   switch (action.type) {
     case 'products': {
       const available = new Map(action.products.map((p) => [p.id, p.qoldiq]));
@@ -110,7 +137,7 @@ export function shopReducer(state: ShopState, action: ShopAction): ShopState {
       const product = state.products.find((p) => p.id === action.id);
       if (!product || (action.delta > 0 && state.status !== 'ready')) return state;
       const current = state.quantities[action.id] ?? 0;
-      const next = Math.max(0, Math.min(current + action.delta, product.qoldiq));
+      const next = Math.max(0, Math.min(current + action.delta, product.qoldiq, 999));
       if (next === current) return state;
       const quantities = { ...state.quantities };
       if (next === 0) delete quantities[action.id];
@@ -128,3 +155,4 @@ export function shopReducer(state: ShopState, action: ShopAction): ShopState {
     case 'dismissNotice': return { ...state, cartNotice: '' };
   }
 }
+

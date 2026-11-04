@@ -1,6 +1,8 @@
 import { StyleSheet } from 'react-native';
 
 export const colors = {
+  accent: '#247bc1',
+  success: '#16784e',
   text: '#111827',
   muted: '#4b6074',
   white: '#ffffff',
@@ -28,3 +30,4 @@ export const ui = StyleSheet.create({
   buttonText: { color: colors.text, fontWeight: '700', fontSize: 16, textAlign: 'center' },
   disabled: { backgroundColor: colors.disabled },
 });
+

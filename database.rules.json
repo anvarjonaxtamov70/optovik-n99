@@ -1,0 +1,27 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "tovarlar": { ".read": true },
+    "settings": { "commerce": { ".read": true } },
+    "orderIndex": { ".read": "auth != null && auth.token.admin === true", ".indexOn": ["createdAt"] },
+    "orders": {
+      "$uid": { ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)", ".indexOn": ["createdAt"] }
+    },
+    "customers": {
+      "$uid": {
+        "balance": { ".read": "auth != null && auth.uid === $uid" },
+        "profile": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && newData.exists()",
+          ".validate": "newData.hasChildren(['name','phone','address','car'])",
+          "name": { ".validate": "newData.isString() && newData.val().length <= 80" },
+          "phone": { ".validate": "newData.isString() && newData.val().length <= 24" },
+          "address": { ".validate": "newData.isString() && newData.val().length <= 300" },
+          "car": { ".validate": "newData.isString() && newData.val().length <= 80" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}

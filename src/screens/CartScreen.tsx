@@ -67,6 +67,7 @@ export default function CartScreen() {
               <Text style={ui.price}>{formatMoney(total)}</Text>
             </View>
             <Text style={ui.secondary}>Narxlar va qoldiq jonli yangilanadi.</Text>
+                <ActionButton label="Buyurtma berish" disabled={state.status !== 'ready'} onPress={() => router.push('/checkout')} />
           </View>
         )}
       </View>
@@ -88,3 +89,4 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   totalLabel: { fontSize: 15, fontWeight: '600', color: colors.text },
 });
+

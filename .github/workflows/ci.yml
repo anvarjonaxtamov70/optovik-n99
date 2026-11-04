@@ -1,0 +1,68 @@
+name: Mobile and commerce checks
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install SDK dependencies
+        run: |
+          npm install --ignore-scripts
+          npx expo install @react-native-async-storage/async-storage
+      - name: Dependency lock evidence
+        run: |
+          node - <<'JS'
+          const fs = require('fs');
+          const cp = require('child_process');
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const base = JSON.parse(cp.execFileSync('git', ['show', 'HEAD:package-lock.json'], { encoding: 'utf8' }));
+          const diff = Object.fromEntries(Object.entries(lock.packages).filter(([k,v]) => JSON.stringify(v) !== JSON.stringify(base.packages[k])));
+          console.log('LOCK_DIFF_START\n' + JSON.stringify(diff) + '\nLOCK_DIFF_END');
+          JS
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npx expo install --check
+      - name: Bundle Android and iOS
+        run: |
+          npx expo export --platform android --output-dir dist/android
+          npx expo export --platform ios --output-dir dist/ios
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-lock
+          path: package-lock.json
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm install --prefix functions --ignore-scripts
+      - run: node --test tests/commerce.test.mjs
+      - name: Real Firebase emulator checks
+        run: npx --yes firebase-tools emulators:exec --only auth,database,functions --project demo-optovik "node tests/emulator.mjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-lock
+          path: functions/package-lock.json
