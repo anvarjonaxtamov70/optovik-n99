@@ -48,3 +48,4 @@ yarn-error.*
 serviceAccount*.json
 firebase-debug*.log
 database-debug.log
+reports/
