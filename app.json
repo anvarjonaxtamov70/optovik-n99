@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "optovik-n99",
+    "name": "OPTOVIK N99",
     "slug": "optovik-n99",
     "scheme": "optovik-n99",
     "version": "1.0.0",
@@ -8,7 +8,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "uz.optovikn99.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "uz.optovikn99.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

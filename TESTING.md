@@ -1,13 +1,36 @@
-# Telefonda tekshirish
+# Tekshirish
 
-1. Windows PowerShell’da `npx.cmd expo start --clear` buyrug‘ini ishga tushiring. Telefon va kompyuter bir Wi-Fi’da bo‘lsin. QR-kodni iPhone’da Kamera orqali, Android’da Expo Go orqali oching. LAN ishlamasa, mavjud ngrok bilan `npx.cmd expo start --tunnel` ishlating.
-2. Mahsulot nomini katta-kichik harflar va chetida bo‘shliqlar bilan kiriting: masalan, `  MAHSULOT 1  `. Mavjud bo‘lmagan nom uchun «Mahsulot topilmadi» xabari chiqishini tekshiring.
-3. Kategoriyalar va «Barchasi» tugmasini almashtiring. Qidiruv tanlangan kategoriya ichida ishlashini, tozalash tugmasini tekshiring.
-4. Mahsulotni bir necha marta «Savatga» qo‘shing. Pastki menyudagi son jami dona soniga teng bo‘lsin. Katalog va Savat orasida o‘tganda savat saqlansin.
-5. Savatda `+`, `−`, «Olib tashlash», har bir mahsulot summasi va jami narxni tekshiring. `+` qoldiq chegarasida, `−` esa bir donada o‘chadi. Qoldig‘i 0 bo‘lgan mahsulot qo‘shilmaydi.
-6. Jonli yangilanishni o‘zingiz boshqaradigan test mahsulotida tekshiring: narx o‘zgarsa jami ham o‘zgaradi; qoldiq savatdagi miqdordan pasaysa savat moslashib xabar ko‘rsatadi; qoldiq 0 bo‘lsa yoki mahsulot o‘chirilsa u savatdan olinadi.
-7. iPhone’da notch va pastki home indicator, Android’da tizim paneli bilan ustma-ust tushmasligini tekshiring. Klaviatura ochilganda qidiruv, ro‘yxatni aylantirish va katta shriftni tekshiring.
+## Avtomatik
 
-Savat hozir xotirada ishlaydi: ilova to‘liq qayta ochilganda tozalanadi. Ilova Firebase’dan faqat `tovarlar`ni o‘qiydi; savat amallari buyurtma yoki qoldiq yozmaydi.
+```sh
+npm ci
+npm run typecheck
+npm run lint
+npm test
+```
 
-Avtomatik tekshiruvlar: `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd test`. Testlar Node.js 22.18+ ning TypeScript o‘qish imkoniyatidan foydalanadi va jonli bazaga ulanmaydi.
+Node 22.18+ yoki 24 kerak. Sof sinovlar internet va Firebase tokenisiz ishlaydi. `tests/commerce.test.mjs` narx, stok, butun buyurtmani bekor qilish, idempotency, status vakolati, cashback va admin tahrirlash to‘qnashuvini tekshiradi.
+
+GitHub Actions qo‘shimcha Android/iOS bundle hamda Auth + RTDB + Functions emulyatorida haqiqiy HTTP buyurtma va rules testlarini bajaradi. Emulyator testini production project bilan ishlatmang:
+
+```sh
+npm --prefix functions install
+npx firebase-tools emulators:exec --only auth,database,functions --project demo-optovik "node tests/emulator.mjs"
+```
+
+## Telefonda qo‘lda
+
+1. Expo Go: nom/artikul/model bilan qidiring, bo‘lim/mavjud/aksiya filtrlarini va narx saralashni tekshiring.
+2. Mahsulotni oching. Rasm yo‘q yoki HTTPS rasm ochilmay qolsa fallback ko‘rinishi kerak. Matnlar katta fontda kesilmasin.
+3. Sevimlilar va savatga qo‘shing. Ilovani to‘liq yoping, qayta oching. Ikkalasi tiklansin.
+4. Firebase’da test tovar narxini/qoldig‘ini o‘zgartiring. Savat summasi va soni yangilansin. Nol qoldiqni qo‘shib bo‘lmasin.
+5. Internetni uzing, ilovani to‘liq yopib qayta oching: saqlangan katalog va savat ko‘rinsin, ulanish holati chiqsin, yangi miqdor/buyurtma bloklansin. Qayta ulang, jonli narx/qoldiq kelgach xarid ochilsin.
+6. Server yoqilmagan holatda buyurtma xizmati ochiq deb ko‘rsatilmasin. Katalog/savat ishlashi davom etsin.
+7. Server yoqilgach email hisob yarating, xatni tasdiqlang, profilni saqlang. Hisobdan chiqib qayta kiring. Boshqa hisob avvalgisining profil/buyurtmasini ko‘rmasin.
+8. Buyurtma bering. Ikki qurilma bir dona qolgan mahsulotni olsa faqat biri o‘tsin. Admin ro‘yxatida bir marta ko‘rinsin.
+9. Javob kelayotganda aloqani uzing, ilovani qayta oching. «Buyurtma holatini tekshirish» o‘sha urinishdan foydalansin. Dublikat buyurtma bo‘lmasin.
+10. Mijoz faqat kutilayotgan o‘z buyurtmasini bekor qilsin. Admin qabul → yo‘lda → yetkazildi holatlarini o‘tkazsin. Takror bosish stok yoki cashbackni ikki marta o‘zgartirmasin.
+11. Admin mahsulotni tahrirlayotganda boshqa qurilmadan buyurtma bering. Eski qoldiqni saqlash rad etilsin.
+12. iPhone safe area, Android back tugmasi, klaviatura, katta shrift va kichik ekranlarda tekshiring.
+
+Bu qo‘lda sinovlar qurilmada hali bajarilmagan bo‘lsa, CI o‘tganini ularning o‘rniga ishlatmang.

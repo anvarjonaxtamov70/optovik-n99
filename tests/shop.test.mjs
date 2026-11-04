@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { cartLines, cartSummary, filterProducts, initialShopState, readProducts, shopReducer } from '../src/store/shop.ts';
+import { cartLines, cartSummary, filterProducts, initialShopState, readCachedProducts, readProducts, shopReducer } from '../src/store/shop.ts';
 
 const raw = {
   motor: {
@@ -105,4 +105,46 @@ test('invalid records are ignored and stock becomes a non-negative integer', () 
     fractionalStock: { nomi: 'Y', narxi: 1, qoldiq: 2.8 },
   } });
   assert.deepEqual(parsed.map((p) => [p.id, p.qoldiq]), [['category/negativeStock', 0], ['category/fractionalStock', 2]]);
+});
+
+
+test('restored cart waits for live catalog and then clamps removed or reduced stock', () => {
+  let state = shopReducer(initialShopState, { type: 'restore', quantities: { 'motor/001': 7, 'old/deleted': 2, 'motor/002': -1, 'bad/path/extra': 2, 'motor/999': '3' } });
+  assert.deepEqual(state.quantities, { 'motor/001': 7, 'old/deleted': 2 });
+  assert.equal(state.status, 'loading');
+  state = update(state, products);
+  assert.deepEqual(state.quantities, { 'motor/001': 3 });
+  assert.ok(state.cartNotice);
+});
+
+test('acknowledging an order removes submitted quantities while keeping other cart items', () => {
+  let state = change(change(change(loaded(), 'motor/001'), 'motor/001'), 'kuzov/001');
+  state = shopReducer(state, { type: 'ordered', quantities: { 'motor/001': 1 } });
+  assert.deepEqual(state.quantities, { 'motor/001': 1, 'kuzov/001': 1 });
+});
+
+test('search combines name, article and model words and normalizes Uzbek apostrophes', () => {
+  const enriched = readProducts({ gazel: { x: { nomi: 'G‘ildirak podshipnik', narxi: 1000, qoldiq: 2, artikul: 'GAZ-3302', model: 'Gazel Next' } } });
+  assert.equal(filterProducts(enriched, "G'ildirak 3302 Next", null).length, 1);
+  assert.equal(filterProducts(enriched, '3302 boshqasi', null).length, 0);
+});
+
+test('optional product fields keep legacy records valid and reject insecure image URLs', () => {
+  const [p] = readProducts({ gazel: { x: { nomi: 'Filtr', narxi: 1000, qoldiq: 2, rasm: 'http://invalid.example/a.png', eskiNarx: 1500, revision: 3 } } });
+  assert.equal(p.rasm, undefined);
+  assert.equal(p.eskiNarx, 1500);
+  assert.equal(p.revision, 3);
+});
+
+test('offline catalog cache displays products without enabling purchases or changing saved quantities', () => {
+  let state = shopReducer(initialShopState, { type: 'restore', quantities: { 'motor/001': 7 } });
+  state = shopReducer(state, { type: 'cache', products: readCachedProducts(products) });
+  assert.equal(state.products.length, 3);
+  assert.equal(state.status, 'loading');
+  assert.equal(state.quantities['motor/001'], 7);
+  state = change(state, 'motor/001');
+  assert.equal(state.quantities['motor/001'], 7);
+  state = update(state, products);
+  assert.equal(state.quantities['motor/001'], 3);
+  assert.deepEqual(readCachedProducts([{ id: 'too/many/segments' }, { id: 'x/y', nomi: 'X', narxi: -1, qoldiq: 1 }]), []);
 });

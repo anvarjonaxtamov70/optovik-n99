@@ -3,9 +3,9 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { useShop } from '../store/ShopProvider';
 import { colors, ui } from '../theme';
 
-export function ScreenHeader({ title, subtitle }: { title: string; subtitle: string }) {
+export function ScreenHeader({ title, subtitle, inset = true }: { title: string; subtitle: string; inset?: boolean }) {
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, !inset && { paddingHorizontal: 0 }]}>
       <View style={styles.brand}>
         <Text style={styles.brandName}>OPTOVIK</Text>
         <View style={styles.logo}><Text style={styles.logoText}>N99</Text></View>
@@ -89,3 +89,4 @@ const styles = StyleSheet.create({
   notice: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 20, marginBottom: 14, paddingLeft: 16, borderRadius: 16, backgroundColor: colors.warning },
   dismiss: { minWidth: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
 });
+

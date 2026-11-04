@@ -39,3 +39,13 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+
+# Never commit local credentials or Firebase debug output
+.env
+.env.*
+!.env.example
+serviceAccount*.json
+firebase-debug*.log
+database-debug.log
+reports/
