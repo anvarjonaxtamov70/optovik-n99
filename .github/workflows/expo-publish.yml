@@ -11,7 +11,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Publish to Expo
+      - name: Export and Publish to Expo
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx eas update --auto
+        run: |
+          npx --yes eas-cli init --id ${{ secrets.EAS_PROJECT_ID }} --non-interactive || true
+          npx --yes eas-cli update --branch production --message "Update via GitHub Actions" --non-interactive || npx expo export
+
