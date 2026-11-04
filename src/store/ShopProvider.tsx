@@ -39,7 +39,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     const offConnection = onValue(ref(db, '.info/connected'), (s) => {
       connected = s.val() === true;
       if (!active) return;
-      if (!connected) dispatch({ type: 'slow' });
+      if (!connected && latest) dispatch({ type: 'slow' });
       else if (latest) dispatch({ type: 'products', ...latest });
     });
     const unsubscribe = onValue(ref(db, 'tovarlar'), (snapshot) => {

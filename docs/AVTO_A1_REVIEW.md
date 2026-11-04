@@ -2,7 +2,7 @@
 
 O‘qilgan manba: `anvarjonaxtamov70/Avto_A1`, `2377296b78df3719ed09d8dda3cb5d004c52598d`.
 
-README, modul xaritasi, funksiyalar xaritasi, asosiy index.html’dagi katalog/karta/mahsulot/savat/checkout kodlari, worker buyurtma shartnomasi, bot order_ops va Android Capacitor sozlamalari ko‘rib chiqildi. Bu barcha 46 ming qatorning bajarilishi audit qilindi degani emas.
+README, modul xaritasi, asosiy index.html’dagi katalog/karta/mahsulot/savat/checkout kodlari, worker buyurtma shartnomasi, bot order_ops va Android Capacitor sozlamalari ko‘rib chiqildi. Bu barcha 46 ming qatorning bajarilishi audit qilindi degani emas.
 
 Avto A1 asosiy interfeysi taxminan 2.8 MB bitta HTML faylga to‘plangan. Android qobig‘i o‘sha GitHub Pages saytini ochadi. Hozirgi OPTOVIK N99 React Native ekranlari va Expo Router navigatsiyasidan foydalanadi; HTML, DOM, bot autentifikatsiyasi yoki WebView ko‘chirilmagan.
 

@@ -23,7 +23,7 @@ export default function CatalogScreen() {
     <FlatList data={products} keyExtractor={(p) => p.id} numColumns={2} columnWrapperStyle={{ gap: 12 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}
       refreshing={state.status === 'loading'} onRefresh={retry} initialNumToRender={8} windowSize={7}
       ListHeaderComponent={<View style={{ gap: 16 }}>
-        <ScreenHeader title="Ehtiyot qismlar" subtitle="Avtomobilingiz uchun kerakli detal" />
+        <ScreenHeader inset={false} title="Ehtiyot qismlar" subtitle="Avtomobilingiz uchun kerakli detal" />
         <View style={styles.hero}><Text style={styles.eyebrow}>OPTOVIK N99 · AVTODO‘KON</Text><Text style={styles.heroTitle}>Ishonchli detal.{ '\n' }Ishonchli yo‘l.</Text><Text style={styles.heroText}>Narx va ombor qoldig‘i — doim yangilanadi.</Text></View>
         <Field label="Qidirish" placeholder="Nomi, artikuli yoki avtomobil modeli" value={query} onChangeText={setQuery} clearButtonMode="while-editing" autoCorrect={false} returnKeyType="search" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>

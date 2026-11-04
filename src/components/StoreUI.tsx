@@ -33,7 +33,7 @@ export const ProductCard = memo(function ProductCard({ product }: { product: Pro
   const [category, id] = product.id.split('/');
   return <View style={styles.product}>
     <Pressable accessibilityRole="button" accessibilityLabel={product.nomi + ' haqida'} onPress={() => router.push({ pathname: '/product/[category]/[id]', params: { category, id } })}>
-      <ProductPhoto product={product} />
+      <ProductPhoto key={product.rasm} product={product} />
       <View style={{ padding: 12, gap: 6 }}>
         <Text style={ui.category}>{product.model || categoryLabel(product.kategoriya)}</Text>
         <Text numberOfLines={2} style={styles.productName}>{product.nomi}</Text>
@@ -46,7 +46,7 @@ export const ProductCard = memo(function ProductCard({ product }: { product: Pro
       <Text style={{ fontSize: 25, color: colors.accent }}>{saved ? '♥' : '♡'}</Text>
     </Pressable>
     <View style={{ paddingHorizontal: 10, paddingBottom: 10, marginTop: 'auto' }}>
-      <ActionButton label={qty ? 'Savatda ' + qty + '  +' : 'Savatga +'} disabled={state.status !== 'ready' || qty >= product.qoldiq}
+      <ActionButton label={qty ? 'Savatda ' + qty + '  +' : 'Savatga +'} disabled={state.status !== 'ready' || qty >= Math.min(product.qoldiq, 999)}
         onPress={() => dispatch({ type: 'quantity', id: product.id, delta: 1 })} />
     </View>
   </View>;

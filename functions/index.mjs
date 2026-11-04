@@ -14,10 +14,18 @@ function actor(request, adminOnly = false) {
   return value;
 }
 async function transact(update) {
+  let failure;
   try {
-    // Existing catalog stays in tovarlar. One transaction commits stock, order,
-    // index and loyalty together. Never reserve individual lines separately.
-    const result = await db.ref().transaction((root) => root === null ? null : update(root), undefined, false);
+    // The Admin RTDB callback runs on its event queue. Never throw from it:
+    // returning the unchanged root validates its hash and allows a retry when
+    // the local cache was stale. Only reject after the transaction completes.
+    const result = await db.ref().transaction((root) => {
+      failure = undefined;
+      if (root === null) return null;
+      try { return update(root); }
+      catch (e) { failure = e; return root; }
+    }, undefined, false);
+    if (failure) throw failure;
     if (!result.committed || !result.snapshot.exists()) throw new HttpsError('unavailable', 'Baza hali tayyor emas.');
     return result.snapshot;
   } catch (e) {

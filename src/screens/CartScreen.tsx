@@ -1,14 +1,25 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CartNotice, ConnectionStatus, EmptyState, ScreenHeader } from '../components/ShopUI';
+import { ActionButton, CartNotice, ConnectionStatus, EmptyState, ScreenHeader } from '../components/ShopUI';
+import { readLocal } from '../lib/storage';
+import { useAccount } from '../store/AccountProvider';
 import { useShop } from '../store/ShopProvider';
 import { cartLines, cartSummary, categoryLabel, formatMoney } from '../store/shop';
 import { colors, ui } from '../theme';
 
 export default function CartScreen() {
   const { state, dispatch } = useShop();
+  const { user } = useAccount();
+  const [recoverable, setRecoverable] = useState(false);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setRecoverable(false);
+    if (user) void readLocal<{ attemptId?: string }>('attempt:' + user.uid).then((p) => { if (active) setRecoverable(!!p?.attemptId); }).catch(() => {});
+    return () => { active = false; };
+  }, [user]));
   const items = cartLines(state);
   const { count, total } = cartSummary(state);
 
@@ -18,6 +29,7 @@ export default function CartScreen() {
         <ScreenHeader title="Savat" subtitle={count ? `${items.length} xil mahsulot · ${count} dona` : 'Tanlagan mahsulotlaringiz shu yerda'} />
         <ConnectionStatus />
         <CartNotice />
+        {recoverable && <View style={{ marginHorizontal: 20, marginBottom: 16 }}><ActionButton label="Oldingi buyurtma holatini tekshirish" onPress={() => router.push('/checkout')} /></View>}
         <FlatList
           data={items}
           keyExtractor={(item) => item.id}
@@ -48,15 +60,15 @@ export default function CartScreen() {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`${item.nomi}: miqdorni oshirish`}
-                    accessibilityState={{ disabled: item.quantity >= item.qoldiq || state.status !== 'ready' }}
-                    disabled={item.quantity >= item.qoldiq || state.status !== 'ready'}
+                    accessibilityState={{ disabled: item.quantity >= Math.min(item.qoldiq, 999) || state.status !== 'ready' }}
+                    disabled={item.quantity >= Math.min(item.qoldiq, 999) || state.status !== 'ready'}
                     onPress={() => dispatch({ type: 'quantity', id: item.id, delta: 1 })}
-                    style={({ pressed }) => [styles.stepButton, (item.quantity >= item.qoldiq || state.status !== 'ready') && ui.disabled, pressed && ui.pressed]}
+                    style={({ pressed }) => [styles.stepButton, (item.quantity >= Math.min(item.qoldiq, 999) || state.status !== 'ready') && ui.disabled, pressed && ui.pressed]}
                   ><Text style={styles.stepText}>+</Text></Pressable>
                 </View>
                 <Text style={styles.lineTotal}>{formatMoney(item.narxi * item.quantity)}</Text>
               </View>
-              {item.quantity >= item.qoldiq && <Text style={ui.secondary}>Mavjud qoldiq chegarasiga yetdingiz.</Text>}
+              {item.quantity >= Math.min(item.qoldiq, 999) && <Text style={ui.secondary}>Mavjud qoldiq chegarasiga yetdingiz.</Text>}
             </View>
           )}
         />
@@ -67,7 +79,7 @@ export default function CartScreen() {
               <Text style={ui.price}>{formatMoney(total)}</Text>
             </View>
             <Text style={ui.secondary}>Narxlar va qoldiq jonli yangilanadi.</Text>
-                <ActionButton label="Buyurtma berish" disabled={state.status !== 'ready'} onPress={() => router.push('/checkout')} />
+            <ActionButton label="Buyurtma berish" disabled={state.status !== 'ready'} onPress={() => router.push('/checkout')} />
           </View>
         )}
       </View>

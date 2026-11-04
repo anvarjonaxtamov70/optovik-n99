@@ -48,7 +48,7 @@ export function placeOrder(current, uid, input, now) {
   }
   root.customers ??= {}; root.customers[uid] ??= {};
   const customer = root.customers[uid];
-  const recent = (customer.orderTimes ?? []).filter((t) => Number.isFinite(t) && t > now - 86400000);
+  const recent = (Array.isArray(customer.orderTimes) ? customer.orderTimes : []).filter((t) => Number.isFinite(t) && t > now - 86400000);
   if (recent.length >= 20 || recent.filter((t) => t > now - 60000).length >= 3) fail('Buyurtmalar ko‘payib ketdi. Birozdan keyin urinib ko‘ring.', 'resource-exhausted');
   const items = input.items.map((line) => {
     const p = product(root, line.id);

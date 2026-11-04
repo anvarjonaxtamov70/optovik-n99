@@ -27,6 +27,6 @@ export default function ProductScreen() {
       <ActionButton label={favorites.includes(p.id) ? '♥ Sevimlilarda' : '♡ Sevimlilarga saqlash'} onPress={() => toggleFavorite(p.id)} />
       <ConnectionStatus />
     </ScrollView>
-    <View style={[ui.card, { margin: 16 }]}><ActionButton label={quantity ? 'Savatda ' + quantity + ' dona · Yana qo‘shish' : 'Savatga qo‘shish'} disabled={state.status !== 'ready' || quantity >= p.qoldiq} onPress={() => dispatch({ type: 'quantity', id: p.id, delta: 1 })} /></View>
+    <View style={[ui.card, { margin: 16 }]}><ActionButton label={quantity ? 'Savatda ' + quantity + ' dona · Yana qo‘shish' : 'Savatga qo‘shish'} disabled={state.status !== 'ready' || quantity >= Math.min(p.qoldiq, 999)} onPress={() => dispatch({ type: 'quantity', id: p.id, delta: 1 })} /></View>
   </View></SafeAreaView>;
 }

@@ -27,12 +27,13 @@ export default function ProfileScreen() {
   const canLogin = commerceEnabled && account.ready && !busy && !!email.trim() && password.length >= 8;
   return <SafeAreaView style={ui.screen} edges={['top', 'left', 'right']}><KeyboardAvoidingView style={ui.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 18 }}>
-      <ScreenHeader title="Shaxsiy kabinet" subtitle="Profil, manzillar va buyurtmalaringiz" />
+      <ScreenHeader inset={false} title="Shaxsiy kabinet" subtitle="Profil, manzillar va buyurtmalaringiz" />
       {!commerceEnabled && <Message text="Katalog va savat ishlaydi. Hisob va buyurtma xizmati server sozlangach ochiladi." />}
       <Message text={message || account.problem} />
       {account.user ? <>
         <View style={ui.card}><Text style={ui.name}>{account.user.email}</Text><Text style={ui.secondary}>{account.user.emailVerified ? 'Email tasdiqlangan' : 'Emailingizdagi tasdiqlash havolasini oching.'}</Text>
           {!account.user.emailVerified && <ActionButton disabled={busy} label="Tasdiqlash xatini yuborish" onPress={() => void run(() => sendEmailVerification(account.user!), 'Tasdiqlash xati yuborildi.')} />}
+          {!account.user.emailVerified && <ActionButton disabled={busy} label="Tasdiqlashni tekshirish" onPress={() => void run(async () => { await account.user!.reload(); await account.user!.getIdToken(true); }, 'Hisob holati yangilandi.')} />}
           <Text style={ui.secondary}>Cashback balansi</Text><Text style={ui.price}>{formatMoney(account.balance)}</Text>
         </View>
         <ActionButton label="Buyurtmalarim" onPress={() => router.push('/orders')} />

@@ -18,21 +18,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Install SDK dependencies
-        run: |
-          npm install --ignore-scripts
-          npx expo install @react-native-async-storage/async-storage
-      - name: Dependency lock evidence
-        run: |
-          node - <<'JS'
-          const fs = require('fs');
-          const cp = require('child_process');
-          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
-          const base = JSON.parse(cp.execFileSync('git', ['show', 'HEAD:package-lock.json'], { encoding: 'utf8' }));
-          const diff = Object.fromEntries(Object.entries(lock.packages).filter(([k,v]) => JSON.stringify(v) !== JSON.stringify(base.packages[k])));
-          console.log('LOCK_DIFF_START\n' + JSON.stringify(diff) + '\nLOCK_DIFF_END');
-          JS
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
       - run: npm run typecheck
+      - name: Install server dependencies for lint resolution
+        run: npm ci --prefix functions --ignore-scripts
       - run: npm run lint
       - run: npm test
       - run: npx expo install --check
@@ -57,7 +47,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - run: npm install --prefix functions --ignore-scripts
+      - run: npm ci --prefix functions --ignore-scripts
       - run: node --test tests/commerce.test.mjs
       - name: Real Firebase emulator checks
         run: npx --yes firebase-tools emulators:exec --only auth,database,functions --project demo-optovik "node tests/emulator.mjs"

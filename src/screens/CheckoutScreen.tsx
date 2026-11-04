@@ -26,15 +26,17 @@ export default function CheckoutScreen() {
   const lock = useRef(false);
   const [pending, setPending] = useState<CheckoutInput | null>(null);
   const [pendingLoaded, setPendingLoaded] = useState(false);
+  const [pendingProblem, setPendingProblem] = useState(false);
+  const [readAttempt, setReadAttempt] = useState(0);
   useEffect(() => {
     let active = true;
-    setPendingLoaded(false); setPending(null);
+    setPendingLoaded(false); setPending(null); setPendingProblem(false);
     if (!account.user) { setPendingLoaded(true); return; }
     void readLocal<CheckoutInput>('attempt:' + account.user.uid).then((value) => {
-      if (active) setPending(value?.attemptId && Array.isArray(value.items) ? value : null);
-    }).catch(() => { if (active) setMessage('Oldingi buyurtma holatini telefon xotirasidan o‘qib bo‘lmadi.'); }).finally(() => { if (active) setPendingLoaded(true); });
+      if (active) { setPending(value?.attemptId && Array.isArray(value.items) ? value : null); setPendingLoaded(true); }
+    }).catch(() => { if (active) { setMessage('Oldingi buyurtma holatini telefon xotirasidan o‘qib bo‘lmadi. Qayta tekshiring.'); setPendingProblem(true); } });
     return () => { active = false; };
-  }, [account.user]);
+  }, [account.user, readAttempt]);
   const summary = cartSummary(state);
   const shipping = delivery === 'courier' ? settings.shippingFee : 0;
   const discount = useCashback ? Math.min(Math.max(0, account.balance), Math.floor(summary.total * 0.2)) : 0;
@@ -72,7 +74,7 @@ export default function CheckoutScreen() {
   }
   if (!commerceEnabled) return <View style={[ui.screen, { padding: 20 }]}><EmptyState title="Buyurtma xizmati tayyorlanmoqda" message="Katalog va savatdan foydalanishingiz mumkin. Buyurtma serveri hali ishga tushirilmagan." /></View>;
   if (!account.user) return <View style={[ui.screen, { padding: 20 }]}><EmptyState title="Hisobingizga kiring" message="Buyurtma tarixi va holatini saqlash uchun hisob kerak." action={{ label: 'Profilga o‘tish', onPress: () => router.navigate('/profile') }} /></View>;
-  if (!summary.count && !busy && !pending) return <View style={[ui.screen, { padding: 20 }]}><EmptyState title="Savat bo‘sh" message="Avval mahsulot tanlang." action={{ label: 'Katalogga', onPress: () => router.navigate('/') }} /></View>;
+  if (!summary.count && !busy && !pending && pendingLoaded) return <View style={[ui.screen, { padding: 20 }]}><EmptyState title="Savat bo‘sh" message="Avval mahsulot tanlang." action={{ label: 'Katalogga', onPress: () => router.navigate('/') }} /></View>;
   return <SafeAreaView style={ui.screen} edges={['bottom', 'left', 'right']}><KeyboardAvoidingView style={ui.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 18 }}>
       {pending && <View style={ui.card}><Text style={ui.name}>Oldingi buyurtma javobi kutilmoqda</Text><Text style={ui.secondary}>Holatini tekshirish o‘sha buyurtmani qayta ochadi. Yangi buyurtma yaratilmaydi.</Text><ActionButton label={busy ? 'Tekshirilmoqda…' : 'Buyurtma holatini tekshirish'} disabled={busy} onPress={() => void submit(true)} /></View>}
@@ -92,6 +94,7 @@ export default function CheckoutScreen() {
         <Text style={ui.price}>Jami: {formatMoney(summary.total + shipping - discount)}</Text>
       </View>
       <ConnectionStatus /><Message text={message} />
+      {pendingProblem && <ActionButton label="Xotirani qayta tekshirish" onPress={() => setReadAttempt((n) => n + 1)} />}
       <ActionButton label={busy ? 'Buyurtma yuborilmoqda…' : 'Buyurtmani tasdiqlash'} disabled={busy || !!pending || !pendingLoaded || state.status !== 'ready' || customer.name.trim().length < 2 || customer.phone.replace(/\D/g, '').length < 9 || (delivery === 'courier' && customer.address.trim().length < 8)} onPress={() => void submit()} />
     </ScrollView>
   </KeyboardAvoidingView></SafeAreaView>;
