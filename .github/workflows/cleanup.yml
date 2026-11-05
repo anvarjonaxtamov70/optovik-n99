@@ -1,0 +1,22 @@
+name: Cleanup
+on:
+  workflow_dispatch:
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Delete old components
+        run: |
+          rm -f src/components/CategoryBar.tsx
+          rm -f src/components/SearchHeader.tsx
+          rm -f src/components/PromoBanners.tsx
+          rm -f src/components/ProductCard.tsx
+          rm -f src/store/theme.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Ortiqcha xatoli fayllar ochirildi" || echo "Fayllar allaqachon yo'q"
+          git push
