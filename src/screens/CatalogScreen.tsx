@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 export const colors = {
   primary: '#48C0F8',
@@ -29,6 +28,32 @@ export const colors = {
   borderLight: '#F1F5F9',
   badgeDiscount: '#EF4444',
   success: '#10B981',
+};
+
+const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({ name, size = 16, color = colors.text }) => {
+  const glyphs: Record<string, string> = {
+    'location-sharp': '📍',
+    'chevron-down': '⌄',
+    'search-outline': '🔍',
+    'close-circle': '✕',
+    'options-outline': '🎛️',
+    'arrow-forward': '→',
+    'car-sport-outline': '🚗',
+    'hardware-chip-outline': '⚙️',
+    'disc-outline': '🔘',
+    'battery-charging-outline': '⚡',
+    'grid-outline': '▦',
+    'swap-vertical-outline': '⇅',
+    'scale-outline': '⚖️',
+    'heart': '❤️',
+    'heart-outline': '🤍',
+    'remove': '−',
+    'add': '+',
+    'bag-handle-outline': '🛍️',
+    'checkmark': '✓',
+    'checkmark-circle': '✓',
+  };
+  return <Text style={{ fontSize: size, color, textAlign: 'center' }}>{glyphs[name] || '•'}</Text>;
 };
 
 export interface ProductItem {
@@ -174,16 +199,16 @@ export function CatalogScreen() {
         </View>
 
         <TouchableOpacity style={styles.locationPill} activeOpacity={0.8}>
-          <Ionicons name="location-sharp" size={15} color={colors.primaryDark} />
+          <Icon name="location-sharp" size={15} color={colors.primaryDark} />
           <Text style={styles.locationText}>Samarqand</Text>
-          <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
+          <Icon name="chevron-down" size={13} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
       {/* 2. Search & Filter Bar */}
       <View style={styles.searchRow}>
         <View style={styles.inputWrapper}>
-          <Ionicons name="search-outline" size={19} color={colors.textSecondary} />
+          <Icon name="search-outline" size={19} color={colors.textSecondary} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -193,7 +218,7 @@ export function CatalogScreen() {
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              <Icon name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -203,7 +228,7 @@ export function CatalogScreen() {
           activeOpacity={0.85}
           onPress={() => setIsFilterModalOpen(true)}
         >
-          <Ionicons
+          <Icon
             name="options-outline"
             size={21}
             color={selectedCategory !== 'all' ? '#FFFFFF' : colors.text}
@@ -224,7 +249,7 @@ export function CatalogScreen() {
               <Text style={styles.bannerSubtitle}>Cobalt · Gentra · Nexia</Text>
               <View style={styles.actionPill}>
                 <Text style={styles.actionPillText}>Qismlarni ko‘rish</Text>
-                <Ionicons name="arrow-forward" size={13} color={colors.text} />
+                <Icon name="arrow-forward" size={13} color={colors.text} />
               </View>
             </View>
             <Image
@@ -243,7 +268,7 @@ export function CatalogScreen() {
               <Text style={styles.bannerTitleSmall}>Avtomobilingizga{'\n'}qulaylik</Text>
               <View style={styles.actionPill}>
                 <Text style={styles.actionPillText}>Aksessuarlarni ko‘rish</Text>
-                <Ionicons name="arrow-forward" size={13} color={colors.text} />
+                <Icon name="arrow-forward" size={13} color={colors.text} />
               </View>
             </View>
             <Image
@@ -266,7 +291,7 @@ export function CatalogScreen() {
               onPress={() => setSelectedCategory(isSelected && cat.id !== 'all' ? 'all' : cat.id)}
             >
               <View style={[styles.categoryIconBox, isSelected && styles.categoryIconBoxSelected]}>
-                <Ionicons name={cat.icon as any} size={23} color={isSelected ? '#FFF' : colors.text} />
+                <Icon name={cat.icon as any} size={23} color={isSelected ? '#FFF' : colors.text} />
               </View>
               <Text style={[styles.categoryLabel, isSelected && styles.categoryLabelSelected]}>
                 {cat.label}
@@ -283,7 +308,7 @@ export function CatalogScreen() {
           <Text style={styles.sortButtonText}>
             {sortBy === 'price_asc' ? 'Avval arzon' : sortBy === 'price_desc' ? 'Avval qimmat' : sortBy === 'discount' ? 'Aksiyalar' : 'Saralash'}
           </Text>
-          <Ionicons name="swap-vertical-outline" size={14} color={colors.text} />
+          <Icon name="swap-vertical-outline" size={14} color={colors.text} />
         </TouchableOpacity>
       </View>
     </View>
@@ -321,7 +346,7 @@ export function CatalogScreen() {
                     style={[styles.badgeCircle, isCompared && styles.badgeCircleActive]}
                     onPress={() => setComparedIds((p) => ({ ...p, [item.id]: !p[item.id] }))}
                   >
-                    <Ionicons name="scale-outline" size={14} color={isCompared ? colors.primaryDark : colors.textSecondary} />
+                    <Icon name="scale-outline" size={14} color={isCompared ? colors.primaryDark : colors.textSecondary} />
                   </TouchableOpacity>
 
                   {hasDiscount && (
@@ -335,7 +360,7 @@ export function CatalogScreen() {
                   style={styles.topRightBadge}
                   onPress={() => setSavedIds((p) => ({ ...p, [item.id]: !p[item.id] }))}
                 >
-                  <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={16} color={isFav ? colors.badgeDiscount : colors.text} />
+                  <Icon name={isFav ? 'heart' : 'heart-outline'} size={16} color={isFav ? colors.badgeDiscount : colors.text} />
                 </TouchableOpacity>
               </View>
 
@@ -352,16 +377,16 @@ export function CatalogScreen() {
                 {qty > 0 ? (
                   <View style={styles.stepperContainer}>
                     <TouchableOpacity onPress={() => updateCart(item.id, -1)} style={styles.stepperBtn}>
-                      <Ionicons name="remove" size={18} color={colors.text} />
+                      <Icon name="remove" size={18} color={colors.text} />
                     </TouchableOpacity>
                     <Text style={styles.stepperValue}>{qty}</Text>
                     <TouchableOpacity onPress={() => updateCart(item.id, 1)} style={styles.stepperBtn}>
-                      <Ionicons name="add" size={18} color={colors.text} />
+                      <Icon name="add" size={18} color={colors.text} />
                     </TouchableOpacity>
                   </View>
                 ) : (
                   <TouchableOpacity style={styles.addToCartButton} activeOpacity={0.85} onPress={() => updateCart(item.id, 1)}>
-                    <Ionicons name="bag-handle-outline" size={17} color={colors.text} />
+                    <Icon name="bag-handle-outline" size={17} color={colors.text} />
                     <Text style={styles.addToCartText}>Savatga</Text>
                   </TouchableOpacity>
                 )}
@@ -392,7 +417,7 @@ export function CatalogScreen() {
                 <Text style={[styles.sheetOptionText, sortBy === opt.id && styles.sheetOptionTextActive]}>
                   {opt.label}
                 </Text>
-                {sortBy === opt.id && <Ionicons name="checkmark-circle" size={20} color={colors.primaryDark} />}
+                {sortBy === opt.id && <Icon name="checkmark-circle" size={20} color={colors.primaryDark} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -421,7 +446,7 @@ export function CatalogScreen() {
                 <Text style={[styles.sheetOptionText, selectedCategory === cat.id && styles.sheetOptionTextActive]}>
                   {cat.label}
                 </Text>
-                {selectedCategory === cat.id && <Ionicons name="checkmark" size={18} color={colors.primaryDark} />}
+                {selectedCategory === cat.id && <Icon name="checkmark" size={18} color={colors.primaryDark} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -621,42 +646,4 @@ const styles = StyleSheet.create({
     height: 42,
     backgroundColor: colors.primary,
     borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-  },
-  addToCartText: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  stepperContainer: {
-    height: 42,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-  },
-  stepperBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  stepperValue: { fontSize: 15, fontWeight: '800', color: colors.text },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'flex-end' },
-  bottomSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 36,
-  },
-  sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 16 },
-  sheetOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-  },
-  sheetOptionActive: { backgroundColor: colors.primarySoft, paddingHorizontal: 8, borderRadius: 12 },
-  sheetOptionText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
-  sheetOptionTextActive: { color: colors.primaryDark, fontWeight: '800' },
-});
+    flexDirection: '
