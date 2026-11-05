@@ -4,15 +4,23 @@ export const colors = {
   accent: '#247bc1',
   success: '#16784e',
   text: '#111827',
-  muted: '#4b6074',
+  muted: '#384454',
   white: '#ffffff',
-  background: '#f1f8ff',
-  blue: '#8ed2ff',
-  blueLight: '#e1f2ff',
+  background: '#f7fafd',
+  blue: '#78cefa',
+  blueLight: '#e4f4ff',
   border: '#d8e8f4',
   disabled: '#e5ebf0',
   warning: '#fff3dd',
+  sale: '#ed3c3c',
+  photo: '#f0f3f6',
 };
+
+export const shadows = StyleSheet.create({
+  card: { shadowColor: '#285476', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 3 },
+  button: { shadowColor: '#218bc2', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 7, elevation: 2 },
+  small: { shadowColor: '#22364b', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 2 },
+});
 
 export const ui = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },

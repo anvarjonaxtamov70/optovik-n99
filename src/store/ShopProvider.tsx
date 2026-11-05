@@ -3,15 +3,18 @@ import { createContext, useContext, useEffect, useReducer, useState, type Dispat
 
 import { db } from '../../firebaseConfig';
 import { readLocal, saveLocal } from '../lib/storage';
+import { toggleComparison } from './catalog';
 import { initialShopState, readCachedProducts, readProducts, shopReducer, type ShopAction, type ShopState } from './shop';
 
 const ShopContext = createContext<{
   state: ShopState; dispatch: Dispatch<ShopAction>; retry: () => void;
+  compareIds: string[]; toggleCompare: (id: string) => void;
   favorites: string[]; toggleFavorite: (id: string) => void; storageProblem: boolean;
 } | null>(null);
 
 export function ShopProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(shopReducer, initialShopState);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [canPersist, setCanPersist] = useState(false);
@@ -69,7 +72,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     }, () => { if (active) { clearTimeout(timer); latest = null; dispatch({ type: 'error' }); } });
     return () => { active = false; clearTimeout(timer); unsubscribe(); offConnection(); };
   }, [attempt, hydrated, hasCache]);
-  return <ShopContext.Provider value={{ state, dispatch, favorites, storageProblem,
+  const visibleCompareIds = compareIds.filter((id) => state.products.some((p) => p.id === id));
+  return <ShopContext.Provider value={{ state, dispatch, favorites, storageProblem, compareIds: visibleCompareIds,
+    toggleCompare: (id) => setCompareIds((ids) => toggleComparison(ids.filter((key) => state.products.some((p) => p.id === key)), id)),
     retry: () => setAttempt((n) => n + 1),
     toggleFavorite: (id) => setFavorites((ids) => ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id].slice(-500)),
   }}>{children}</ShopContext.Provider>;

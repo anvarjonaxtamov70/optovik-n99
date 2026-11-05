@@ -14,6 +14,7 @@ export default function App() {
       <Stack.Screen name="orders" options={{ title: 'Buyurtmalarim' }} />
       <Stack.Screen name="order/[uid]/[id]" options={{ title: 'Buyurtma' }} />
       <Stack.Screen name="admin" options={{ title: 'Do‘kon boshqaruvi' }} />
+      <Stack.Screen name="compare" options={{ title: 'Taqqoslash' }} />
     </Stack>
   </ShopProvider></AccountProvider>;
 }
