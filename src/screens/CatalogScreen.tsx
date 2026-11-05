@@ -2,8 +2,8 @@ import React, { useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
+  Modal,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -11,183 +11,279 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-interface ProductItem {
+export const colors = {
+  primary: '#48C0F8',
+  primaryDark: '#0284C7',
+  primaryLight: '#E0F2FE',
+  primarySoft: '#F0F9FF',
+  background: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceSecondary: '#F8FAFC',
+  surfaceMuted: '#F1F5F9',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#94A3B8',
+  border: '#E2E8F0',
+  borderLight: '#F1F5F9',
+  badgeDiscount: '#EF4444',
+  success: '#10B981',
+};
+
+export interface ProductItem {
   id: string;
   nomi: string;
   narx: number;
   eskiNarx?: number;
-  kategoriya?: string;
-  model?: string;
-  artikul?: string;
+  ombor?: number;
   rasm?: string;
+  model?: string;
+  kategoriya?: string;
+  aksiya?: boolean;
 }
 
-interface CartItem {
-  mahsulotId: string;
-  miqdor: number;
-}
-
-const DEFAULT_PRODUCTS: ProductItem[] = [
+const SAMPLE_PRODUCTS: ProductItem[] = [
   {
-    id: '1',
+    id: 'gazel/filter',
     nomi: 'Moy filtri',
+    model: 'Cobalt · Gentra',
     narx: 85000,
     eskiNarx: 100000,
-    kategoriya: 'dvigatel',
-    model: 'Cobalt · Gentra',
+    ombor: 15,
     rasm: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=600&q=80',
+    kategoriya: 'dvigatel',
+    aksiya: true,
   },
   {
-    id: '2',
+    id: 'accessories/holder',
     nomi: 'Telefon tutqichi',
+    model: 'Universal',
     narx: 65000,
+    ombor: 20,
+    rasm: 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=600&q=80',
     kategoriya: 'aksessuarlar',
-    model: 'Universal',
-    rasm: 'https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=600&q=80',
   },
   {
-    id: '3',
-    nomi: 'Tormoz kolodkasi',
-    narx: 140000,
+    id: 'brakes/pads',
+    nomi: 'Old tormoz kolodkasi',
+    model: 'Cobalt · Nexia 3',
+    narx: 145000,
+    eskiNarx: 170000,
+    ombor: 8,
+    rasm: 'https://images.unsplash.com/photo-1600790142055-619df03207e6?auto=format&fit=crop&w=600&q=80',
     kategoriya: 'tormoz',
-    model: 'Nexia 3 · Cobalt',
-    rasm: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=600&q=80',
+    aksiya: true,
   },
   {
-    id: '4',
-    nomi: 'Akumulyator 60Ah',
-    narx: 520000,
-    eskiNarx: 580000,
+    id: 'electric/spark',
+    nomi: 'Zajigalka svechasi (4 dona)',
+    model: 'Gentra 1.5 · Cobalt',
+    narx: 120000,
+    ombor: 10,
+    rasm: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=600&q=80',
     kategoriya: 'elektrika',
-    model: 'Universal',
-    rasm: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    id: 'accessories/dashcam',
+    nomi: 'Avtomobil videoregistratori',
+    model: 'Full HD 1080p',
+    narx: 380000,
+    eskiNarx: 420000,
+    ombor: 6,
+    rasm: 'https://images.unsplash.com/photo-1508974239320-0a029497e820?auto=format&fit=crop&w=600&q=80',
+    kategoriya: 'aksessuarlar',
+    aksiya: true,
+  },
+  {
+    id: 'engine/belt',
+    nomi: 'Generator kamari (Remen)',
+    model: 'Cobalt · Nexia',
+    narx: 75000,
+    ombor: 18,
+    rasm: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=600&q=80',
+    kategoriya: 'dvigatel',
   },
 ];
 
 const CATEGORIES = [
-  { id: 'aksessuarlar', label: 'Aksessuarlar', icon: '🚗' },
-  { id: 'dvigatel', label: 'Dvigatel', icon: '⚙️' },
-  { id: 'tormoz', label: 'Tormoz', icon: '🔘' },
-  { id: 'elektrika', label: 'Elektrika', icon: '🔋' },
-  { id: 'all', label: 'Barchasi', icon: '▦' },
-];
+  { id: 'aksessuarlar', label: 'Aksessuarlar', icon: 'car-sport-outline' },
+  { id: 'dvigatel', label: 'Dvigatel', icon: 'hardware-chip-outline' },
+  { id: 'tormoz', label: 'Tormoz', icon: 'disc-outline' },
+  { id: 'elektrika', label: 'Elektrika', icon: 'battery-charging-outline' },
+  { id: 'all', label: 'Barchasi', icon: 'grid-outline' },
+] as const;
 
-export const CatalogScreen = () => {
-  const [products] = useState<ProductItem[]>(DEFAULT_PRODUCTS);
-  const [cart, setCart] = useState<CartItem[]>([{ mahsulotId: '2', miqdor: 1 }]);
-  const [savedIds, setSavedIds] = useState<string[]>(['1']);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+function formatPrice(price: number): string {
+  return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+export function CatalogScreen() {
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [cartQuantities, setCartQuantities] = useState<Record<string, number>>({
+    'accessories/holder': 1,
+  });
+  const [savedIds, setSavedIds] = useState<Record<string, boolean>>({});
+  const [comparedIds, setComparedIds] = useState<Record<string, boolean>>({});
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<'default' | 'price_asc' | 'price_desc' | 'discount'>('default');
 
-  const filteredProducts = useMemo(() => {
-    return products
-      .filter((item) => {
-        const matchesCat =
-          selectedCategory === 'all' ||
-          item.kategoriya?.toLowerCase() === selectedCategory.toLowerCase();
-        const matchesSearch =
-          item.nomi.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (item.artikul && item.artikul.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (item.model && item.model.toLowerCase().includes(searchQuery.toLowerCase()));
-        return matchesCat && matchesSearch;
-      })
-      .sort((a, b) => (sortOrder === 'asc' ? a.narx - b.narx : b.narx - a.narx));
-  }, [products, selectedCategory, searchQuery, sortOrder]);
-
-  const updateQuantity = (id: string, delta: number) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.mahsulotId === id);
-      if (!existing && delta > 0) return [...prev, { mahsulotId: id, miqdor: 1 }];
-      if (existing) {
-        const newQty = existing.miqdor + delta;
-        if (newQty <= 0) return prev.filter((item) => item.mahsulotId !== id);
-        return prev.map((item) => (item.mahsulotId === id ? { ...item, miqdor: newQty } : item));
+  const productsList = useMemo(() => {
+    let list = SAMPLE_PRODUCTS.filter((item) => {
+      if (selectedCategory !== 'all' && item.kategoriya !== selectedCategory) return false;
+      if (searchQuery.trim().length > 0) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = item.nomi.toLowerCase().includes(q);
+        const matchesModel = (item.model || '').toLowerCase().includes(q);
+        if (!matchesName && !matchesModel) return false;
       }
-      return prev;
+      return true;
+    });
+
+    if (sortBy === 'price_asc') list = [...list].sort((a, b) => a.narx - b.narx);
+    if (sortBy === 'price_desc') list = [...list].sort((a, b) => b.narx - a.narx);
+    if (sortBy === 'discount') list = [...list].sort((a, b) => ((b.eskiNarx || b.narx) - b.narx) - ((a.eskiNarx || a.narx) - a.narx));
+
+    return list;
+  }, [selectedCategory, searchQuery, sortBy]);
+
+  const updateCart = (id: string, delta: number) => {
+    setCartQuantities((prev) => {
+      const current = prev[id] || 0;
+      const next = Math.max(0, current + delta);
+      if (next === 0) {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      }
+      return { ...prev, [id]: next };
     });
   };
 
-  const toggleSave = (id: string) => {
-    setSavedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
-  };
-
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <View style={styles.topBar}>
-        <View>
-          <Text style={styles.brandTitle}>OPTOVIK N99</Text>
-          <View style={styles.brandAccentLine} />
+    <View style={styles.header}>
+      {/* 1. Brand Logo & Location */}
+      <View style={styles.topBrandBar}>
+        <View style={styles.brandWrapper}>
+          <Text style={styles.brandTitle}>
+            OPTOVIK <Text style={styles.brandNumber}>N99</Text>
+          </Text>
+          <View style={styles.brandSwoosh} />
         </View>
-        <TouchableOpacity style={styles.locationBadge} activeOpacity={0.7}>
-          <Text style={styles.emojiIcon}>📍</Text>
-          <Text style={styles.locationText}>Samarqand ⌵</Text>
+
+        <TouchableOpacity style={styles.locationPill} activeOpacity={0.8}>
+          <Ionicons name="location-sharp" size={15} color={colors.primaryDark} />
+          <Text style={styles.locationText}>Samarqand</Text>
+          <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
+      {/* 2. Search & Filter Bar */}
       <View style={styles.searchRow}>
-        <View style={styles.searchInputWrapper}>
-          <Text style={styles.emojiIcon}>🔍</Text>
+        <View style={styles.inputWrapper}>
+          <Ionicons name="search-outline" size={19} color={colors.textSecondary} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Detal yoki aksessuar qidiring"
-            placeholderTextColor="#94A3B8"
-            style={styles.searchInput}
+            placeholderTextColor={colors.textMuted}
+            style={styles.textInput}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text style={styles.emojiIcon}>✕</Text>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity style={styles.filterButton} onPress={() => setSortOrder(p => p === 'asc' ? 'desc' : 'asc')}>
-          <Text style={styles.emojiIcon}>⚙️</Text>
+
+        <TouchableOpacity
+          style={[styles.filterButton, selectedCategory !== 'all' && styles.filterButtonActive]}
+          activeOpacity={0.85}
+          onPress={() => setIsFilterModalOpen(true)}
+        >
+          <Ionicons
+            name="options-outline"
+            size={21}
+            color={selectedCategory !== 'all' ? '#FFFFFF' : colors.text}
+          />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.bannerContainer}>
-        <TouchableOpacity style={styles.gmBanner} activeOpacity={0.9} onPress={() => setSelectedCategory('all')}>
-          <View style={styles.bannerContent}>
-            <Text style={styles.bannerTitle}>{'GM uchun\nehtiyot qismlar'}</Text>
-            <Text style={styles.bannerSubtitle}>Cobalt · Gentra · Nexia</Text>
-            <View style={styles.bannerActionBtn}>
-              <Text style={styles.bannerActionBtnText}>Qismlarni ko‘rish →</Text>
-            </View>
-          </View>
-          <Image source={{ uri: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80' }} style={styles.bannerImage} resizeMode="contain" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.accBanner} activeOpacity={0.9} onPress={() => setSelectedCategory('aksessuarlar')}>
-          <View style={styles.bannerContent}>
-            <Text style={styles.bannerTitle}>{'Avtomobilingizga\nqulaylik'}</Text>
-            <View style={[styles.bannerActionBtn, { marginTop: 8 }]}>
-              <Text style={styles.bannerActionBtnText}>Aksessuarlarni ko‘rish →</Text>
-            </View>
-          </View>
-          <Image source={{ uri: 'https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=600&q=80' }} style={styles.bannerImageSmall} resizeMode="contain" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-        {CATEGORIES.map((cat) => {
-          const isSel = selectedCategory === cat.id;
-          return (
-            <TouchableOpacity key={cat.id} style={styles.categoryItem} onPress={() => setSelectedCategory(cat.id)}>
-              <View style={[styles.categoryIconBox, isSel && styles.categoryIconBoxSelected]}>
-                <Text style={{ fontSize: 22 }}>{cat.icon}</Text>
+      {/* 3. Promo Banners */}
+      {searchQuery.trim().length === 0 && (
+        <View style={styles.bannersContainer}>
+          <TouchableOpacity
+            style={styles.bannerCard}
+            activeOpacity={0.9}
+            onPress={() => setSelectedCategory('dvigatel')}
+          >
+            <View style={styles.bannerContent}>
+              <Text style={styles.bannerTitle}>GM uchun{'\n'}ehtiyot qismlar</Text>
+              <Text style={styles.bannerSubtitle}>Cobalt · Gentra · Nexia</Text>
+              <View style={styles.actionPill}>
+                <Text style={styles.actionPillText}>Qismlarni ko‘rish</Text>
+                <Ionicons name="arrow-forward" size={13} color={colors.text} />
               </View>
-              <Text style={[styles.categoryLabel, isSel && styles.categoryLabelSelected]}>{cat.label}</Text>
+            </View>
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80' }}
+              style={styles.bannerImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.bannerCard, styles.bannerCardSecond]}
+            activeOpacity={0.9}
+            onPress={() => setSelectedCategory('aksessuarlar')}
+          >
+            <View style={styles.bannerContent}>
+              <Text style={styles.bannerTitleSmall}>Avtomobilingizga{'\n'}qulaylik</Text>
+              <View style={styles.actionPill}>
+                <Text style={styles.actionPillText}>Aksessuarlarni ko‘rish</Text>
+                <Ionicons name="arrow-forward" size={13} color={colors.text} />
+              </View>
+            </View>
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=600&q=80' }}
+              style={styles.bannerImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 4. Category Icons */}
+      <View style={styles.categoriesRow}>
+        {CATEGORIES.map((cat) => {
+          const isSelected = selectedCategory === cat.id;
+          return (
+            <TouchableOpacity
+              key={cat.id}
+              style={styles.categoryItem}
+              onPress={() => setSelectedCategory(isSelected && cat.id !== 'all' ? 'all' : cat.id)}
+            >
+              <View style={[styles.categoryIconBox, isSelected && styles.categoryIconBoxSelected]}>
+                <Ionicons name={cat.icon as any} size={23} color={isSelected ? '#FFF' : colors.text} />
+              </View>
+              <Text style={[styles.categoryLabel, isSelected && styles.categoryLabelSelected]}>
+                {cat.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
 
-      <View style={styles.catalogHeadingRow}>
-        <Text style={styles.catalogTitle}>Mahsulotlar</Text>
-        <TouchableOpacity style={styles.sortToggleBtn} onPress={() => setSortOrder(p => p === 'asc' ? 'desc' : 'asc')}>
-          <Text style={styles.sortToggleText}>Saralash {sortOrder === 'asc' ? '↑' : '↓'}</Text>
+      {/* 5. Products Section Title and Sort */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Mahsulotlar</Text>
+        <TouchableOpacity style={styles.sortButton} onPress={() => setIsSortModalOpen(true)}>
+          <Text style={styles.sortButtonText}>
+            {sortBy === 'price_asc' ? 'Avval arzon' : sortBy === 'price_desc' ? 'Avval qimmat' : sortBy === 'discount' ? 'Aksiyalar' : 'Saralash'}
+          </Text>
+          <Ionicons name="swap-vertical-outline" size={14} color={colors.text} />
         </TouchableOpacity>
       </View>
     </View>
@@ -195,54 +291,78 @@ export const CatalogScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
       <FlatList
-        data={filteredProducts}
+        data={productsList}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        ListHeaderComponent={renderHeader}
         columnWrapperStyle={styles.columnWrapper}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={renderHeader}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
-          const cartItem = cart.find((c) => c.mahsulotId === item.id);
-          const quantity = cartItem?.miqdor || 0;
-          const isSaved = savedIds.includes(item.id);
+          const qty = cartQuantities[item.id] || 0;
+          const isFav = Boolean(savedIds[item.id]);
+          const isCompared = Boolean(comparedIds[item.id]);
           const hasDiscount = Boolean(item.eskiNarx && item.eskiNarx > item.narx);
 
           return (
             <View style={styles.cardContainer}>
-              <View style={styles.cardMediaArea}>
-                <Image source={{ uri: item.rasm }} style={styles.cardImage} resizeMode="contain" />
-                <View style={styles.leftBadges}>
-                  <View style={styles.circleBadge}><Text style={{ fontSize: 13 }}>⚖️</Text></View>
-                  {hasDiscount && <View style={styles.discountBadge}><Text style={styles.discountBadgeText}>-15%</Text></View>}
+              <View style={styles.imageWrapper}>
+                <Image
+                  source={{ uri: item.rasm || 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=600&q=80' }}
+                  style={styles.productImage}
+                  resizeMode="contain"
+                />
+
+                <View style={styles.topLeftBadges}>
+                  <TouchableOpacity
+                    style={[styles.badgeCircle, isCompared && styles.badgeCircleActive]}
+                    onPress={() => setComparedIds((p) => ({ ...p, [item.id]: !p[item.id] }))}
+                  >
+                    <Ionicons name="scale-outline" size={14} color={isCompared ? colors.primaryDark : colors.textSecondary} />
+                  </TouchableOpacity>
+
+                  {hasDiscount && (
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountText}>-15%</Text>
+                    </View>
+                  )}
                 </View>
-                <TouchableOpacity style={styles.heartBadge} onPress={() => toggleSave(item.id)}>
-                  <Text style={[styles.heartText, isSaved && styles.heartActive]}>{isSaved ? '♥' : '♡'}</Text>
+
+                <TouchableOpacity
+                  style={styles.topRightBadge}
+                  onPress={() => setSavedIds((p) => ({ ...p, [item.id]: !p[item.id] }))}
+                >
+                  <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={16} color={isFav ? colors.badgeDiscount : colors.text} />
                 </TouchableOpacity>
               </View>
-              <View style={styles.cardDetailsArea}>
-                <Text style={styles.cardName} numberOfLines={2}>{item.nomi}</Text>
-                <Text style={styles.cardModel} numberOfLines={1}>{item.model || 'Universal'}</Text>
-                <Text style={styles.cardStockText}>Mavjud</Text>
+
+              <View style={styles.cardContent}>
+                <Text style={styles.productTitle} numberOfLines={2}>{item.nomi}</Text>
+                <Text style={styles.productModel} numberOfLines={1}>{item.model || 'Universal'}</Text>
+                <Text style={styles.stockStatus}>Mavjud</Text>
+
                 <View style={styles.priceRow}>
-                  <Text style={styles.priceCurrent}>{item.narx?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} so‘m</Text>
-                  {hasDiscount && <Text style={styles.priceOld}>{item.eskiNarx?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}</Text>}
+                  <Text style={styles.currentPrice}>{formatPrice(item.narx)} so‘m</Text>
+                  {hasDiscount && <Text style={styles.oldPrice}>{formatPrice(item.eskiNarx!)}</Text>}
                 </View>
-                {quantity > 0 ? (
+
+                {qty > 0 ? (
                   <View style={styles.stepperContainer}>
-                    <TouchableOpacity style={{ padding: 4 }} onPress={() => updateQuantity(item.id, -1)}>
-                      <Text style={styles.stepperSign}>−</Text>
+                    <TouchableOpacity onPress={() => updateCart(item.id, -1)} style={styles.stepperBtn}>
+                      <Ionicons name="remove" size={18} color={colors.text} />
                     </TouchableOpacity>
-                    <Text style={styles.stepperQtyText}>{quantity}</Text>
-                    <TouchableOpacity style={{ padding: 4 }} onPress={() => updateQuantity(item.id, 1)}>
-                      <Text style={styles.stepperSign}>+</Text>
+                    <Text style={styles.stepperValue}>{qty}</Text>
+                    <TouchableOpacity onPress={() => updateCart(item.id, 1)} style={styles.stepperBtn}>
+                      <Ionicons name="add" size={18} color={colors.text} />
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <TouchableOpacity style={styles.cartButton} onPress={() => updateQuantity(item.id, 1)}>
-                    <Text style={{ fontSize: 14 }}>🛍️</Text>
-                    <Text style={styles.cartButtonText}>Savatga</Text>
+                  <TouchableOpacity style={styles.addToCartButton} activeOpacity={0.85} onPress={() => updateCart(item.id, 1)}>
+                    <Ionicons name="bag-handle-outline" size={17} color={colors.text} />
+                    <Text style={styles.addToCartText}>Savatga</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -250,67 +370,293 @@ export const CatalogScreen = () => {
           );
         }}
       />
+
+      <Modal visible={isSortModalOpen} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setIsSortModalOpen(false)}>
+          <View style={styles.bottomSheet}>
+            <Text style={styles.sheetTitle}>Saralash</Text>
+            {[
+              { id: 'default', label: 'Tavsiya etilgan (Ommabop)' },
+              { id: 'price_asc', label: 'Narx: arzonroqdan qimmatroqqa' },
+              { id: 'price_desc', label: 'Narx: qimmatroqdan arzonroqqa' },
+              { id: 'discount', label: 'Aksiyalar va chegirmalar' },
+            ].map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.sheetOption, sortBy === opt.id && styles.sheetOptionActive]}
+                onPress={() => {
+                  setSortBy(opt.id as any);
+                  setIsSortModalOpen(false);
+                }}
+              >
+                <Text style={[styles.sheetOptionText, sortBy === opt.id && styles.sheetOptionTextActive]}>
+                  {opt.label}
+                </Text>
+                {sortBy === opt.id && <Ionicons name="checkmark-circle" size={20} color={colors.primaryDark} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={isFilterModalOpen} transparent animationType="slide">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setIsFilterModalOpen(false)}>
+          <View style={styles.bottomSheet}>
+            <Text style={styles.sheetTitle}>Bo‘limlar</Text>
+            {[
+              { id: 'all', label: 'Barcha mahsulotlar' },
+              { id: 'aksessuarlar', label: 'Aksessuarlar' },
+              { id: 'dvigatel', label: 'Dvigatel' },
+              { id: 'tormoz', label: 'Tormoz' },
+              { id: 'elektrika', label: 'Elektrika' },
+            ].map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.sheetOption, selectedCategory === cat.id && styles.sheetOptionActive]}
+                onPress={() => {
+                  setSelectedCategory(cat.id);
+                  setIsFilterModalOpen(false);
+                }}
+              >
+                <Text style={[styles.sheetOptionText, selectedCategory === cat.id && styles.sheetOptionTextActive]}>
+                  {cat.label}
+                </Text>
+                {selectedCategory === cat.id && <Ionicons name="checkmark" size={18} color={colors.primaryDark} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
-};
+}
+
+export default CatalogScreen;
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
-  listContent: { paddingBottom: 40 },
-  headerContainer: { paddingHorizontal: 16, paddingTop: 8 },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  brandTitle: { fontSize: 22, fontWeight: '900', color: '#0F172A', letterSpacing: 0.3 },
-  brandAccentLine: { width: 60, height: 3, backgroundColor: '#48C0F8', borderRadius: 2, marginTop: 2 },
-  locationBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, gap: 4 },
-  locationText: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
-  searchRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  searchInputWrapper: { flex: 1, height: 48, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8 },
-  searchInput: { flex: 1, fontSize: 14, color: '#0F172A' },
-  filterButton: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' },
-  bannerContainer: { gap: 10, marginBottom: 16 },
-  gmBanner: { height: 140, borderRadius: 18, backgroundColor: '#E0F2FE', flexDirection: 'row', padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#BAE6FD', overflow: 'hidden' },
-  accBanner: { height: 110, borderRadius: 18, backgroundColor: '#F0F9FF', flexDirection: 'row', padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#E0F2FE', overflow: 'hidden' },
+  header: { backgroundColor: '#FFFFFF' },
+  listContent: { paddingBottom: 50 },
+  columnWrapper: { paddingHorizontal: 16, gap: 12 },
+  topBrandBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    marginBottom: 10,
+  },
+  brandWrapper: { position: 'relative', paddingBottom: 4 },
+  brandTitle: { fontSize: 22, fontWeight: '900', color: colors.text },
+  brandNumber: { color: colors.text },
+  brandSwoosh: {
+    position: 'absolute',
+    bottom: 0,
+    left: 2,
+    width: 68,
+    height: 3,
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+  },
+  locationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 9999,
+  },
+  locationText: { fontSize: 13, fontWeight: '700', color: colors.text },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 },
+  inputWrapper: {
+    flex: 1,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 8,
+  },
+  textInput: { flex: 1, height: '100%', fontSize: 14, color: colors.text },
+  filterButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterButtonActive: { backgroundColor: colors.primaryDark },
+  bannersContainer: { paddingHorizontal: 16, paddingTop: 12, gap: 10 },
+  bannerCard: {
+    height: 140,
+    borderRadius: 20,
+    backgroundColor: '#E0F2FE',
+    flexDirection: 'row',
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    overflow: 'hidden',
+  },
+  bannerCardSecond: { backgroundColor: '#EBF5FE', borderColor: '#CBE5FD' },
   bannerContent: { flex: 1.2 },
-  bannerTitle: { fontSize: 17, fontWeight: '900', color: '#0F172A', lineHeight: 22 },
-  bannerSubtitle: { fontSize: 12, color: '#475569', marginVertical: 4 },
-  bannerActionBtn: { alignSelf: 'flex-start', backgroundColor: '#48C0F8', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginTop: 4 },
-  bannerActionBtnText: { fontSize: 11, fontWeight: '700', color: '#0F172A' },
+  bannerTitle: { fontSize: 18, fontWeight: '900', color: colors.text, lineHeight: 22 },
+  bannerTitleSmall: { fontSize: 17, fontWeight: '800', color: colors.text, lineHeight: 21 },
+  bannerSubtitle: { fontSize: 12, color: colors.textSecondary, marginVertical: 6 },
+  actionPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 9999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  actionPillText: { fontSize: 12, fontWeight: '700', color: colors.text },
   bannerImage: { flex: 0.9, height: '100%' },
-  bannerImageSmall: { flex: 0.8, height: '90%' },
-  categoryScroll: { gap: 12, paddingBottom: 16 },
-  categoryItem: { alignItems: 'center', width: 68 },
-  categoryIconBox: { width: 52, height: 52, borderRadius: 16, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  categoryIconBoxSelected: { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' },
-  categoryLabel: { fontSize: 11, fontWeight: '600', color: '#475569', textAlign: 'center' },
-  categoryLabelSelected: { color: '#0284C7', fontWeight: '800' },
-  catalogHeadingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, marginBottom: 12 },
-  catalogTitle: { fontSize: 18, fontWeight: '900', color: '#0F172A' },
-  sortToggleBtn: { backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
-  sortToggleText: { fontSize: 12, fontWeight: '700', color: '#0284C7' },
-  columnWrapper: { paddingHorizontal: 16, justifyContent: 'space-between' },
-  cardContainer: { width: '48%', backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 14, overflow: 'hidden' },
-  cardMediaArea: { width: '100%', height: 140, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' },
-  cardImage: { width: '88%', height: '88%' },
-  leftBadges: { position: 'absolute', top: 8, left: 8, gap: 5 },
-  circleBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  discountBadge: { backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  discountBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
-  heartBadge: { position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  heartText: { fontSize: 16, color: '#0F172A' },
-  heartActive: { color: '#EF4444' },
-  cardDetailsArea: { padding: 10 },
-  cardName: { fontSize: 14, fontWeight: '700', color: '#0F172A', minHeight: 36 },
-  cardModel: { fontSize: 11, color: '#64748B', marginTop: 2 },
-  cardStockText: { fontSize: 11, fontWeight: '600', color: '#10B981', marginTop: 3 },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginVertical: 6 },
-  priceCurrent: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
-  priceOld: { fontSize: 11, color: '#94A3B8', textDecorationLine: 'line-through' },
-  cartButton: { height: 38, backgroundColor: '#48C0F8', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  cartButtonText: { color: '#0F172A', fontSize: 13, fontWeight: '700' },
-  stepperContainer: { height: 38, backgroundColor: '#48C0F8', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
-  stepperSign: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
-  stepperQtyText: { fontSize: 14, fontWeight: '800', color: '#0F172A' },
-  emojiIcon: { fontSize: 16 }
+  categoriesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  categoryItem: { alignItems: 'center', width: '18%' },
+  categoryIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  categoryIconBoxSelected: { backgroundColor: colors.primaryDark },
+  categoryLabel: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
+  categoryLabelSelected: { color: colors.text, fontWeight: '800' },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  sectionTitle: { fontSize: 20, fontWeight: '900', color: colors.text },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  sortButtonText: { fontSize: 13, fontWeight: '700', color: colors.text },
+  cardContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    overflow: 'hidden',
+    marginBottom: 12,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  imageWrapper: {
+    width: '100%',
+    height: 146,
+    backgroundColor: colors.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  productImage: { width: '90%', height: '90%' },
+  topLeftBadges: { position: 'absolute', top: 8, left: 8, gap: 6 },
+  badgeCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+  },
+  badgeCircleActive: { backgroundColor: colors.primaryLight },
+  discountBadge: {
+    backgroundColor: colors.badgeDiscount,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  discountText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  topRightBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+  },
+  cardContent: { padding: 12 },
+  productTitle: { fontSize: 15, fontWeight: '700', color: colors.text, minHeight: 38 },
+  productModel: { fontSize: 12, color: colors.textSecondary, marginTop: 3 },
+  stockStatus: { fontSize: 11, fontWeight: '600', color: colors.success, marginTop: 4 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginVertical: 8 },
+  currentPrice: { fontSize: 16, fontWeight: '800', color: colors.text },
+  oldPrice: { fontSize: 12, color: colors.textMuted, textDecorationLine: 'line-through' },
+  addToCartButton: {
+    height: 42,
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  addToCartText: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  stepperContainer: {
+    height: 42,
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+  },
+  stepperBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  stepperValue: { fontSize: 15, fontWeight: '800', color: colors.text },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'flex-end' },
+  bottomSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 36,
+  },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 16 },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  sheetOptionActive: { backgroundColor: colors.primarySoft, paddingHorizontal: 8, borderRadius: 12 },
+  sheetOptionText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+  sheetOptionTextActive: { color: colors.primaryDark, fontWeight: '800' },
 });
-
-export default CatalogScreen;
