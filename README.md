@@ -40,3 +40,8 @@ Serverni yoqish: [DEPLOYMENT.md](DEPLOYMENT.md). Qo‘lda sinash: [TESTING.md](T
 ## Hozircha kirmagan funksiyalar
 
 Click/Payme va karta to‘lovi, SMS login, push xabarlar, sharhlar, stories, AI yordamchi, yutuqlar hamda eski mijozlarni avtomatik ko‘chirish qo‘shilmagan. Ular mavjud bo‘lgandek ko‘rsatilmaydi. Asosiy savdo oqimi mustaqil ilova sifatida qurilgan.
+
+
+## Mijoz ekrani dizayni
+
+GM ehtiyot qismlari va avtomobil aksessuarlari uchun kelishilgan dizayn, mahsulot kartasi va keyingi o‘zgarishlar mezonlari [docs/DESIGN.md](docs/DESIGN.md) faylida saqlanadi. Bosh ekran Firebase katalogi va ilovaning umumiy savati bilan ishlaydi.

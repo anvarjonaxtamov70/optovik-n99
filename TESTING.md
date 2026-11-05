@@ -34,3 +34,15 @@ npx firebase-tools emulators:exec --only auth,database,functions --project demo-
 12. iPhone safe area, Android back tugmasi, klaviatura, katta shrift va kichik ekranlarda tekshiring.
 
 Bu qo‘lda sinovlar qurilmada hali bajarilmagan bo‘lsa, CI o‘tganini ularning o‘rniga ishlatmang.
+
+## Bosh ekran regressiyasi
+
+- Bosh ekrandan tovarni savatga qo‘shing: pastki badge va Savat sahifasidagi miqdor bir xil bo‘lsin. Sevimlilarga saqlash Sevimlilar sahifasida ham aks etsin.
+- Haqiqiy eski narx 100 000, yangi narx 85 000 bo‘lsa −15% ko‘rinsin. Eski narxni olib tashlaganda belgi va chizilgan narx yo‘qolsin. Chegirma namuna sifatida katalogga yozilmaydi.
+- Qidiruvga nom, artikul va model so‘zlarini birga yozing; klaviatura har harfda yopilmasin. Tozalaganda katalog qaytsin.
+- GM va aksessuar bannerlari tegishli bo‘limni tanlasin. Barchasi eski tasniflanmagan katalogni ham ko‘rsatsin.
+- Narxni o‘sish/kamayish tartibida saralash, mavjud mahsulotlar, aksiyalar filtri va ularni tozalashni tekshiring. Android Back filtr oynasini yopsin.
+- Tarozi orqali ikkita tovar tanlab Taqqoslashni oching; haqiqiy narx, artikul, model va qoldiq ko‘rinsin. Uchinchi tovar tanlanmasin; birini olib tashlagach yangisi tanlansin.
+- Internetsiz katalog saqlangan bo‘lsa ko‘rinsin, savatga qo‘shish o‘chsin. Rasm URL xato bo‘lsa placeholder chiqsin. Qoldiq 0 bo‘lganda Tugagan yozilsin.
+- 320/360 px va iPhone 17 Pro Max ekranida, katta tizim shriftida, gorizontal aylantirganda ham narx va tugmalar sig‘sin; katta shriftda panjara bitta ustunga o‘tsin.
+- iOS menyusida blur, Android’da shaffof fon va soyalarni haqiqiy qurilmada tekshiring. Web eksport native qurilma sinovining o‘rnini bosmaydi.

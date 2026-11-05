@@ -1,245 +1,92 @@
-import React, { useState } from 'react';
-import {
-  FlatList,
-  Image,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const C = {
-  primary: '#48C0F8',
-  primaryDark: '#0284C7',
-  primaryLight: '#E0F2FE',
-  bg: '#FFFFFF',
-  cardBg: '#F8FAFC',
-  text: '#0F172A',
-  sub: '#64748B',
-  muted: '#94A3B8',
-  red: '#EF4444',
-  green: '#10B981',
-  border: '#E2E8F0',
-};
+import { CatalogBanners } from '../components/CatalogBanners';
+import { CatalogFilters } from '../components/CatalogFilters';
+import { CatalogHeader } from '../components/CatalogHeader';
+import { CompareTray } from '../components/CompareTray';
+import { Icon, type IconName } from '../components/Icon';
+import { CartNotice, ConnectionStatus, EmptyState } from '../components/ShopUI';
+import { Message, Pill, ProductCard } from '../components/StoreUI';
+import { useProductGrid } from '../components/useProductGrid';
+import { defaultCatalogOptions, matchesDepartment, selectCatalog, type CatalogOptions, type Department } from '../store/catalog';
+import { useShop } from '../store/ShopProvider';
+import { categoryLabel, filterProducts } from '../store/shop';
+import { colors, ui } from '../theme';
 
-const ITEMS = [
-  { id: '1', nomi: 'Moy filtri', model: 'Cobalt · Gentra', narx: 85000, eski: 100000, rasm: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=500&q=80', cat: 'dvigatel' },
-  { id: '2', nomi: 'Telefon tutqichi', model: 'Universal', narx: 65000, rasm: 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=500&q=80', cat: 'aksessuarlar' },
-  { id: '3', nomi: 'Old tormoz kolodkasi', model: 'Cobalt · Nexia 3', narx: 145000, eski: 170000, rasm: 'https://images.unsplash.com/photo-1600790142055-619df03207e6?w=500&q=80', cat: 'tormoz' },
-  { id: '4', nomi: 'Zajigalka svechasi', model: 'Gentra 1.5 · Cobalt', narx: 120000, rasm: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=500&q=80', cat: 'elektrika' },
-];
-
-const CATS = [
-  { id: 'aksessuarlar', l: 'Aksessuarlar', ic: '🚗' },
-  { id: 'dvigatel', l: 'Dvigatel', ic: '⚙️' },
-  { id: 'tormoz', l: 'Tormoz', ic: '🔘' },
-  { id: 'elektrika', l: 'Elektrika', ic: '⚡' },
-  { id: 'all', l: 'Barchasi', ic: '▦' },
-];
-
-export default function CatalogScreen() {
-  const [q, setQ] = useState('');
-  const [cat, setCat] = useState('all');
-  const [cart, setCart] = useState<Record<string, number>>({ '2': 1 });
-  const [favs, setFavs] = useState<Record<string, boolean>>({});
-
-  const list = ITEMS.filter((i) => {
-    if (cat !== 'all' && i.cat !== cat) return false;
-    if (q.trim() && !i.nomi.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  });
-
-  const changeCart = (id: string, delta: number) => {
-    setCart((prev) => {
-      const next = (prev[id] || 0) + delta;
-      if (next <= 0) {
-        const c = { ...prev };
-        delete c[id];
-        return c;
-      }
-      return { ...prev, [id]: next };
-    });
-  };
-
-  return (
-    <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
-      <FlatList
-        data={list}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={s.cols}
-        contentContainerStyle={s.content}
-        ListHeaderComponent={
-          <View style={s.head}>
-            <View style={s.topBar}>
-              <View>
-                <Text style={s.logo}>OPTOVIK N99</Text>
-                <View style={s.swoosh} />
-              </View>
-              <View style={s.locPill}>
-                <Text style={s.locTxt}>📍 Samarqand ⌄</Text>
-              </View>
-            </View>
-
-            <View style={s.searchRow}>
-              <View style={s.inputWrap}>
-                <Text style={{ fontSize: 16 }}>🔍</Text>
-                <TextInput
-                  value={q}
-                  onChangeText={setQ}
-                  placeholder="Detal yoki aksessuar qidiring"
-                  placeholderTextColor={C.muted}
-                  style={s.input}
-                />
-              </View>
-              <TouchableOpacity style={s.filterBtn} onPress={() => setCat('all')}>
-                <Text style={{ fontSize: 18 }}>🎛️</Text>
-              </TouchableOpacity>
-            </View>
-
-            {!q.trim() && (
-              <View style={s.banners}>
-                <View style={s.banner1}>
-                  <View style={{ flex: 1.2 }}>
-                    <Text style={s.bTitle}>GM uchun{'\n'}ehtiyot qismlar</Text>
-                    <Text style={s.bSub}>Cobalt · Gentra · Nexia</Text>
-                    <TouchableOpacity style={s.pillBtn} onPress={() => setCat('dvigatel')}>
-                      <Text style={s.pillTxt}>Qismlarni ko‘rish →</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Image source={{ uri: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=500&q=80' }} style={s.bImg} resizeMode="contain" />
-                </View>
-
-                <View style={s.banner2}>
-                  <View style={{ flex: 1.2 }}>
-                    <Text style={s.bTitle}>Avtomobilingizga{'\n'}qulaylik</Text>
-                    <TouchableOpacity style={s.pillBtn} onPress={() => setCat('aksessuarlar')}>
-                      <Text style={s.pillTxt}>Aksessuarlar →</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Image source={{ uri: 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=500&q=80' }} style={s.bImg} resizeMode="contain" />
-                </View>
-              </View>
-            )}
-
-            <View style={s.catsRow}>
-              {CATS.map((c) => {
-                const active = cat === c.id;
-                return (
-                  <TouchableOpacity key={c.id} style={s.catItem} onPress={() => setCat(c.id)}>
-                    <View style={[s.catBox, active && s.catBoxActive]}>
-                      <Text style={{ fontSize: 20 }}>{c.ic}</Text>
-                    </View>
-                    <Text style={[s.catLabel, active && s.catLabelActive]} numberOfLines={1}>{c.l}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <View style={s.secHead}>
-              <Text style={s.secTitle}>Mahsulotlar</Text>
-              <View style={s.sortPill}><Text style={s.sortTxt}>Saralash ⥯</Text></View>
-            </View>
-          </View>
-        }
-        renderItem={({ item }) => {
-          const count = cart[item.id] || 0;
-          const isFav = favs[item.id];
-          return (
-            <View style={s.card}>
-              <View style={s.imgBox}>
-                <Image source={{ uri: item.rasm }} style={s.pImg} resizeMode="contain" />
-                <View style={s.badgesL}>
-                  <View style={s.bCircle}><Text style={{ fontSize: 13 }}>⚖️</Text></View>
-                  {item.eski && <View style={s.discBadge}><Text style={s.discTxt}>-15%</Text></View>}
-                </View>
-                <TouchableOpacity style={s.badgeR} onPress={() => setFavs((p) => ({ ...p, [item.id]: !p[item.id] }))}>
-                  <Text style={{ fontSize: 14 }}>{isFav ? '❤️' : '🤍'}</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={s.pBody}>
-                <Text style={s.pTitle} numberOfLines={2}>{item.nomi}</Text>
-                <Text style={s.pModel}>{item.model}</Text>
-                <Text style={s.pStock}>Mavjud</Text>
-                <View style={s.priceRow}>
-                  <Text style={s.priceNow}>{item.narx.toLocaleString()} so‘m</Text>
-                </View>
-
-                {count > 0 ? (
-                  <View style={s.stepper}>
-                    <TouchableOpacity onPress={() => changeCart(item.id, -1)} style={s.stepBtn}><Text style={s.stepTxt}>−</Text></TouchableOpacity>
-                    <Text style={s.stepVal}>{count}</Text>
-                    <TouchableOpacity onPress={() => changeCart(item.id, 1)} style={s.stepBtn}><Text style={s.stepTxt}>+</Text></TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity style={s.buyBtn} onPress={() => changeCart(item.id, 1)}>
-                    <Text style={s.buyTxt}>🛍️ Savatga</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          );
-        }}
-      />
-    </SafeAreaView>
-  );
+function categoryIcon(value: string): IconName {
+  if (/aksess|access|salon/i.test(value)) return 'car';
+  if (/motor|dvigatel|filtr/i.test(value)) return 'engine';
+  if (/tormoz|brake/i.test(value)) return 'brake';
+  if (/elektr|svecha/i.test(value)) return 'bolt';
+  return 'box';
 }
-
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFF' },
-  head: { backgroundColor: '#FFF' },
-  content: { paddingBottom: 60 },
-  cols: { paddingHorizontal: 16, gap: 12 },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, marginBottom: 12 },
-  logo: { fontSize: 22, fontWeight: '900', color: C.text },
-  swoosh: { width: 65, height: 3, backgroundColor: C.primary, borderRadius: 2, marginTop: 2 },
-  locPill: { backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  locTxt: { fontSize: 13, fontWeight: '700', color: C.text },
-  searchRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
-  inputWrap: { flex: 1, height: 48, backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: C.border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8 },
-  input: { flex: 1, height: '100%', fontSize: 14, color: C.text },
-  filterBtn: { width: 48, height: 48, borderRadius: 16, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  banners: { paddingHorizontal: 16, paddingTop: 12, gap: 10 },
-  banner1: { height: 138, borderRadius: 18, backgroundColor: '#E0F2FE', flexDirection: 'row', padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#BAE6FD', overflow: 'hidden' },
-  banner2: { height: 138, borderRadius: 18, backgroundColor: '#EBF5FE', flexDirection: 'row', padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#CBE5FD', overflow: 'hidden' },
-  bTitle: { fontSize: 17, fontWeight: '900', color: C.text, lineHeight: 21 },
-  bSub: { fontSize: 12, color: C.sub, marginVertical: 4 },
-  pillBtn: { alignSelf: 'flex-start', backgroundColor: C.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginTop: 6 },
-  pillTxt: { fontSize: 12, fontWeight: '700', color: C.text },
-  bImg: { flex: 0.9, height: '100%' },
-  catsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
-  catItem: { alignItems: 'center', width: '18%' },
-  catBox: { width: 50, height: 50, borderRadius: 14, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  catBoxActive: { backgroundColor: C.primaryDark },
-  catLabel: { fontSize: 11, fontWeight: '600', color: C.sub },
-  catLabelActive: { color: C.text, fontWeight: '800' },
-  secHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8 },
-  secTitle: { fontSize: 20, fontWeight: '900', color: C.text },
-  sortPill: { backgroundColor: C.primaryLight, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  sortTxt: { fontSize: 12, fontWeight: '700', color: C.text },
-  card: { flex: 1, backgroundColor: '#FFF', borderRadius: 18, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden', marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
-  imgBox: { width: '100%', height: 140, backgroundColor: C.cardBg, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  pImg: { width: '90%', height: '90%' },
-  badgesL: { position: 'absolute', top: 8, left: 8, gap: 5 },
-  bCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', elevation: 2 },
-  discBadge: { backgroundColor: C.red, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6 },
-  discTxt: { color: '#FFF', fontSize: 10, fontWeight: '800' },
-  badgeR: { position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', elevation: 2 },
-  pBody: { padding: 12 },
-  pTitle: { fontSize: 14, fontWeight: '700', color: C.text, minHeight: 36 },
-  pModel: { fontSize: 12, color: C.sub, marginTop: 2 },
-  pStock: { fontSize: 11, fontWeight: '600', color: C.green, marginTop: 4 },
-  priceRow: { marginVertical: 6 },
-  priceNow: { fontSize: 15, fontWeight: '800', color: C.text },
-  buyBtn: { height: 40, backgroundColor: C.primary, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  buyTxt: { color: C.text, fontSize: 14, fontWeight: '700' },
-  stepper: { height: 40, backgroundColor: C.primary, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10 },
-  stepBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-  stepTxt: { fontSize: 20, fontWeight: '900', color: C.text },
-  stepVal: { fontSize: 15, fontWeight: '800', color: C.text },
+export default function CatalogScreen() {
+  const { state, storageProblem, retry } = useShop();
+  const { columns, cardWidth } = useProductGrid();
+  const [query, setQuery] = useState('');
+  const [focused, setFocused] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
+  const [department, setDepartment] = useState<Department>('all');
+  const [options, setOptions] = useState<CatalogOptions>(defaultCatalogOptions);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const categories = useMemo(() => [...new Set(state.products.filter((p) => matchesDepartment(p, department)).map((p) => p.kategoriya))], [state.products, department]);
+  const products = useMemo(() => selectCatalog(filterProducts(state.products, query, category), department, options), [state.products, query, category, department, options]);
+  const filterCount = Number(options.availableOnly) + Number(options.saleOnly) + Number(options.sort !== 'default');
+  const filtered = !!query.trim() || !!category || department !== 'all' || filterCount > 0;
+  const loading = state.status === 'loading' && state.products.length === 0;
+  const chooseDepartment = (next: Department) => { Keyboard.dismiss(); setFocused(false); setQuery(''); setCategory(null); setOptions(defaultCatalogOptions); setDepartment(next); };
+  const reset = () => { chooseDepartment('all'); };
+  const openFilters = () => { Keyboard.dismiss(); setFiltersOpen(true); };
+  return <SafeAreaView style={ui.screen} edges={['top', 'left', 'right']}><View style={ui.body}>
+    <CatalogHeader query={query} onQuery={setQuery} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onFilter={openFilters} filterCount={filterCount} />
+    <FlatList key={columns} data={products} keyExtractor={(p) => p.id} numColumns={columns} columnWrapperStyle={columns === 2 ? styles.columns : undefined}
+      contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+      refreshing={state.status === 'loading' && state.products.length > 0} onRefresh={retry} initialNumToRender={6} windowSize={7}
+      ListHeaderComponent={<View style={styles.header}>
+        {!query.trim() && !focused && department === 'all' && <CatalogBanners onGM={() => chooseDepartment('gm')} onAccessories={() => chooseDepartment('accessories')} />}
+        {department !== 'all' && <View style={styles.department}><Text style={styles.departmentTitle}>{department === 'gm' ? 'GM ehtiyot qismlari' : 'Avtoaksessuarlar'}</Text><Pressable onPress={reset} style={styles.reset} accessibilityRole="button"><Text style={styles.resetText}>Barchasi</Text><Icon name="close" size={15} /></Pressable></View>}
+        {categories.length > 0 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories} keyboardShouldPersistTaps="handled">
+          {[null, ...categories].map((value) => <Pressable key={value ?? 'all'} onPress={() => setCategory(value)} accessibilityRole="button" accessibilityState={{ selected: category === value }} style={({ pressed }) => [styles.category, pressed && ui.pressed]}>
+            <View style={[styles.categoryIcon, category === value && styles.categorySelected]}><Icon name={value ? categoryIcon(value) : 'grid'} size={25} /></View>
+            <Text style={styles.categoryLabel}>{value ? categoryLabel(value) : 'Barchasi'}</Text>
+          </Pressable>)}
+        </ScrollView>}
+        <ConnectionStatus /><CartNotice />
+        {storageProblem && <Message text="Telefon xotirasiga saqlab bo‘lmadi. Savat ilova yopilganda saqlanmasligi mumkin." />}
+        <View style={styles.section}><View><Text style={styles.sectionTitle} accessibilityRole="header">{query.trim() ? 'Qidiruv natijalari' : 'Mahsulotlar'}</Text><Text style={styles.count}>{loading ? 'Yuklanmoqda…' : `${products.length} ta mahsulot`}</Text></View>
+          <Pressable onPress={openFilters} accessibilityRole="button" accessibilityLabel="Mahsulotlarni saralash" style={({ pressed }) => [styles.sort, pressed && ui.pressed]}><Text style={styles.sortText}>Saralash</Text><Icon name="sort" size={17} /></Pressable>
+        </View>
+        {filtered && <View style={styles.activeFilters}>
+          <Pill text="Filtrlarni tozalash" selected={false} onPress={reset} />
+          {options.saleOnly && <Text style={styles.count}>Aksiyalar</Text>}{options.availableOnly && <Text style={styles.count}>Mavjud</Text>}
+        </View>}
+      </View>}
+      ListEmptyComponent={loading ? <View style={styles.skeletons} accessibilityLabel="Mahsulotlar yuklanmoqda">{[0, 1, 2, 3].map((i) => <View key={i} style={[styles.skeleton, { width: cardWidth }]}><View style={styles.skeletonPhoto} /><View style={styles.skeletonLine} /><View style={[styles.skeletonLine, { width: '55%' }]} /></View>)}</View> :
+        <EmptyState title="Mahsulot topilmadi" message={state.products.length ? 'Qidiruv, bo‘lim yoki filtrni o‘zgartirib ko‘ring.' : state.message} action={filtered ? { label: 'Barcha mahsulotlar', onPress: reset } : undefined} />}
+      renderItem={({ item }) => <ProductCard product={item} width={cardWidth} />} />
+    <CompareTray />
+    {filtersOpen && <CatalogFilters initial={options} onClose={() => setFiltersOpen(false)} onApply={(next) => { setOptions(next); setFiltersOpen(false); }} />}
+  </View></SafeAreaView>;
+}
+const styles = StyleSheet.create({
+  list: { paddingHorizontal: 16, paddingBottom: 24, gap: 14 }, columns: { gap: 12 },
+  header: { gap: 15 }, categories: { gap: 10, paddingVertical: 3 },
+  category: { alignItems: 'center', width: 76, gap: 7 },
+  categoryIcon: { width: 60, height: 56, borderRadius: 17, backgroundColor: colors.blueLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
+  categorySelected: { backgroundColor: colors.blue, borderColor: '#63b8e4' },
+  categoryLabel: { fontSize: 11, lineHeight: 15, color: colors.text, textAlign: 'center', fontWeight: '600' },
+  section: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  sectionTitle: { fontSize: 22, fontWeight: '800', color: colors.text, flexShrink: 1 },
+  count: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
+  sort: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 48, paddingHorizontal: 12, borderRadius: 13, backgroundColor: colors.blueLight },
+  sortText: { fontSize: 12, color: colors.text, fontWeight: '600' },
+  department: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  departmentTitle: { color: colors.text, fontSize: 20, fontWeight: '800' },
+  reset: { flexDirection: 'row', gap: 5, alignItems: 'center', minHeight: 48 }, resetText: { fontSize: 13, color: colors.text },
+  activeFilters: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  skeletons: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, skeleton: { borderRadius: 20, backgroundColor: colors.white, paddingBottom: 14, gap: 12 },
+  skeletonPhoto: { aspectRatio: 1, backgroundColor: colors.photo, borderRadius: 20 },
+  skeletonLine: { height: 14, width: '75%', backgroundColor: colors.photo, marginLeft: 12, borderRadius: 6 },
 });
