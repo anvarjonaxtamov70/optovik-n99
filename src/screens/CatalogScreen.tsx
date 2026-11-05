@@ -11,65 +11,135 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useStore } from '../store/useStore';
+
+interface ProductItem {
+  id: string;
+  nomi: string;
+  narx: number;
+  eskiNarx?: number;
+  kategoriya?: string;
+  model?: string;
+  artikul?: string;
+  rasm?: string;
+}
+
+interface CartItem {
+  mahsulotId: string;
+  miqdor: number;
+}
+
+const DEFAULT_PRODUCTS: ProductItem[] = [
+  {
+    id: '1',
+    nomi: 'Moy filtri',
+    narx: 85000,
+    eskiNarx: 100000,
+    kategoriya: 'dvigatel',
+    model: 'Cobalt · Gentra',
+    rasm: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    id: '2',
+    nomi: 'Telefon tutqichi',
+    narx: 65000,
+    kategoriya: 'aksessuarlar',
+    model: 'Universal',
+    rasm: 'https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    id: '3',
+    nomi: 'Tormoz kolodkasi',
+    narx: 140000,
+    kategoriya: 'tormoz',
+    model: 'Nexia 3 · Cobalt',
+    rasm: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    id: '4',
+    nomi: 'Akumulyator 60Ah',
+    narx: 520000,
+    eskiNarx: 580000,
+    kategoriya: 'elektrika',
+    model: 'Universal',
+    rasm: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80',
+  },
+];
 
 const CATEGORIES = [
-  { id: 'aksessuarlar', label: 'Aksessuarlar', icon: 'car-sport-outline' },
-  { id: 'dvigatel', label: 'Dvigatel', icon: 'hardware-chip-outline' },
-  { id: 'tormoz', label: 'Tormoz', icon: 'disc-outline' },
-  { id: 'elektrika', label: 'Elektrika', icon: 'battery-charging-outline' },
-  { id: 'all', label: 'Barchasi', icon: 'grid-outline' },
-] as const;
+  { id: 'aksessuarlar', label: 'Aksessuarlar' },
+  { id: 'dvigatel', label: 'Dvigatel' },
+  { id: 'tormoz', label: 'Tormoz' },
+  { id: 'elektrika', label: 'Elektrika' },
+  { id: 'all', label: 'Barchasi' },
+];
 
 export const CatalogScreen = () => {
-  const {
-    products,
-    cart,
-    savedProductIds,
-    addToCart,
-    updateCartQuantity,
-    toggleSaveProduct,
-  } = useStore();
-
-  const [searchQuery, setSearchQuery] = useState('');
+  const [products] = useState<ProductItem[]>(DEFAULT_PRODUCTS);
+  const [cart, setCart] = useState<CartItem[]>([
+    { mahsulotId: '2', miqdor: 1 },
+  ]);
+  const [savedIds, setSavedIds] = useState<string[]>(['1']);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const filteredProducts = useMemo(() => {
     return products
-      .filter((item) => {
+      .filter((item: ProductItem) => {
         const matchesCategory =
           selectedCategory === 'all' ||
           item.kategoriya?.toLowerCase() === selectedCategory.toLowerCase();
         const matchesSearch =
           item.nomi.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.artikul?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.model?.toLowerCase().includes(searchQuery.toLowerCase());
+          (item.artikul && item.artikul.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (item.model && item.model.toLowerCase().includes(searchQuery.toLowerCase()));
         return matchesCategory && matchesSearch;
       })
-      .sort((a, b) => (sortOrder === 'asc' ? a.narx - b.narx : b.narx - a.narx));
+      .sort((a: ProductItem, b: ProductItem) => (sortOrder === 'asc' ? a.narx - b.narx : b.narx - a.narx));
   }, [products, selectedCategory, searchQuery, sortOrder]);
+
+  const updateQuantity = (id: string, delta: number) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.mahsulotId === id);
+      if (!existing && delta > 0) {
+        return [...prev, { mahsulotId: id, miqdor: 1 }];
+      }
+      if (existing) {
+        const newQty = existing.miqdor + delta;
+        if (newQty <= 0) {
+          return prev.filter((item) => item.mahsulotId !== id);
+        }
+        return prev.map((item) =>
+          item.mahsulotId === id ? { ...item, miqdor: newQty } : item
+        );
+      }
+      return prev;
+    });
+  };
+
+  const toggleSave = (id: string) => {
+    setSavedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      {/* 1. Yuqori qism: Brend va Lokatsiya */}
       <View style={styles.topBar}>
         <View>
           <Text style={styles.brandTitle}>OPTOVIK N99</Text>
           <View style={styles.brandAccentLine} />
         </View>
         <TouchableOpacity style={styles.locationBadge} activeOpacity={0.7}>
-          <Ionicons name="location-sharp" size={15} color="#0284C7" />
+          <Text style={styles.locationPin}>📍</Text>
           <Text style={styles.locationText}>Samarqand</Text>
-          <Ionicons name="chevron-down" size={14} color="#0F172A" />
+          <Text style={styles.chevronIcon}>⌵</Text>
         </TouchableOpacity>
       </View>
 
-      {/* 2. Qidiruv va Filtr */}
       <View style={styles.searchRow}>
         <View style={styles.searchInputWrapper}>
-          <Ionicons name="search-outline" size={19} color="#64748B" />
+          <Text style={styles.searchIconText}>🔍</Text>
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -79,7 +149,7 @@ export const CatalogScreen = () => {
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              <Text style={styles.clearSearchText}>✕</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -88,13 +158,11 @@ export const CatalogScreen = () => {
           onPress={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
           activeOpacity={0.8}
         >
-          <Ionicons name="options-outline" size={21} color="#0F172A" />
+          <Text style={styles.filterIconText}>⚙️</Text>
         </TouchableOpacity>
       </View>
 
-      {/* 3. Aksiya bannerlari */}
       <View style={styles.bannerContainer}>
-        {/* GM Banner */}
         <TouchableOpacity
           style={styles.gmBanner}
           activeOpacity={0.9}
@@ -104,8 +172,7 @@ export const CatalogScreen = () => {
             <Text style={styles.bannerTitle}>{'GM uchun\nehtiyot qismlar'}</Text>
             <Text style={styles.bannerSubtitle}>Cobalt · Gentra · Nexia</Text>
             <View style={styles.bannerActionBtn}>
-              <Text style={styles.bannerActionBtnText}>Qismlarni ko‘rish</Text>
-              <Ionicons name="arrow-forward" size={13} color="#0F172A" />
+              <Text style={styles.bannerActionBtnText}>Qismlarni ko‘rish →</Text>
             </View>
           </View>
           <Image
@@ -117,7 +184,6 @@ export const CatalogScreen = () => {
           />
         </TouchableOpacity>
 
-        {/* Aksessuar Banner */}
         <TouchableOpacity
           style={styles.accBanner}
           activeOpacity={0.9}
@@ -125,9 +191,8 @@ export const CatalogScreen = () => {
         >
           <View style={styles.bannerContent}>
             <Text style={styles.bannerTitle}>{'Avtomobilingizga\nqulaylik'}</Text>
-            <View style={[styles.bannerActionBtn, { marginTop: 10 }]}>
-              <Text style={styles.bannerActionBtnText}>Aksessuarlarni ko‘rish</Text>
-              <Ionicons name="arrow-forward" size={13} color="#0F172A" />
+            <View style={[styles.bannerActionBtn, { marginTop: 8 }]}>
+              <Text style={styles.bannerActionBtnText}>Aksessuarlarni ko‘rish →</Text>
             </View>
           </View>
           <Image
@@ -140,7 +205,6 @@ export const CatalogScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* 4. Bo‘limlar qatori */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -161,11 +225,13 @@ export const CatalogScreen = () => {
                   isSelected && styles.categoryIconBoxSelected,
                 ]}
               >
-                <Ionicons
-                  name={cat.icon}
-                  size={23}
-                  color={isSelected ? '#0284C7' : '#0F172A'}
-                />
+                <Text style={styles.categoryIconEmoji}>
+                  {cat.id === 'aksessuarlar' && '🚗'}
+                  {cat.id === 'dvigatel' && '⚙️'}
+                  {cat.id === 'tormoz' && '🔘'}
+                  {cat.id === 'elektrika' && '🔋'}
+                  {cat.id === 'all' && '▦'}
+                </Text>
               </View>
               <Text
                 style={[
@@ -180,19 +246,15 @@ export const CatalogScreen = () => {
         })}
       </ScrollView>
 
-      {/* 5. Mahsulotlar sarlavhasi va saralash */}
       <View style={styles.catalogHeadingRow}>
         <Text style={styles.catalogTitle}>Mahsulotlar</Text>
         <TouchableOpacity
           style={styles.sortToggleBtn}
           onPress={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
         >
-          <Text style={styles.sortToggleText}>Saralash</Text>
-          <Ionicons
-            name={sortOrder === 'asc' ? 'swap-vertical' : 'swap-vertical-outline'}
-            size={14}
-            color="#0284C7"
-          />
+          <Text style={styles.sortToggleText}>
+            Saralash {sortOrder === 'asc' ? '↑' : '↓'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -200,19 +262,19 @@ export const CatalogScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" />
       <FlatList
         data={filteredProducts}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: ProductItem) => item.id}
         numColumns={2}
         ListHeaderComponent={renderHeader}
         columnWrapperStyle={styles.columnWrapper}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => {
-          const cartItem = cart.find((c) => c.mahsulotId === item.id);
+        renderItem={({ item }: { item: ProductItem }) => {
+          const cartItem = cart.find((c: CartItem) => c.mahsulotId === item.id);
           const quantity = cartItem?.miqdor || 0;
-          const isSaved = savedProductIds.includes(item.id);
+          const isSaved = savedIds.includes(item.id);
           const hasDiscount = Boolean(item.eskiNarx && item.eskiNarx > item.narx);
 
           return (
@@ -228,10 +290,9 @@ export const CatalogScreen = () => {
                   resizeMode="contain"
                 />
 
-                {/* Tarozi va Aksiya nishonlari */}
                 <View style={styles.leftBadges}>
                   <View style={styles.circleBadge}>
-                    <Ionicons name="scale-outline" size={15} color="#475569" />
+                    <Text style={styles.badgeEmoji}>⚖️</Text>
                   </View>
                   {hasDiscount && (
                     <View style={styles.discountBadge}>
@@ -240,17 +301,14 @@ export const CatalogScreen = () => {
                   )}
                 </View>
 
-                {/* Sevimlilar yurakchasi */}
                 <TouchableOpacity
                   style={styles.heartBadge}
-                  onPress={() => toggleSaveProduct(item.id)}
+                  onPress={() => toggleSave(item.id)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons
-                    name={isSaved ? 'heart' : 'heart-outline'}
-                    size={16}
-                    color={isSaved ? '#EF4444' : '#0F172A'}
-                  />
+                  <Text style={[styles.heartText, isSaved && styles.heartActive]}>
+                    {isSaved ? '♥' : '♡'}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -278,25 +336,25 @@ export const CatalogScreen = () => {
                   <View style={styles.stepperContainer}>
                     <TouchableOpacity
                       style={styles.stepperBtn}
-                      onPress={() => updateCartQuantity(item.id, quantity - 1)}
+                      onPress={() => updateQuantity(item.id, -1)}
                     >
-                      <Ionicons name="remove" size={18} color="#0F172A" />
+                      <Text style={styles.stepperSign}>−</Text>
                     </TouchableOpacity>
                     <Text style={styles.stepperQtyText}>{quantity}</Text>
                     <TouchableOpacity
                       style={styles.stepperBtn}
-                      onPress={() => updateCartQuantity(item.id, quantity + 1)}
+                      onPress={() => updateQuantity(item.id, 1)}
                     >
-                      <Ionicons name="add" size={18} color="#0F172A" />
+                      <Text style={styles.stepperSign}>+</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
                   <TouchableOpacity
                     style={styles.cartButton}
-                    onPress={() => addToCart(item.id, 1)}
+                    onPress={() => updateQuantity(item.id, 1)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="bag-handle-outline" size={16} color="#0F172A" />
+                    <Text style={styles.cartButtonIcon}>🛍️</Text>
                     <Text style={styles.cartButtonText}>Savatga</Text>
                   </TouchableOpacity>
                 )}
@@ -349,10 +407,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 4,
   },
+  locationPin: {
+    fontSize: 12,
+  },
   locationText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
+  },
+  chevronIcon: {
+    fontSize: 12,
+    color: '#0F172A',
+    fontWeight: '700',
   },
   searchRow: {
     flexDirection: 'row',
@@ -371,10 +437,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     gap: 8,
   },
+  searchIconText: {
+    fontSize: 14,
+  },
   searchInput: {
     flex: 1,
     fontSize: 14,
     color: '#0F172A',
+  },
+  clearSearchText: {
+    fontSize: 14,
+    color: '#94A3B8',
+    padding: 4,
   },
   filterButton: {
     width: 48,
@@ -383,6 +457,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0F2FE',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  filterIconText: {
+    fontSize: 18,
   },
   bannerContainer: {
     gap: 10,
@@ -430,9 +507,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+    marginTop: 4,
   },
   bannerActionBtnText: {
     fontSize: 11,
@@ -470,6 +545,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0F2FE',
     borderColor: '#BAE6FD',
   },
+  categoryIconEmoji: {
+    fontSize: 20,
+  },
   categoryLabel: {
     fontSize: 11,
     fontWeight: '600',
@@ -493,18 +571,15 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   sortToggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
-    gap: 4,
   },
   sortToggleText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#0284C7',
   },
   columnWrapper: {
     paddingHorizontal: 16,
@@ -544,6 +619,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  badgeEmoji: {
+    fontSize: 13,
+  },
   discountBadge: {
     backgroundColor: '#EF4444',
     paddingHorizontal: 6,
@@ -565,6 +643,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  heartText: {
+    fontSize: 16,
+    color: '#0F172A',
+  },
+  heartActive: {
+    color: '#EF4444',
   },
   cardDetailsArea: {
     padding: 10,
@@ -611,6 +696,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
+  cartButtonIcon: {
+    fontSize: 13,
+  },
   cartButtonText: {
     color: '#0F172A',
     fontSize: 13,
@@ -623,10 +711,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
   },
   stepperBtn: {
     padding: 4,
+  },
+  stepperSign: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
   },
   stepperQtyText: {
     fontSize: 14,
