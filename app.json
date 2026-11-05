@@ -3,11 +3,6 @@
     "name": "OPTOVIK N99",
     "slug": "optovik-n99",
     "owner": "avtoa1",
-    "extra": {
-      "eas": {
-        "projectId": "fe658f49-c712-4f16-8bfa-d9f96ee48f15"
-      }
-    },
     "scheme": "optovik-n99",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -32,6 +27,11 @@
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "fe658f49-c712-4f16-8bfa-d9f96ee48f15"
+      }
+    }
   }
 }
