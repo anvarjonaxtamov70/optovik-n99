@@ -1,0 +1,76 @@
+{
+  "_izoh": "NAMUNA katalog. Narx va qoldiqlar taxminiy — ilovadagi Admin → Tovarlar bo‘limida o‘zingiznikiga almashtiring. Faqat baza bo‘sh yoki 'Mahsulot 1/2' namunalari bo‘lsa yuklanadi.",
+  "tovarlar": {
+    "dvigatel": {
+      "moy-filtri": { "nomi": "Moy filtri", "narxi": 38000, "eskiNarx": 45000, "qoldiq": 40, "artikul": "N99-1001", "model": "Cobalt, Gentra, Nexia 3, Lacetti", "ommabop": true, "tartib": 10, "tavsif": "Dvigatel moyini mayda zarrachalardan tozalaydi. Har moy almashtirishda yangisini qo‘ying." },
+      "grm-komplekt": { "nomi": "GRM tasmasi komplekti (rolik bilan)", "narxi": 420000, "qoldiq": 6, "birlik": "komplekt", "artikul": "N99-1002", "model": "Nexia 2, Lacetti", "tavsif": "Tasma va taranglovchi rolik. Har 60 000 km da almashtirish tavsiya etiladi." },
+      "svecha-4": { "nomi": "O‘t oldirish shamlari, 4 dona", "narxi": 160000, "qoldiq": 20, "birlik": "komplekt", "artikul": "N99-1003", "model": "Cobalt, Spark, Nexia 3", "ommabop": true, "tartib": 8 },
+      "klapan-qistirma": { "nomi": "Klapan qopqog‘i qistirmasi", "narxi": 55000, "qoldiq": 12, "artikul": "N99-1004", "model": "Cobalt, Nexia 3" },
+      "dvigatel-tayanchi": { "nomi": "Dvigatel tayanchi (podushka)", "narxi": 240000, "qoldiq": 5, "artikul": "N99-1005", "model": "Cobalt" }
+    },
+    "filtrlar": {
+      "havo-filtri": { "nomi": "Havo filtri", "narxi": 42000, "qoldiq": 30, "artikul": "N99-2001", "model": "Cobalt, Nexia 3", "ommabop": true, "tartib": 9 },
+      "salon-filtri": { "nomi": "Salon filtri (ko‘mirli)", "narxi": 48000, "eskiNarx": 60000, "qoldiq": 25, "artikul": "N99-2002", "model": "Cobalt, Gentra, Lacetti", "tavsif": "Faollashtirilgan ko‘mir qatlami chang va hidni ushlab qoladi." },
+      "yoqilgi-filtri": { "nomi": "Yoqilg‘i filtri", "narxi": 35000, "qoldiq": 18, "artikul": "N99-2003", "model": "Nexia 2, Lacetti, Damas" }
+    },
+    "moylar": {
+      "motor-moyi-5w30": { "nomi": "Motor moyi 5W-30, 4 L", "narxi": 290000, "eskiNarx": 320000, "qoldiq": 15, "artikul": "N99-3001", "model": "Universal", "ommabop": true },
+      "antifriz-g12": { "nomi": "Antifriz G12, 5 L", "narxi": 135000, "qoldiq": 10, "artikul": "N99-3002", "model": "Universal" },
+      "tormoz-suyuqligi": { "nomi": "Tormoz suyuqligi DOT-4, 0,5 L", "narxi": 42000, "qoldiq": 20, "artikul": "N99-3003", "model": "Universal" }
+    },
+    "tormoz": {
+      "old-kolodka": { "nomi": "Old tormoz kolodkalari", "narxi": 185000, "eskiNarx": 220000, "qoldiq": 14, "birlik": "komplekt", "artikul": "N99-4001", "model": "Cobalt, Gentra, Lacetti, Nexia 3", "ommabop": true, "tartib": 7, "tavsif": "To‘rtta kolodka bitta komplektda. Ikkala old g‘ildirak uchun yetadi." },
+      "orqa-kolodka": { "nomi": "Orqa tormoz kolodkalari (baraban)", "narxi": 160000, "qoldiq": 8, "birlik": "komplekt", "artikul": "N99-4002", "model": "Cobalt, Nexia 3" },
+      "tormoz-diski": { "nomi": "Old tormoz diski", "narxi": 310000, "qoldiq": 6, "artikul": "N99-4003", "model": "Cobalt, Nexia 3" }
+    },
+    "hodovoy": {
+      "old-amortizator": { "nomi": "Old amortizator", "narxi": 520000, "qoldiq": 4, "artikul": "N99-5001", "model": "Cobalt" },
+      "stabilizator-stoyka": { "nomi": "Stabilizator tortqisi (stoyka)", "narxi": 75000, "qoldiq": 16, "artikul": "N99-5002", "model": "Cobalt, Gentra, Lacetti" },
+      "rul-uchi": { "nomi": "Rul uchi (nakonechnik)", "narxi": 68000, "qoldiq": 10, "artikul": "N99-5003", "model": "Nexia 2, Nexia 3" },
+      "sharovoy-opora": { "nomi": "Sharovoy opora", "narxi": 62000, "qoldiq": 3, "artikul": "N99-5004", "model": "Spark, Matiz" }
+    },
+    "elektrika": {
+      "akkumulyator-60": { "nomi": "Akkumulyator 60 Ah", "narxi": 980000, "qoldiq": 5, "artikul": "N99-6001", "model": "Cobalt, Gentra, Nexia 3, Lacetti" },
+      "katushka": { "nomi": "O‘t oldirish g‘altagi (katushka)", "narxi": 450000, "qoldiq": 4, "artikul": "N99-6002", "model": "Cobalt, Spark" },
+      "generator-remni": { "nomi": "Generator remni", "narxi": 85000, "qoldiq": 12, "artikul": "N99-6003", "model": "Cobalt, Nexia 3" }
+    },
+    "optika": {
+      "old-fara-chap": { "nomi": "Old fara (chap)", "narxi": 1150000, "qoldiq": 2, "artikul": "N99-7001", "model": "Cobalt" },
+      "h4-lampa": { "nomi": "H4 lampa, 2 dona", "narxi": 48000, "qoldiq": 30, "birlik": "juft", "artikul": "N99-7002", "model": "Universal" },
+      "led-t10": { "nomi": "LED gabarit lampalar T10", "narxi": 25000, "eskiNarx": 35000, "qoldiq": 40, "birlik": "juft", "artikul": "N99-7003", "model": "Universal", "yangi": true }
+    },
+    "sovutish": {
+      "termostat": { "nomi": "Termostat", "narxi": 120000, "qoldiq": 8, "artikul": "N99-8001", "model": "Cobalt, Nexia 3, Spark" },
+      "suv-pompasi": { "nomi": "Suv pompasi", "narxi": 350000, "qoldiq": 0, "artikul": "N99-8002", "model": "Nexia 2, Lacetti" }
+    },
+    "transmissiya": {
+      "sseplenie": { "nomi": "Ilashish (sseplenie) komplekti", "narxi": 1350000, "qoldiq": 3, "birlik": "komplekt", "artikul": "N99-9001", "model": "Cobalt, Nexia 3" },
+      "granata": { "nomi": "Granata (SHRUS), tashqi", "narxi": 390000, "qoldiq": 5, "artikul": "N99-9002", "model": "Nexia 2, Lacetti" }
+    },
+    "kuzov": {
+      "zerkalo-chap": { "nomi": "Yon oyna (zerkalo), chap", "narxi": 380000, "qoldiq": 3, "artikul": "N99-9101", "model": "Cobalt" },
+      "old-bamper-damas": { "nomi": "Old bamper", "narxi": 690000, "qoldiq": 2, "artikul": "N99-9102", "model": "Damas" }
+    },
+    "salon": {
+      "gilam-3d": { "nomi": "Rezina gilamlar 3D", "narxi": 320000, "eskiNarx": 380000, "qoldiq": 9, "birlik": "komplekt", "artikul": "N99-9201", "model": "Cobalt", "ommabop": true },
+      "chexol-ekokoja": { "nomi": "O‘rindiq g‘iloflari, ekokoja", "narxi": 1200000, "qoldiq": 4, "birlik": "komplekt", "artikul": "N99-9202", "model": "Cobalt, Gentra", "yangi": true }
+    },
+    "aksessuarlar": {
+      "videoregistrator": { "nomi": "Videoregistrator Full HD", "narxi": 450000, "eskiNarx": 520000, "qoldiq": 7, "artikul": "N99-9301", "model": "Universal", "yangi": true, "ommabop": true, "tavsif": "Old oynaga yopishtiriladi, 140° ko‘rish burchagi, tungi rejim." },
+      "telefon-tutqichi": { "nomi": "Telefon tutqichi (magnitli)", "narxi": 65000, "qoldiq": 25, "artikul": "N99-9302", "model": "Universal", "ommabop": true },
+      "usb-zaryadlovchi": { "nomi": "Avto zaryadlovchi USB-C, 2 port", "narxi": 55000, "qoldiq": 30, "artikul": "N99-9303", "model": "Universal", "yangi": true },
+      "avariya-toplami": { "nomi": "Avariya to‘plami: aptechka, uchburchak, o‘t o‘chirgich", "narxi": 210000, "qoldiq": 10, "birlik": "komplekt", "artikul": "N99-9304", "model": "Universal" }
+    }
+  },
+  "settings": {
+    "shop": {
+      "name": "OPTOVIK N99",
+      "address": "Yangi Samarqand zapchast bozori, 19-sektor, 2-do‘kon",
+      "workHours": "08:00 – 18:00",
+      "courierEnabled": true,
+      "courierFee": 20000,
+      "freeDeliveryFrom": 500000,
+      "pickupEnabled": true
+    }
+  }
+}

@@ -1,23 +1,55 @@
 import { router } from 'expo-router';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { useState } from 'react';
+import { FlatList, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { ActionButton, EmptyState } from '../components/ShopUI';
-import { Message } from '../components/StoreUI';
-import { statusLabels, useOrders, type Order } from '../lib/commerce';
-import { useAccount } from '../store/AccountProvider';
-import { formatMoney } from '../store/shop';
-import { ui } from '../theme';
+import { OrderCard } from '../components/shop/OrderBits';
+import { Segmented } from '../components/ui/Controls';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Header } from '../components/ui/Header';
+import { Skeleton } from '../components/ui/Skeleton';
+import { isActive } from '../domain/order';
+import { useT } from '../i18n';
+import { useMyOrders } from '../state/orders';
+import { colors } from '../theme/tokens';
 
-export function OrderRow({ order }: { order: Order }) {
-  return <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/order/[uid]/[id]', params: { uid: order.uid, id: order.id } })} style={ui.card}>
-    <View style={ui.row}><Text style={ui.name}>#{order.id.slice(-6).toUpperCase()}</Text><Text style={ui.category}>{statusLabels[order.status]}</Text></View>
-    <Text style={ui.price}>{formatMoney(order.total)}</Text><Text style={ui.secondary}>{new Date(order.createdAt).toLocaleString('ru-RU')}</Text>
-  </Pressable>;
-}
 export default function OrdersScreen() {
-  const { user } = useAccount();
-  const { orders, loading, problem, retry } = useOrders(user?.uid);
-  return <View style={ui.screen}><View style={ui.body}><FlatList data={orders} keyExtractor={(o) => o.id} contentContainerStyle={{ padding: 20, gap: 14 }} refreshing={loading} onRefresh={retry}
-    ListHeaderComponent={<><Message text={problem} />{problem && <ActionButton label="Qayta urinish" onPress={retry} />}</>}
-    ListEmptyComponent={<EmptyState title={loading ? 'Yuklanmoqda…' : 'Hali buyurtma yo‘q'} message="Tasdiqlangan buyurtmalaringiz shu yerda ko‘rinadi." />} renderItem={({ item }) => <OrderRow order={item} />} /></View></View>;
+  const { t } = useT();
+  const { orders, loading } = useMyOrders();
+  const [tab, setTab] = useState<'active' | 'done'>('active');
+  const list = orders.filter((o) => (tab === 'active' ? isActive(o.holat) : !isActive(o.holat)));
+  return (
+    <View style={styles.root}>
+      <Header title={t('orders.title')} />
+      <View style={styles.seg}>
+        <Segmented value={tab} onChange={setTab} options={[
+          { value: 'active', label: `${t('orders.active')}${orders.filter((o) => isActive(o.holat)).length ? ` · ${orders.filter((o) => isActive(o.holat)).length}` : ''}` },
+          { value: 'done', label: t('orders.done') },
+        ]} />
+      </View>
+      <FlatList
+        data={list}
+        keyExtractor={(o) => o.id}
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={loading ? (
+          <View style={styles.gap}>{[0, 1, 2].map((i) => <Skeleton key={i} height={112} radius={18} />)}</View>
+        ) : (
+          <EmptyState icon="receipt-outline" title={tab === 'active' ? t('orders.emptyTitle') : t('orders.emptyDone')} text={tab === 'active' ? t('orders.emptyText') : undefined}
+            action={tab === 'active' ? { label: t('cart.toCatalog'), onPress: () => router.navigate('/') } : undefined} />
+        )}
+        renderItem={({ item, index }) => (
+          <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 50).duration(320)}>
+            <OrderCard order={item} onPress={() => router.push({ pathname: '/orders/[id]', params: { id: item.id } })} />
+          </Animated.View>
+        )}
+      />
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  seg: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.white },
+  list: { padding: 16, gap: 10, paddingBottom: 40 },
+  gap: { gap: 10 },
+});

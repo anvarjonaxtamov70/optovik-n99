@@ -1,47 +1,56 @@
-# OPTOVIK N99
+# OPTOVIK N99 — avto ehtiyot qismlar do‘koni
 
-Android va iPhone uchun mustaqil ehtiyot qismlar do‘koni. Expo SDK 58 + React Native + Expo Router, Firebase Realtime Database va Firebase Auth. Telegram SDK, bot, login yoki xabar yuborish bog‘liqligi yo‘q.
+Android va iPhone uchun mustaqil ilova (Telegram shart emas). GM / Chevrolet ehtiyot qismlari va avtoaksessuarlar: katalog, savat, naqd to‘lovli buyurtma, buyurtmani kuzatish va do‘kon egasi uchun boshqaruv paneli. Uzum Market uslubidagi oq-ko‘k dizayn, `n99` logotipi, o‘zbek va rus tillari.
 
-## Ishlaydigan oqimlar
+**Ishga tushirish (do‘kon egasi uchun):** [QOLLANMA.md](QOLLANMA.md) · **Dizayn:** [docs/DESIGN.md](docs/DESIGN.md) · **Tekshirish:** [TESTING.md](TESTING.md)
 
-- Katalog: bo‘lim, nom/artikul/model qidiruvi, mavjud mahsulotlar, aksiyalar, narx bo‘yicha saralash.
-- Mahsulot sahifasi: HTTPS rasm, tavsif, artikul, model va jonli qoldiq. Eski `tovarlar/kategoriya/id/{nomi,narxi,qoldiq}` bazasi saqlanadi.
-- Sevimlilar, savat va oxirgi katalog telefonda saqlanadi. Offline katalogni ko‘rish mumkin; xarid uchun narx va qoldiq bazadan qayta tekshiriladi.
-- Email/parol hisobi, email tasdiqlash, parol tiklash, profil va manzil.
-- Naqd to‘lovli buyurtma, tarix, holat kuzatuvi va kutilayotgan buyurtmani bekor qilish.
-- Admin: mahsulot yaratish/tahrirlash, qoldiq, narx, aksiya, buyurtmalar va holatlar.
-- Server: narx/qoldiq tekshiruvi, atomik band qilish, qayta yuborishda bir xil buyurtma, bekor qilish/qaytarishda bir marta stok tiklash, cashback.
+<p>
+<img src="docs/screenshots/01-home.jpg" width="200"> <img src="docs/screenshots/04-product.jpg" width="200"> <img src="docs/screenshots/08-cart.jpg" width="200"> <img src="docs/screenshots/11-success.jpg" width="200">
+</p>
 
-**Holat:** mobil va server kodi PR’da. Jonli buyurtma qabul qilish server joylanmaguncha o‘chiq. `.env.example`dagi bayroq shuning uchun `false`. Bu kodni joylamasdan tayyor savdo xizmati deb hisoblamang.
+## Imkoniyatlar
 
-## Ishga tushirish
+**Mijoz**
+- Bosh sahifa: o‘zi aylanadigan bannerlar, kategoriyalar, «Mening mashinam» bo‘yicha tavsiyalar, aksiyalar, ommabop va yangi tovarlar, GM modellari, barcha tovarlar.
+- Qidiruv: nom, artikul (bo‘shliq va chiziqsiz), model; lotin va kirill (`кобальт колодка` → Cobalt kolodkalari), bitta harf xatosi, oxirgi qidiruvlar.
+- Katalog: ehtiyot qismlar / aksessuarlar, kategoriya va model bo‘yicha; saralash, «faqat mavjud», aksiya, model, narx oralig‘i filtrlari.
+- Tovar sahifasi: rasm galereyasi, chegirma va tejov, qoldiq, mos mashinalar (sizning mashinangizga mosligi), yetkazish shartlari, tavsif, o‘xshash tovarlar, artikulni nusxalash, ulashish.
+- Savat: tanlab buyurtma berish, miqdor, o‘chirib «Qaytarish», bepul yetkazishgacha qolgan summa, qoldiq o‘zgarsa avtomatik moslash.
+- Rasmiylashtirish: do‘kondan olib ketish yoki kuryer, +998 telefon niqobi, naqd to‘lov (Payme / Click / Uzum Bank — «Tez orada»), izoh.
+- Buyurtmalar: holat chizig‘i (Qabul qilindi → Tasdiqlandi → Yo‘lda/Tayyor → Yetkazildi), jonli yangilanadi; tasdiqlanmagan buyurtmani bekor qilish, qayta buyurtma.
+- Kabinet: ism va telefon, mashina, til (UZ/RU), aloqa (qo‘ng‘iroq, Telegram, Instagram, Yandex/Google xarita), yetkazish va to‘lov, savol-javob, maxfiylik siyosati.
 
-Node 22.18+ yoki 24. Paketlarni o‘rnatgach:
+**Do‘kon egasi (Kabinet → «Do‘kon egasi uchun»)**
+- Bugungi buyurtmalar va savdo, yangi buyurtma kelsa xabar.
+- Buyurtmalar: holatni o‘zgartirish, mijozga qo‘ng‘iroq, ichki izoh. Tasdiqlanganda qoldiq avtomatik ayriladi, bekor qilinsa qaytariladi.
+- Tovarlar: qo‘shish/tahrirlash/o‘chirish, narx, eski narx (aksiya), qoldiq, artikul, mos modellar, rasmlar (havola yoki telefondan Cloudinary orqali).
+- Bannerlar (o‘zbekcha/ruscha, rang, havola) va do‘kon sozlamalari (telefonlar, manzil, xarita, yetkazish narxi, bepul yetkazish chegarasi, MCHJ nomi va STIR).
+
+## Texnologiya
+
+- Expo SDK 58, React Native 0.88, Expo Router, Reanimated 4 (animatsiyalar), expo-image, Manrope + Unbounded shriftlari. Hammasi **Expo Go**’da ishlaydi.
+- Firebase Realtime Database + Firebase Auth (mijoz — anonim, admin — email/parol). **Server shart emas, bepul (Spark) tarifda ishlaydi.**
+- Xavfsizlik `database.rules.json` da: narx katalogdagidan farq qilsa, miqdor qoldiqdan oshsa, vaqt soxta bo‘lsa yoki 30 soniyada ikkinchi buyurtma bo‘lsa — server rad etadi. Mijoz faqat o‘z buyurtmasini ko‘radi; tovar, banner, sozlamani faqat admin o‘zgartiradi.
+
+```
+src/app/          Expo Router sahifalari (yupqa fayllar)
+src/screens/      ekranlar (admin/ — boshqaruv)
+src/components/   ui/ (tugma, maydon, varaq…), shop/ (karta, banner, buyurtma…), brand/ (logotip, intro)
+src/domain/       sof mantiq: katalog, qidiruv, savat, buyurtma, telefon, pul (testlangan)
+src/state/        katalog, savat, sozlamalar, hisob, buyurtmalar (Firebase bilan)
+src/i18n/         uz.ts va ru.ts
+database.rules.json, seed/katalog.json, scripts/firebase-setup.mjs
+```
+
+## Buyruqlar
 
 ```sh
 npm ci
-npx expo start
+npx expo start            # telefon va kompyuter bir tarmoqda; Expo Go bilan QR
+npm run typecheck && npm run lint && npm test
+npm run test:rules        # xavfsizlik qoidalari (Java 21 kerak)
 ```
 
-Telefon va kompyuter bir tarmoqda bo‘lsin. Tunnel kerak bo‘lsa, SDK 58 Expo hisobi orqali `npx expo start --tunnel` yoki muqobil `npx expo start --tunnel ngrok`. CLI chiqargan QR’ni Expo Go’da oching.
+## Keyingi bosqichlar
 
-```sh
-npm run typecheck
-npm run lint
-npm test
-```
-
-Serverni yoqish: [DEPLOYMENT.md](DEPLOYMENT.md). Qo‘lda sinash: [TESTING.md](TESTING.md). Avto A1’dan olingan funksional reja: [docs/AVTO_A1_REVIEW.md](docs/AVTO_A1_REVIEW.md).
-
-## Paketli ilova
-
-`eas.json` Android APK preview va production profillarini beradi. Expo loyihasini o‘z hisobingizga bog‘lash, Android/iOS signing va store hisoblari alohida kerak. Bu PR o‘zi APK/IPA yoki App Store nashri yaratmaydi.
-
-## Hozircha kirmagan funksiyalar
-
-Click/Payme va karta to‘lovi, SMS login, push xabarlar, sharhlar, stories, AI yordamchi, yutuqlar hamda eski mijozlarni avtomatik ko‘chirish qo‘shilmagan. Ular mavjud bo‘lgandek ko‘rsatilmaydi. Asosiy savdo oqimi mustaqil ilova sifatida qurilgan.
-
-
-## Mijoz ekrani dizayni
-
-GM ehtiyot qismlari va avtomobil aksessuarlari uchun kelishilgan dizayn, mahsulot kartasi va keyingi o‘zgarishlar mezonlari [docs/DESIGN.md](docs/DESIGN.md) faylida saqlanadi. Bosh ekran Firebase katalogi va ilovaning umumiy savati bilan ishlaydi.
+Payme / Click / Uzum Bank, SMS orqali kirish, push-xabarlar va do‘konlarga chiqarish rejasi — [QOLLANMA.md](QOLLANMA.md#keyingi-qadamlar).

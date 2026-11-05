@@ -8,13 +8,19 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#F3F7FB",
+    "primaryColor": "#2173B1",
+    "description": "GM / Chevrolet ehtiyot qismlari va avtoaksessuarlar do‘koni. Naqd to‘lov, yetkazib berish va do‘kondan olib ketish.",
+    "runtimeVersion": { "policy": "appVersion" },
+    "updates": { "url": "https://u.expo.dev/fe658f49-c712-4f16-8bfa-d9f96ee48f15" },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "uz.optovikn99.app"
+      "bundleIdentifier": "uz.optovikn99.app",
+      "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#2173B1",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -23,11 +29,29 @@
       "package": "uz.optovikn99.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "OPTOVIK N99",
+      "themeColor": "#2173B1"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-image",
+      "expo-font",
+      "expo-localization",
+      [
+        "expo-splash-screen",
+        { "backgroundColor": "#2173B1", "image": "./assets/splash-icon.png", "imageWidth": 220, "resizeMode": "contain" }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Tovar rasmini yuklash uchun galereyaga ruxsat kerak (faqat do‘kon admini uchun).",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
+    "experiments": { "typedRoutes": false },
     "extra": {
       "eas": {
         "projectId": "fe658f49-c712-4f16-8bfa-d9f96ee48f15"

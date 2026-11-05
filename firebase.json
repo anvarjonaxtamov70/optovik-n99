@@ -1,5 +1,4 @@
 {
   "database": { "rules": "database.rules.json" },
-  "functions": [{ "source": "functions", "codebase": "commerce", "runtime": "nodejs22" }],
-  "emulators": { "auth": { "port": 9099 }, "database": { "port": 9000 }, "functions": { "port": 5001 }, "singleProjectMode": true }
+  "emulators": { "database": { "port": 9000 }, "auth": { "port": 9099 }, "singleProjectMode": true }
 }
