@@ -1,106 +1,234 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Switch, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ActionButton, ConnectionStatus, EmptyState } from '../components/ShopUI';
-import { Field, Message, Pill } from '../components/StoreUI';
-import { createOrder, useCommerceSettings, type CheckoutInput } from '../lib/commerce';
-import { commerceEnabled, errorMessage } from '../lib/firebase';
-import { readLocal, saveLocal } from '../lib/storage';
-import { useAccount } from '../store/AccountProvider';
-import { useShop } from '../store/ShopProvider';
-import { cartLines, cartSummary, formatMoney } from '../store/shop';
-import { ui } from '../theme';
+import { Notice } from '../components/shop/CatalogBits';
+import { ProductImage } from '../components/shop/ProductImage';
+import { Button } from '../components/ui/Button';
+import { Card, Pill, Radio, Segmented } from '../components/ui/Controls';
+import { Field, PhoneField } from '../components/ui/Field';
+import { Header } from '../components/ui/Header';
+import { Icon, PartIcon } from '../components/ui/Icon';
+import { PressableScale } from '../components/ui/PressableScale';
+import { Txt } from '../components/ui/Txt';
+import type { DeliveryKind } from '../domain/cart';
+import { validateCheckout, type CheckoutForm } from '../domain/order';
+import { useT, type TKey } from '../i18n';
+import { haptic } from '../lib/haptics';
+import { openMap } from '../lib/links';
+import { saveProfile, useAccount, useProfile } from '../state/account';
+import { cart, useCart } from '../state/cart';
+import { useCatalogLive, useSettings } from '../state/catalog';
+import { PlaceOrderError, placeOrder } from '../state/orders';
+import { showToast } from '../state/toast';
+import { colors, radius, shadow } from '../theme/tokens';
 
 export default function CheckoutScreen() {
-  const account = useAccount();
-  if (!commerceEnabled) return <View style={[ui.screen, { padding: 20 }]}><EmptyState title="Buyurtma xizmati tayyorlanmoqda" message="Katalog va savatdan foydalanishingiz mumkin. Buyurtma serveri hali ishga tushirilmagan." /></View>;
-  if (!account.user) return <View style={[ui.screen, { padding: 20 }]}><EmptyState title="Hisobingizga kiring" message="Buyurtma tarixi va holatini saqlash uchun hisob kerak." action={{ label: 'Profilga o‘tish', onPress: () => router.navigate('/profile') }} /></View>;
-  return <CheckoutForm key={account.user.uid} />;
+  const insets = useSafeAreaInsets();
+  const { t, money, lang } = useT();
+  const settings = useSettings();
+  const profile = useProfile();
+  const authProblem = useAccount().problem === 'auth-disabled';
+  const live = useCatalogLive();
+  const courierOk = settings.courierEnabled;
+  const pickupOk = settings.pickupEnabled || !courierOk;
+  const [kind, setKind] = useState<DeliveryKind>(pickupOk ? 'olib' : 'kuryer');
+  const { lines, summary } = useCart(kind);
+  const [form, setForm] = useState<CheckoutForm>({ ism: profile.name, telefon: profile.phone, turi: kind, manzil: profile.address, moljal: profile.landmark, izoh: '' });
+  const [touched, setTouched] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const done = useRef(false);
+
+  useEffect(() => {
+    if (!done.current && summary.lines === 0 && !busy) router.back();
+  }, [summary.lines, busy]);
+
+  const order: CheckoutForm = { ...form, turi: kind };
+  const errors = validateCheckout(order);
+  const shown = touched ? errors : {};
+  const errText = (k?: string) => (k ? t(`checkout.err.${k}` as TKey) : null);
+  const set = (patch: Partial<CheckoutForm>) => setForm((f) => ({ ...f, ...patch }));
+  const deliveryLabel = kind === 'olib' ? t('checkout.free') : summary.delivery ? money(summary.delivery) : summary.freeLeft === 0 && settings.freeDeliveryFrom ? t('checkout.free') : t('checkout.byAgreement');
+
+  const submit = async () => {
+    setTouched(true);
+    setError(null);
+    if (Object.keys(errors).length) { haptic.warning(); return; }
+    setBusy(true);
+    try {
+      const ordered = Object.fromEntries(lines.filter((l) => l.selected && l.product).map((l) => [l.id, Math.min(l.qty, l.product!.qoldiq)]));
+      const res = await placeOrder(lines, summary, order, lang);
+      done.current = true;
+      haptic.success();
+      void saveProfile({ name: form.ism, phone: form.telefon, address: form.manzil || profile.address, landmark: form.moljal || profile.landmark });
+      cart.ordered(ordered);
+      router.replace({ pathname: '/order-success', params: { id: res.id, raqam: String(res.raqam), phone: form.telefon } });
+    } catch (e) {
+      haptic.warning();
+      const reason = e instanceof PlaceOrderError ? e.reason : 'unknown';
+      const msg = reason === 'auth' ? t('checkout.err.auth') : reason === 'rules' ? t('checkout.err.rules') : reason === 'rate' ? t('checkout.err.rate')
+        : reason === 'network' ? t('checkout.err.network') : reason === 'empty' ? t('checkout.err.empty') : t('common.error');
+      setError(msg);
+      showToast(msg, { kind: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={styles.root}>
+      <Header title={t('checkout.title')} />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
+        <ScrollView contentContainerStyle={[styles.body, { paddingBottom: 130 + insets.bottom }]} keyboardShouldPersistTaps="handled">
+          {authProblem ? <View style={styles.noticeWrap}><Notice icon="alert-circle-outline" tone="warning" text={t('checkout.err.auth')} /></View> : null}
+          <Step n={1} title={t('checkout.method')}>
+            {courierOk && pickupOk ? (
+              <Segmented value={kind} onChange={(v) => { haptic.tap(); setKind(v); }} options={[
+                { value: 'olib', label: t('checkout.pickup'), icon: 'storefront-outline' },
+                { value: 'kuryer', label: t('checkout.courier'), icon: 'bicycle-outline' },
+              ]} />
+            ) : null}
+            <Animated.View key={kind} entering={FadeIn.duration(220)} exiting={FadeOut.duration(120)} style={styles.gap}>
+              {kind === 'olib' ? (
+                <View style={styles.shop}>
+                  <View style={styles.shopIcon}><PartIcon name="storefront-outline" size={24} color={colors.primary} /></View>
+                  <View style={styles.flex}>
+                    <Txt variant="label">{t('checkout.shopAddress')}</Txt>
+                    <Txt variant="bodyStrong">{settings.address}</Txt>
+                    {settings.workHours ? <Txt variant="small">{settings.workHours}</Txt> : null}
+                    <PressableScale onPress={() => openMap(settings)} style={styles.mapLink} accessibilityLabel={t('checkout.openMap')}>
+                      <Icon name="navigate" size={15} color={colors.primary} />
+                      <Txt variant="smallStrong" color={colors.primary}>{t('checkout.openMap')}</Txt>
+                    </PressableScale>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <Txt variant="small">{t('checkout.courierSub')}{settings.deliveryNote ? ` · ${settings.deliveryNote}` : ''}</Txt>
+                  <Field label={t('checkout.address')} icon="location-outline" placeholder={t('checkout.addressPh')} value={form.manzil} onChangeText={(v) => set({ manzil: v })}
+                    error={errText(shown.manzil)} maxLength={300} autoComplete="street-address" />
+                  <Field label={t('checkout.landmark')} icon="flag-outline" placeholder={t('checkout.landmarkPh')} value={form.moljal} onChangeText={(v) => set({ moljal: v })} maxLength={200} />
+                </>
+              )}
+            </Animated.View>
+          </Step>
+
+          <Step n={2} title={t('checkout.contact')}>
+            <Field label={t('checkout.name')} icon="person-outline" placeholder={t('checkout.namePh')} value={form.ism} onChangeText={(v) => set({ ism: v })}
+              error={errText(shown.ism)} maxLength={80} autoComplete="name" textContentType="name" />
+            <PhoneField label={t('checkout.phone')} value={form.telefon} onChange={(v) => set({ telefon: v })} error={errText(shown.telefon)} hint={t('checkout.phoneHint')} />
+          </Step>
+
+          <Step n={3} title={t('checkout.payment')}>
+            <View style={[styles.pay, styles.payOn]}>
+              <View style={[styles.payIcon, { backgroundColor: colors.successSoft }]}><Icon name="cash-outline" size={22} color={colors.success} /></View>
+              <View style={styles.flex}>
+                <Txt variant="bodyStrong">{t('checkout.cash')}</Txt>
+                <Txt variant="small">{t('checkout.cashSub')}</Txt>
+              </View>
+              <Radio checked />
+            </View>
+            {['Payme', 'Click', 'Uzum Bank'].map((name) => (
+              <View key={name} style={[styles.pay, styles.payOff]} accessibilityState={{ disabled: true }}>
+                <View style={styles.payIcon}><Icon name="card-outline" size={20} color={colors.faint} /></View>
+                <Txt variant="bodyStrong" color={colors.faint} style={styles.flex}>{name}</Txt>
+                <Pill text={t('common.soon')} tone="muted" style={styles.center} />
+              </View>
+            ))}
+          </Step>
+
+          <Step n={4} title={t('checkout.comment')}>
+            <Field placeholder={t('checkout.commentPh')} value={form.izoh} onChangeText={(v) => set({ izoh: v })} multiline maxLength={500} />
+          </Step>
+
+          <Card style={styles.summary}>
+            <Txt variant="h3">{t('cart.summary')}</Txt>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbs}>
+              {lines.filter((l) => l.selected && l.product).map((l) => (
+                <View key={l.id}>
+                  <ProductImage uri={l.product!.rasmlar[0]} kategoriya={l.product!.kategoriya} seed={l.id} style={styles.thumb} iconScale={0.45} />
+                  <View style={styles.qty}><Txt variant="tiny" color={colors.white}>×{Math.min(l.qty, l.product!.qoldiq)}</Txt></View>
+                </View>
+              ))}
+            </ScrollView>
+            <Line label={t('cart.goods', { n: summary.count })} value={money(summary.oldTotal)} />
+            {summary.savings > 0 ? <Line label={t('cart.discount')} value={`−${money(summary.savings)}`} tone={colors.success} /> : null}
+            <Line label={t('checkout.deliveryFee')} value={deliveryLabel} tone={kind === 'olib' ? colors.success : undefined} />
+            <View style={styles.hr} />
+            <Line label={t('cart.total')} value={money(summary.total)} strong />
+            <View style={styles.remember}>
+              <Icon name="shield-checkmark-outline" size={15} color={colors.faint} />
+              <Txt variant="tiny" style={styles.flex}>{t('checkout.remember')}</Txt>
+            </View>
+          </Card>
+          {error ? (
+            <Animated.View entering={FadeInDown} layout={LinearTransition} style={styles.error}>
+              <Icon name="alert-circle" size={20} color={colors.sale} />
+              <Txt variant="smallStrong" color={colors.sale} style={styles.flex}>{error}</Txt>
+            </Animated.View>
+          ) : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
+      <View style={[styles.bar, shadow.float, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View style={styles.flex}>
+          <Txt variant="tiny">{t('cart.total')}</Txt>
+          <Txt variant="h2" numberOfLines={1} adjustsFontSizeToFit>{money(summary.total)}</Txt>
+        </View>
+        <Button title={busy ? t('checkout.placing') : t('checkout.place')} loading={busy} disabled={!live || summary.lines === 0} onPress={submit} full={false} style={styles.placeBtn} size="lg" />
+      </View>
+    </View>
+  );
 }
 
-function CheckoutForm() {
-  const { state, dispatch } = useShop();
-  const account = useAccount();
-  const settings = useCommerceSettings();
-  const uid = account.user?.uid;
-  const [customer, setCustomer] = useState({ name: account.profile.name, phone: account.profile.phone, address: account.profile.address });
-  const [delivery, setDelivery] = useState<'pickup' | 'courier'>('pickup');
-  const [note, setNote] = useState('');
-  const [useCashback, setUseCashback] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const lock = useRef(false);
-  const [pending, setPending] = useState<CheckoutInput | null>(null);
-  const [pendingLoaded, setPendingLoaded] = useState(false);
-  const [pendingProblem, setPendingProblem] = useState(false);
-  const [readAttempt, setReadAttempt] = useState(0);
-  useEffect(() => {
-    let active = true;
-    if (!uid) return;
-    void readLocal<CheckoutInput>('attempt:' + uid).then((value) => {
-      if (active) { setPending(value?.attemptId && Array.isArray(value.items) ? value : null); setPendingLoaded(true); }
-    }).catch(() => { if (active) { setMessage('Oldingi buyurtma holatini telefon xotirasidan o‘qib bo‘lmadi. Qayta tekshiring.'); setPendingProblem(true); } });
-    return () => { active = false; };
-  }, [uid, readAttempt]);
-  const summary = cartSummary(state);
-  const shipping = delivery === 'courier' ? settings.shippingFee : 0;
-  const discount = useCashback ? Math.min(Math.max(0, account.balance), Math.floor(summary.total * 0.2)) : 0;
-  async function submit(recover = false) {
-    if (lock.current || !account.user || !pendingLoaded) return;
-    lock.current = true; setBusy(true); setMessage('');
-    const key = 'attempt:' + account.user.uid;
-    try {
-      await account.user.reload();
-      if (!account.user.emailVerified) { setMessage('Avval emailingizga kelgan havola orqali hisobni tasdiqlang.'); return; }
-      await account.user.getIdToken(true);
-      const input: CheckoutInput = recover && pending ? pending : {
-        attemptId: Date.now().toString(36) + Math.random().toString(36).slice(2, 14),
-        items: cartLines(state).map((p) => ({ id: p.id, quantity: p.quantity })).sort((a, b) => a.id.localeCompare(b.id)),
-        customer, delivery, note, useCashback, expectedTotal: summary.total + shipping - discount,
-      };
-      // Never create a second attempt while a timed-out request is unresolved.
-      if (pending && !recover) return;
-      await saveLocal(key, input);
-      setPending(input);
-      const result = await createOrder(input);
-      // The server has acknowledged this exact attempt. Retire it before allowing
-      // another identical cart to become a new order.
-      await saveLocal(key, null);
-      setPending(null);
-      dispatch({ type: 'ordered', quantities: Object.fromEntries(input.items.map((p) => [p.id, p.quantity])) });
-      router.replace({ pathname: '/order/[uid]/[id]', params: result.data });
-    } catch (e) {
-      const code = (e as { code?: string }).code ?? '';
-      if (['functions/invalid-argument', 'functions/failed-precondition', 'functions/permission-denied', 'functions/resource-exhausted', 'functions/unauthenticated'].includes(code)) {
-        try { await saveLocal(key, null); setPending(null); } catch { /* Keep recovery available if persistence fails. */ }
-      }
-      setMessage(errorMessage(e));
-    } finally { lock.current = false; setBusy(false); }
-  }
-  if (!summary.count && !busy && !pending && pendingLoaded) return <View style={[ui.screen, { padding: 20 }]}><EmptyState title="Savat bo‘sh" message="Avval mahsulot tanlang." action={{ label: 'Katalogga', onPress: () => router.navigate('/') }} /></View>;
-  return <SafeAreaView style={ui.screen} edges={['bottom', 'left', 'right']}><KeyboardAvoidingView style={ui.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 18 }}>
-      {pending && <View style={ui.card}><Text style={ui.name}>Oldingi buyurtma javobi kutilmoqda</Text><Text style={ui.secondary}>Holatini tekshirish o‘sha buyurtmani qayta ochadi. Yangi buyurtma yaratilmaydi.</Text><ActionButton label={busy ? 'Tekshirilmoqda…' : 'Buyurtma holatini tekshirish'} disabled={busy} onPress={() => void submit(true)} /></View>}
-      <Text style={ui.name}>Qabul qiluvchi</Text>
-      <Field label="Ism va familiya" value={customer.name} maxLength={80} editable={!busy} onChangeText={(name) => setCustomer({ ...customer, name })} />
-      <Field label="Telefon" value={customer.phone} placeholder="+998 90 123 45 67" maxLength={24} keyboardType="phone-pad" editable={!busy} onChangeText={(phone) => setCustomer({ ...customer, phone })} />
-      <Text style={ui.name}>Qabul qilish usuli</Text>
-      <View style={ui.row}><Pill text="Do‘kondan olish" selected={delivery === 'pickup'} onPress={() => { if (!busy) setDelivery('pickup'); }} />
-        {settings.courierEnabled && <Pill text="Yetkazib berish" selected={delivery === 'courier'} onPress={() => { if (!busy) setDelivery('courier'); }} />}</View>
-      {delivery === 'courier' && <Field label="To‘liq manzil" value={customer.address} maxLength={300} multiline editable={!busy} onChangeText={(address) => setCustomer({ ...customer, address })} />}
-      <Field label="Izoh (ixtiyoriy)" value={note} onChangeText={setNote} maxLength={500} multiline editable={!busy} />
-      <View style={ui.card}><Text style={ui.name}>To‘lov — naqd</Text><Text style={ui.secondary}>Mahsulotni olganingizda to‘laysiz.</Text>
-        {account.balance > 0 && <View style={ui.row}><Text style={[ui.secondary, { flex: 1 }]}>Cashback ishlatish (20% gacha)</Text><Switch accessibilityLabel="Cashback ishlatish" value={useCashback} disabled={busy} onValueChange={setUseCashback} /></View>}
-        <Text style={ui.secondary}>{summary.count} dona · {formatMoney(summary.total)}</Text>
-        <Text style={ui.secondary}>Yetkazish: {formatMoney(shipping)}</Text>
-        {discount > 0 && <Text style={ui.secondary}>Cashback: −{formatMoney(discount)}</Text>}
-        <Text style={ui.price}>Jami: {formatMoney(summary.total + shipping - discount)}</Text>
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <Animated.View entering={FadeInDown.delay(n * 70).duration(360)} style={[styles.step, shadow.soft]}>
+      <View style={styles.stepHead}>
+        <View style={styles.stepNum}><Txt variant="smallStrong" color={colors.white}>{n}</Txt></View>
+        <Txt variant="h3">{title}</Txt>
       </View>
-      <ConnectionStatus /><Message text={message} />
-      {pendingProblem && <ActionButton label="Xotirani qayta tekshirish" onPress={() => { setPendingLoaded(false); setPendingProblem(false); setReadAttempt((n) => n + 1); }} />}
-      <ActionButton label={busy ? 'Buyurtma yuborilmoqda…' : 'Buyurtmani tasdiqlash'} disabled={busy || !summary.count || !!pending || !pendingLoaded || state.status !== 'ready' || customer.name.trim().length < 2 || customer.phone.replace(/\D/g, '').length < 9 || (delivery === 'courier' && customer.address.trim().length < 8)} onPress={() => void submit()} />
-    </ScrollView>
-  </KeyboardAvoidingView></SafeAreaView>;
+      {children}
+    </Animated.View>
+  );
 }
+
+function Line({ label, value, strong, tone }: { label: string; value: string; strong?: boolean; tone?: string }) {
+  return (
+    <View style={styles.line}>
+      <Txt variant={strong ? 'h3' : 'body'} style={styles.flex}>{label}</Txt>
+      <Txt variant={strong ? 'h2' : 'bodyStrong'} color={tone}>{value}</Txt>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
+  gap: { gap: 12 },
+  center: { alignSelf: 'center' },
+  noticeWrap: { marginHorizontal: -16 },
+  body: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  step: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 16, gap: 12 },
+  stepHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepNum: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  shop: { flexDirection: 'row', gap: 12, padding: 12, borderRadius: radius.md, backgroundColor: colors.tint },
+  shopIcon: { width: 44, height: 44, borderRadius: 13, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  mapLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, alignSelf: 'flex-start' },
+  pay: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: radius.md, borderWidth: 1.5 },
+  payOn: { borderColor: colors.primary, backgroundColor: '#F7FBFF' },
+  payOff: { borderColor: colors.line, backgroundColor: colors.surfaceAlt },
+  payIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  summary: { gap: 10 },
+  thumbs: { gap: 8, paddingVertical: 2 },
+  thumb: { width: 58, height: 58, borderRadius: radius.sm },
+  qty: { position: 'absolute', right: 2, bottom: 2, backgroundColor: 'rgba(15,35,56,0.8)', borderRadius: 8, paddingHorizontal: 5 },
+  line: { flexDirection: 'row', alignItems: 'center' },
+  hr: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
+  remember: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  error: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: radius.md, backgroundColor: colors.saleSoft },
+  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 12, backgroundColor: colors.white },
+  placeBtn: { minWidth: 190 },
+});

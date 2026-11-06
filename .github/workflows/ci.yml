@@ -1,4 +1,4 @@
-name: Mobile and commerce checks
+name: Mobile and rules checks
 on:
   pull_request:
     branches: [master]
@@ -22,11 +22,10 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
       - run: npm run typecheck
-      - name: Install server dependencies for lint resolution
-        run: npm ci --prefix functions --ignore-scripts
       - run: npm run lint
         if: ${{ !cancelled() }}
-      - run: npm test
+      - name: Unit tests (catalog, cart, orders, phone, i18n)
+        run: npm test
         if: ${{ !cancelled() }}
       - run: npx expo install --check
         if: ${{ !cancelled() }}
@@ -35,31 +34,17 @@ jobs:
         run: |
           npx expo export --platform android --output-dir dist/android
           npx expo export --platform ios --output-dir dist/ios
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: dependency-lock
-          path: package-lock.json
-  backend:
+  rules:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: functions/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
-      - run: npm ci --prefix functions --ignore-scripts
-      - run: node --test tests/commerce.test.mjs
-      - name: Real Firebase emulator checks
-        run: npx --yes firebase-tools emulators:exec --only auth,database,functions --project demo-optovik "node tests/emulator.mjs"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: backend-lock
-          path: functions/package-lock.json
+      - name: Security rules in the Realtime Database emulator
+        run: npx --yes firebase-tools@14 emulators:exec --only database --project demo-n99 "node --test tests/rules.emulator.mjs"

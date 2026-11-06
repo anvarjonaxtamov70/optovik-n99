@@ -1,0 +1,37 @@
+name: Firebase sozlash
+# Bir marta (va qoidalar o'zgarganda) qo'lda ishga tushiriladi:
+# Actions → "Firebase sozlash" → Run workflow.
+# Kerak: Settings → Secrets and variables → Actions → FIREBASE_SERVICE_ACCOUNT (service account JSON).
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Namuna katalog: auto — faqat baza bo'sh bo'lsa; skip — yuklamaslik; force — majburan (eski katalog zaxiraga olinadi)"
+        type: choice
+        options: [auto, skip, force]
+        default: auto
+      admin_email:
+        description: "Admin qilinadigan email (avval Firebase → Authentication → Users da yarating). Bo'sh qoldirsa bo'ladi."
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: firebase-setup
+  cancel-in-progress: false
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Qoidalar, kirish usullari, katalog va admin
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_DB_URL: ${{ vars.FIREBASE_DB_URL }}
+          SEED: ${{ inputs.seed }}
+          ADMIN_EMAIL: ${{ inputs.admin_email }}
+        run: node scripts/firebase-setup.mjs

@@ -1,9 +1,19 @@
 name: Expo Go Publish
+# Expo Go'da sinash uchun yangilanish chiqaradi. Natija sahifasidagi "EAS Dashboard" havolasini oching
+# va QR kodni telefoningizdagi Expo Go bilan skanerlang.
 on:
   workflow_dispatch:
+    inputs:
+      message:
+        description: "Yangilanish izohi"
+        type: string
+        required: false
+permissions:
+  contents: read
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -11,12 +21,24 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Bundle for iOS and Android
-        run: |
-          npx expo export --platform ios --output-dir dist/ios
-          npx expo export --platform android --output-dir dist/android
-      - name: Publish to Expo
+      - name: Check EXPO_TOKEN
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          npx --yes eas-cli update --branch production --message "iOS update" --non-interactive || true
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN yo'q. expo.dev → Account settings → Access tokens → yarating va GitHub Secrets ga EXPO_TOKEN nomi bilan qo'shing."
+            exit 1
+          fi
+      - name: Publish to EAS Update (branch production)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          npx --yes eas-cli@latest update --branch production --message "${MESSAGE:-$(git log -1 --pretty=%s)}" --non-interactive --json > update.json
+          node -e "
+            const fs = require('fs');
+            let url = 'https://expo.dev/accounts/avtoa1/projects/optovik-n99/updates';
+            try { const j = JSON.parse(fs.readFileSync('update.json', 'utf8')); const u = Array.isArray(j) ? j[0] : j; if (u && u.group) url += '/' + u.group; } catch (e) { console.log(fs.readFileSync('update.json', 'utf8')); }
+            console.log(url);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '## Expo Go\n\nQR kod: ' + url + '\n');
+          "
