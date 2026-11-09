@@ -54,17 +54,33 @@ function Editor({ existing }: { existing?: ReturnType<typeof useProduct> }) {
 
   const pick = async () => {
     if (!canUpload) { Alert.alert(t('admin.product.upload'), t('admin.product.uploadOff')); return; }
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, allowsEditing: true, aspect: [1, 1] });
+    
+    // Ruxsat so'rash
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t('admin.product.uploadPermission'), t('admin.product.uploadPermissionText'));
+      return;
+    }
+    
+    const res = await ImagePicker.launchImageLibraryAsync({ 
+      mediaTypes: ['images'], 
+      quality: 0.85, 
+      allowsEditing: true, 
+      aspect: [1, 1],
+      allowsMultipleSelection: false 
+    });
+    
     if (res.canceled || !res.assets[0]) return;
     setUploading(true);
+    
     try {
-      // ImgBB birinchi navbatda (geografik cheklovsiz)
       const link = settings.imgbbApiKey 
         ? await uploadImage(res.assets[0].uri, settings.imgbbApiKey)
         : await uploadImage(res.assets[0].uri, settings.cloudinaryCloud, settings.cloudinaryPreset);
       set({ rasmlar: [...form.rasmlar, link].slice(0, 10) });
       haptic.success();
     } catch (e) {
+      haptic.warning();
       showToast(String((e as Error).message ?? t('common.error')), { kind: 'error' });
     } finally {
       setUploading(false);

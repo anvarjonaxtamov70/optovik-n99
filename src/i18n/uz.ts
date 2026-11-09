@@ -356,6 +356,8 @@ export const uz = {
   'admin.product.upload': 'Telefondan yuklash',
   'admin.product.uploading': 'Yuklanmoqda…',
   'admin.product.uploadOff': 'Telefondan yuklash uchun Sozlamalarda Cloudinary ni ulang. Hozircha rasm havolasini qo‘shing.',
+  'admin.product.uploadPermission': 'Ruxsat kerak',
+  'admin.product.uploadPermissionText': 'Galereyaga kirish ruxsatini bering. Sozlamalar → Optovik N99 → Rasmlar.',
   'admin.product.popular': 'Ommabop (bosh sahifada)',
   'admin.product.isNew': 'Yangi kelgan',
   'admin.product.order': 'Tartib (kattasi oldinda)',
