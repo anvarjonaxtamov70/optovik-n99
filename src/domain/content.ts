@@ -112,6 +112,7 @@ export type ShopSettings = {
   inn: string;
   cloudinaryCloud: string;
   cloudinaryPreset: string;
+  imgbbApiKey: string;
 };
 
 export const DEFAULT_SETTINGS: ShopSettings = {
@@ -134,6 +135,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   inn: '',
   cloudinaryCloud: '',
   cloudinaryPreset: '',
+  imgbbApiKey: '',
 };
 
 export function readSettings(value: unknown): ShopSettings {
@@ -151,5 +153,6 @@ export function readSettings(value: unknown): ShopSettings {
     pickupEnabled: value.pickupEnabled !== false,
     deliveryNote: s('deliveryNote', 300), legalName: s('legalName', 120), inn: s('inn', 20),
     cloudinaryCloud: s('cloudinaryCloud', 60), cloudinaryPreset: s('cloudinaryPreset', 60),
+    imgbbApiKey: s('imgbbApiKey', 60),
   };
 }

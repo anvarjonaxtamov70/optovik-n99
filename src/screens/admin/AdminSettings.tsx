@@ -77,6 +77,12 @@ function Form({ initial }: { initial: ShopSettings }) {
 
           <Txt variant="h3">{t('admin.settings.media')}</Txt>
           <Card style={styles.gap}>
+            <Txt variant="label">ImgBB (tavsiya qilinadi, cheklovsiz)</Txt>
+            <Txt variant="small">imgbb.com da bepul hisob oching → API → Get API key</Txt>
+            <Field label="ImgBB API Key" value={s.imgbbApiKey} onChangeText={(v) => set({ imgbbApiKey: v.trim() })} autoCapitalize="none" placeholder="a1b2c3d4e5f6g7h8" />
+          </Card>
+          <Card style={styles.gap}>
+            <Txt variant="label">Cloudinary (ixtiyoriy)</Txt>
             <Txt variant="small">{t('admin.settings.mediaHint')}</Txt>
             <Field label={t('admin.settings.cloud')} value={s.cloudinaryCloud} onChangeText={(v) => set({ cloudinaryCloud: v.trim() })} autoCapitalize="none" />
             <Field label={t('admin.settings.preset')} value={s.cloudinaryPreset} onChangeText={(v) => set({ cloudinaryPreset: v.trim() })} autoCapitalize="none" />
