@@ -43,7 +43,7 @@ function Editor({ existing }: { existing?: ReturnType<typeof useProduct> }) {
   const err = (k: keyof ProductForm) => (touched && errors[k] ? t(`admin.product.err.${errors[k]}` as TKey) : null);
   const set = (patch: Partial<ProductForm>) => setForm((f) => ({ ...f, ...patch }));
   const categories = Array.from(new Set([...CATEGORIES.map((c) => c.slug), ...products.map((p) => p.kategoriya)]));
-  const canUpload = !!settings.cloudinaryCloud && !!settings.cloudinaryPreset;
+  const canUpload = (!!settings.cloudinaryCloud && !!settings.cloudinaryPreset) || !!settings.imgbbApiKey;
 
   const toggleModel = (name: string) => {
     const parts = form.model.split(/[,;/]+/).map((s) => s.trim()).filter(Boolean);
@@ -58,7 +58,10 @@ function Editor({ existing }: { existing?: ReturnType<typeof useProduct> }) {
     if (res.canceled || !res.assets[0]) return;
     setUploading(true);
     try {
-      const link = await uploadImage(res.assets[0].uri, settings.cloudinaryCloud, settings.cloudinaryPreset);
+      // ImgBB birinchi navbatda (geografik cheklovsiz)
+      const link = settings.imgbbApiKey 
+        ? await uploadImage(res.assets[0].uri, settings.imgbbApiKey)
+        : await uploadImage(res.assets[0].uri, settings.cloudinaryCloud, settings.cloudinaryPreset);
       set({ rasmlar: [...form.rasmlar, link].slice(0, 10) });
       haptic.success();
     } catch (e) {

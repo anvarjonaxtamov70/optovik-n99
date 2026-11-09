@@ -85,6 +85,7 @@
         "inn": { ".validate": "newData.isString() && newData.val().length <= 20" },
         "cloudinaryCloud": { ".validate": "newData.isString() && newData.val().length <= 60" },
         "cloudinaryPreset": { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "imgbbApiKey": { ".validate": "newData.isString() && newData.val().length <= 60" },
         "lat": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
         "lng": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
         "courierEnabled": { ".validate": "newData.isBoolean()" },
