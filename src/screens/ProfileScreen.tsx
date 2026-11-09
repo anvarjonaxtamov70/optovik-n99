@@ -93,7 +93,7 @@ export default function ProfileScreen() {
             <ListRow icon="shield-checkmark-outline" title={t('profile.privacy')} onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'privacy' } })} last />
           </Group>
 
-          {account.admin || !account.anonymous ? (
+          {account.admin ? (
             <Group title={t('profile.owner')} delay={220}>
               <ListRow icon="speedometer-outline" title={t('profile.admin')} onPress={() => router.push('/admin')} last />
             </Group>
