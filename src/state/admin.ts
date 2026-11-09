@@ -95,12 +95,10 @@ export async function saveSettings(s: ShopSettings) {
 
 /** Cloudinary yoki ImgBB orqali rasmni yuklaydi va HTTPS havolani qaytaradi. */
 export async function uploadImage(uri: string, cloudOrKey: string, preset?: string): Promise<string> {
-  // Agar preset bo'lsa - Cloudinary, yo'q bo'lsa - ImgBB
   if (preset) {
     // Cloudinary
     const body = new FormData();
-    const name = `n99-${Date.now()}.jpg`;
-    body.append('file', { uri, name, type: 'image/jpeg' } as unknown as Blob);
+    body.append('file', { uri, name: `n99-${Date.now()}.jpg`, type: 'image/jpeg' } as any);
     body.append('upload_preset', preset);
     body.append('folder', 'n99');
     const res = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudOrKey)}/image/upload`, { method: 'POST', body });
@@ -108,13 +106,20 @@ export async function uploadImage(uri: string, cloudOrKey: string, preset?: stri
     if (!res.ok || !json.secure_url) throw new Error(json.error?.message ?? `upload ${res.status}`);
     return json.secure_url.replace('/upload/', '/upload/f_auto,q_auto,w_1200/');
   } else {
-    // ImgBB
+    // ImgBB - base64 format (React Native uchun)
+    const res = await fetch(uri);
+    const blob = await res.blob();
+    const reader = new FileReader();
+    const base64 = await new Promise<string>((resolve, reject) => {
+      reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
     const body = new FormData();
-    const name = `n99-${Date.now()}.jpg`;
-    body.append('image', { uri, name, type: 'image/jpeg' } as unknown as Blob);
-    const res = await fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(cloudOrKey)}`, { method: 'POST', body });
-    const json = (await res.json().catch(() => ({}))) as { data?: { url?: string }; error?: { message?: string } };
-    if (!res.ok || !json.data?.url) throw new Error(json.error?.message ?? `upload ${res.status}`);
+    body.append('image', base64);
+    const uploadRes = await fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(cloudOrKey)}`, { method: 'POST', body });
+    const json = (await uploadRes.json().catch(() => ({}))) as { data?: { url?: string }; error?: { message?: string } };
+    if (!uploadRes.ok || !json.data?.url) throw new Error(json.error?.message ?? `upload ${uploadRes.status}`);
     return json.data.url;
   }
 }
