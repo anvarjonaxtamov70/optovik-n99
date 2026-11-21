@@ -44,9 +44,9 @@ GitHub → **Actions → Expo Go Publish → Run workflow**. Tugagach natija sah
 
 ## Ilovani boshqarish
 
-**Telefonda:** **Kabinet** → eng pastda **«Do‘kon egasi uchun»** → email va parol → **Do‘kon boshqaruvi**.
+Do‘konni boshqarish **brauzer orqali** bo‘ladi: telefon ilovasida admin bo‘limi yo‘q (do‘konlar qoidasi bo‘yicha mijozlarga kerak emas).
 
-**Kompyuterda (noutbukda):** brauzerda **https://optovikn99.web.app/admin** ni oching va o‘sha email/parol bilan kiring. Chap tomonda menyu: Bosh sahifa, Buyurtmalar, Tovarlar, Bannerlar, Sozlamalar. Yangi buyurtma kelsa, menyuda va brauzer yorlig‘ida soni chiqadi. Web manzil faqat do‘kon egasi uchun — do‘kon sahifalari (katalog, savat) brauzerda ochilmaydi, mijozlar telefondagi ilovadan foydalanadi.
+**Kompyuterda (noutbukda) yoki telefon brauzerida:** **https://optovikn99.web.app/admin** ni oching va o‘sha email/parol bilan kiring. Chap tomonda menyu: Bosh sahifa, Buyurtmalar, Tovarlar, Bannerlar, Sozlamalar. Yangi buyurtma kelsa, menyuda va brauzer yorlig‘ida soni chiqadi. Web manzil faqat do‘kon egasi uchun — do‘kon sahifalari (katalog, savat) brauzerda ochilmaydi, mijozlar telefondagi ilovadan foydalanadi.
 
 ### Web versiyani joylash (bir marta)
 
@@ -88,7 +88,7 @@ Kalit kiritilmagan bo‘lsa ham tovarga rasm **havolasini** (`https://…`) qo�
 5. **Play Market va App Store.**
    - Google Play Console — bir martalik 25$; Apple Developer — yiliga 99$ (MCHJ nomidan D-U-N-S raqami bilan).
    - Qurish: `npx eas-cli@latest build --platform android --profile production` (Android uchun `.aab`), iOS uchun `--platform ios`. Expo serverida quriladi, kompyuterda Android Studio yoki Xcode shart emas.
-   - Do‘konlar maxfiylik siyosati havolasini so‘raydi. Matn ilovada bor (Kabinet → Maxfiylik siyosati); uni saytga yoki GitHub Pages’ga joylab, havolasini bering.
+   - Do‘konlar maxfiylik siyosati havolasini so‘raydi. Matn ilovada ham, saytda ham bor: https://optovikn99.web.app/info/privacy — shu havolani bersangiz bo‘ladi.
    - Native modul qo‘shilsa (masalan, to‘lov SDK), Expo Go o‘rniga **development build** kerak bo‘ladi: `npx eas-cli@latest build --profile development`.
 6. **Zaxira nusxa.** Firebase → Realtime Database → ⋮ → **Export JSON** — oyiga bir marta.
 

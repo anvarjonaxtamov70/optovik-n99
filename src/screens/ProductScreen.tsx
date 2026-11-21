@@ -9,6 +9,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FavButton } from '../components/shop/FavButton';
+import { ImageViewer } from '../components/shop/ImageViewer';
 import { ProductImage } from '../components/shop/ProductImage';
 import { ProductRail } from '../components/shop/ProductRail';
 import { Button } from '../components/ui/Button';
@@ -18,6 +19,7 @@ import { goBack } from '../components/ui/Header';
 import { Icon, PartIcon, type IconName } from '../components/ui/Icon';
 import { IconButton } from '../components/ui/IconButton';
 import { PressableScale } from '../components/ui/PressableScale';
+import { Skeleton } from '../components/ui/Skeleton';
 import { Stepper } from '../components/ui/Stepper';
 import { Txt } from '../components/ui/Txt';
 import { MAX_QTY } from '../domain/cart';
@@ -30,24 +32,43 @@ import { cart, useQty } from '../state/cart';
 import { useCatalogLive, useCatalogStatus, useProduct, useProducts, useSettings } from '../state/catalog';
 import { useMyCar } from '../state/prefs';
 import { showToast } from '../state/toast';
-import { colors, radius, shadow } from '../theme/tokens';
+import { colors, fonts, radius, shadow } from '../theme/tokens';
 
 export default function ProductScreen() {
   const { category, id } = useLocalSearchParams<{ category: string; id: string }>();
   const product = useProduct(`${category}/${id}`);
   const status = useCatalogStatus();
-  const { t } = useT();
-  if (!product) {
-    return (
-      <View style={[styles.root, styles.center]}>
-        <View style={styles.backFloat}><IconButton icon="chevron-back" label={t('common.back')} onPress={() => goBack()} elevated /></View>
-        {status === 'loading' ? <Txt variant="body">{t('common.loading')}</Txt> : (
-          <EmptyState icon="cube-outline" title={t('product.notFound')} text={t('product.notFoundText')} action={{ label: t('tab.catalog'), onPress: () => router.navigate('/catalog') }} />
-        )}
-      </View>
-    );
-  }
+  if (!product) return <ProductFallback loading={status === 'loading'} />;
   return <ProductView product={product} />;
+}
+
+/** Katalog yuklanayotganda — skeleton; tovar yo'q bo'lsa — tushuntirish va katalogga chiqish. */
+function ProductFallback({ loading }: { loading: boolean }) {
+  const insets = useSafeAreaInsets();
+  const { t } = useT();
+  const { width } = useWindowDimensions();
+  return (
+    <View style={styles.root}>
+      {loading ? (
+        <>
+          <Skeleton height={Math.min(width, 520)} radius={0} />
+          <View style={styles.fallbackBody}>
+            <Skeleton width="45%" height={30} />
+            <Skeleton width="80%" height={20} />
+            <Skeleton width="60%" height={16} />
+            <Skeleton height={120} radius={radius.md} />
+          </View>
+        </>
+      ) : (
+        <View style={[styles.root, styles.center]}>
+          <EmptyState icon="cube-outline" title={t('product.notFound')} text={t('product.notFoundText')} action={{ label: t('tab.catalog'), onPress: () => router.navigate('/catalog') }} />
+        </View>
+      )}
+      <View style={[styles.floatRow, { top: insets.top + 8 }]}>
+        <IconButton icon="chevron-back" label={t('common.back')} onPress={() => goBack()} size={44} elevated />
+      </View>
+    </View>
+  );
 }
 
 function ProductView({ product: p }: { product: Product }) {
@@ -147,8 +168,9 @@ function ProductView({ product: p }: { product: Product }) {
             <Block title={t('product.description')}>
               <Txt variant="body" numberOfLines={expanded ? undefined : 5}>{p.tavsif}</Txt>
               {p.tavsif.length > 220 ? (
-                <PressableScale onPress={() => setExpanded((v) => !v)} accessibilityLabel={expanded ? t('product.less') : t('product.more')}>
+                <PressableScale onPress={() => setExpanded((v) => !v)} style={styles.moreBtn} accessibilityLabel={expanded ? t('product.less') : t('product.more')}>
                   <Txt variant="smallStrong" color={colors.primary}>{expanded ? t('product.less') : t('product.more')}</Txt>
+                  <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={15} color={colors.primary} />
                 </PressableScale>
               ) : null}
             </Block>
@@ -167,14 +189,14 @@ function ProductView({ product: p }: { product: Product }) {
         </View>
       </Animated.ScrollView>
 
-      <Animated.View style={[styles.topBar, { height: insets.top + 56 }, topBar]} pointerEvents="none">
-        <Txt variant="h3" numberOfLines={1} style={[styles.topTitle, { marginTop: insets.top + 16 }]}>{p.nomi}</Txt>
+      <Animated.View style={[styles.topBar, { paddingTop: insets.top + 14, paddingBottom: 12 }, topBar]} pointerEvents="none">
+        <Txt variant="h3" numberOfLines={1} center>{p.nomi}</Txt>
       </Animated.View>
       <View style={[styles.floatRow, { top: insets.top + 8 }]}>
-        <IconButton icon="chevron-back" label={t('common.back')} onPress={() => goBack()} size={42} elevated />
+        <IconButton icon="chevron-back" label={t('common.back')} onPress={() => goBack()} size={44} elevated />
         <View style={styles.floatRight}>
-          <IconButton icon="share-outline" label={t('common.share')} onPress={share} size={42} elevated />
-          <FavButton id={p.id} name={p.nomi} size={42} />
+          <IconButton icon="share-outline" label={t('common.share')} onPress={share} size={44} elevated />
+          <FavButton id={p.id} name={p.nomi} size={44} />
         </View>
       </View>
       <BuyBar product={p} bottom={insets.bottom} />
@@ -183,20 +205,32 @@ function ProductView({ product: p }: { product: Product }) {
 }
 
 function Gallery({ product: p, height, width }: { product: Product; height: number; width: number }) {
+  const { t } = useT();
   const x = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => { x.value = e.contentOffset.x; });
-  const images = p.rasmlar.length ? p.rasmlar : [undefined];
+  const images = p.rasmlar;
+  const [viewer, setViewer] = useState<number | null>(null);
+  const page = () => Math.round(x.get() / width);
   return (
     <View style={{ height, backgroundColor: colors.white }}>
       <Animated.ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
-        {images.map((uri, i) => (
-          <ProductImage key={uri ?? i} uri={uri} kategoriya={p.kategoriya} seed={p.id} style={{ width, height }} iconScale={0.3} />
+        {(images.length ? images : [undefined]).map((uri, i) => (
+          <PressableScale key={uri ?? i} disabled={!uri} scaleTo={0.99} onPress={() => setViewer(i)}
+            accessibilityLabel={uri ? `${t('product.zoom')}. ${t('product.imageOf', { n: i + 1, total: images.length })}` : p.nomi}>
+            <ProductImage uri={uri} kategoriya={p.kategoriya} seed={p.id} style={{ width, height }} iconScale={0.3} />
+          </PressableScale>
         ))}
       </Animated.ScrollView>
-      {images.length > 1 ? (
-        <View style={styles.dots}>{images.map((_, i) => <GalleryDot key={i} i={i} x={x} width={width} />)}</View>
+      {images.length ? (
+        <PressableScale onPress={() => setViewer(page())} style={styles.zoom} accessibilityLabel={t('product.zoom')} scaleTo={0.9}>
+          <Icon name="scan-outline" size={18} color={colors.ink} />
+        </PressableScale>
       ) : null}
-      <LinearGradient colors={['rgba(243,247,251,0)', 'rgba(243,247,251,0.9)']} style={styles.fade} pointerEvents="none" />
+      {images.length > 1 ? (
+        <View style={styles.dots}>{images.map((uri, i) => <GalleryDot key={uri} i={i} x={x} width={width} />)}</View>
+      ) : null}
+      <LinearGradient colors={[`${colors.bg}00`, colors.bg]} style={styles.fade} pointerEvents="none" />
+      {viewer !== null ? <ImageViewer images={images} index={viewer} onClose={() => setViewer(null)} /> : null}
     </View>
   );
 }
@@ -269,7 +303,7 @@ function BuyBar({ product: p, bottom }: { product: Product; bottom: number }) {
         <Txt variant="h3" numberOfLines={1} adjustsFontSizeToFit>{money(p.narxi * Math.max(qty, 1))}</Txt>
       </View>
       <View style={styles.buyAction}>
-        {sold ? <Button title={t('product.soldOut')} disabled variant="secondary" /> : qty > 0 ? (
+        {sold ? <Button title={t('product.soldOut')} disabled variant="secondary" size="lg" /> : qty > 0 ? (
           <Animated.View entering={FadeIn.duration(180)} style={styles.buyRow}>
             <View style={styles.flex}>
               <Stepper value={qty} max={Math.min(p.qoldiq, MAX_QTY)} size="lg" labelInc="+1" labelDec="−1"
@@ -290,15 +324,16 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
-  backFloat: { position: 'absolute', top: 54, left: 12 },
+  fallbackBody: { padding: 18, gap: 12 },
   sheet: { marginTop: -24, backgroundColor: colors.white, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: 18, paddingTop: 20, gap: 10, width: '100%', maxWidth: 760, alignSelf: 'center' },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  price: { fontFamily: 'Manrope_800ExtraBold', fontSize: 28, lineHeight: 34, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+  price: { fontFamily: fonts.heavy, fontSize: 28, lineHeight: 34, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
   oldRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -4 },
   strike: { textDecorationLine: 'line-through' },
   name: { marginTop: 4 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  meta: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 32, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 38, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt },
+  moreBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', minHeight: 44, paddingRight: 8 },
   stockDot: { width: 8, height: 8, borderRadius: 4 },
   fit: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: radius.md, marginTop: 4 },
   fitOk: { backgroundColor: colors.successSoft },
@@ -313,12 +348,13 @@ const styles = StyleSheet.create({
   specLabel: { width: '38%' },
   specValue: { flex: 1 },
   similar: { paddingTop: 18 },
-  topBar: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: colors.white, ...shadow.soft, paddingHorizontal: 110 },
-  topTitle: { textAlign: 'center' },
+  // Sarlavha chap/o'ng tomondagi suzuvchi tugmalar orasida qoladi.
+  topBar: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: colors.white, ...shadow.soft, paddingHorizontal: 116 },
   floatRow: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' },
   floatRight: { flexDirection: 'row', gap: 8 },
   dots: { position: 'absolute', bottom: 34, alignSelf: 'center', flexDirection: 'row', gap: 5 },
   dot: { height: 6, borderRadius: 3, backgroundColor: colors.primary },
+  zoom: { position: 'absolute', right: 14, bottom: 46, width: 40, height: 40, borderRadius: 20, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', ...shadow.soft },
   fade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 40 },
   buyBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 12, backgroundColor: colors.white, ...shadow.float },
   buyPrice: { width: '34%' },

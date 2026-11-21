@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   cancelAnimation, Easing, Extrapolation, interpolate, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle,
@@ -39,7 +39,6 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
   const interval = cardW + GAP;
   const ref = useAnimatedRef<Animated.ScrollView>();
   const x = useSharedValue(0);
-  const [index, setIndex] = useState(0);
   const touching = useRef(false);
   const indexRef = useRef(0);
 
@@ -51,7 +50,6 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
       if (touching.current) return;
       const next = (indexRef.current + 1) % banners.length;
       indexRef.current = next;
-      setIndex(next);
       ref.current?.scrollTo({ x: next * interval, animated: true });
     }, AUTO_MS);
     return () => clearInterval(id);
@@ -74,13 +72,12 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
         onMomentumScrollEnd={(e) => {
           touching.current = false;
           indexRef.current = Math.round(e.nativeEvent.contentOffset.x / interval);
-          setIndex(indexRef.current);
         }}
       >
         {banners.map((b, i) => <BannerCard key={b.id} banner={b} i={i} x={x} interval={interval} width={cardW} height={cardH} />)}
       </Animated.ScrollView>
       {banners.length > 1 ? (
-        <View style={styles.dots} accessibilityRole="adjustable" accessibilityValue={{ min: 1, max: banners.length, now: index + 1 }}>
+        <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           {banners.map((b, i) => <Dot key={b.id} i={i} x={x} interval={interval} />)}
         </View>
       ) : null}
@@ -119,7 +116,7 @@ function BannerCard({ banner: b, i, x, interval, width, height }: {
       </Animated.View>
       <View style={styles.copy}>
         <Txt style={[styles.title, { color: fg, fontSize: height > 190 ? 24 : 20, lineHeight: height > 190 ? 29 : 25 }]} numberOfLines={3}>{b.title[lang]}</Txt>
-        {b.text[lang] ? <Txt variant="small" color={theme.dark ? 'rgba(255,255,255,0.86)' : colors.muted} numberOfLines={2} style={styles.text}>{b.text[lang]}</Txt> : null}
+        {b.text[lang] ? <Txt variant="small" color={theme.dark ? colors.onBrandMuted : colors.muted} numberOfLines={2} style={styles.text}>{b.text[lang]}</Txt> : null}
         <View style={[styles.cta, { backgroundColor: theme.dark ? colors.white : colors.primary }]}>
           <Txt variant="smallStrong" color={theme.dark ? colors.primary : colors.white}>{b.cta[lang]}</Txt>
           <Icon name="arrow-forward" size={15} color={theme.dark ? colors.primary : colors.white} />

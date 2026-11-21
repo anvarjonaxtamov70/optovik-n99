@@ -12,7 +12,7 @@ Tekshirilgan sana: 2026-11-21. Holat: `typecheck`, `lint`, 14 ta unit test o‘t
 ## Bajarilish holati
 - [x] 1-bosqich (Excel’siz) — `feat/admin-tovar-qoshish` PR.
 - [x] 2-bosqich — web admin paneli + hosting (`feat/web-admin-panel` PR).
-- [ ] 3-bosqich — dizayn tozalash.
+- [x] 3-bosqich — dizayn (`feat/dizayn-mukammal` PR).
 - [ ] 4-bosqich — do‘konlarga chiqish.
 - [ ] Excel/CSV import va eksport.
 
@@ -70,11 +70,18 @@ Bajarildi: `/admin` va `/info/*` dan boshqa sahifalar web’da `/admin` ga yo‘
 3. Buyurtmalar, bannerlar va sozlamalar sahifalarini keng ekranga moslash; web soyalari va hover.
 4. Firebase Hosting (bepul, `optovikn99.web.app`) + GitHub Actions orqali avtomatik joylash. Firebase Auth’da domenni ruxsat etish.
 
-### 3-bosqich. Dizayn tozalash
-Tokenlarga o‘tkazish, touch target ≥44px, i18n’dan tashqari matnlar, bo‘sh/yuklanish/xato holatlari, rasm zoom, skeletonlar, sinov tovarlarini o‘chirish.
+### 3-bosqich. Dizayn ✅
+- Ranglar va shriftlar faqat `theme/tokens.ts` dan (yangi tokenlar: `info`, `gold`, `scrim`, `toast*`, `onBrand*`, `viewerBg`, `artTones`). Web soyalari.
+- Bosiladigan joylar ≥ 44 px: tugmalar (`Button` sm 38→44), savatdagi `+/−`, «Savatga», varaq yopish, qidiruvni tozalash, joylashuv va qo‘ng‘iroq.
+- i18n’dan tashqari matnlar yo‘q: «Universal», «Yangi», «Close», «STIR / ИНН», banner rangi va rasmi (xom `sunrise`, `gm` o‘rniga nomlar). Ishlatilmaydigan kalitlar o‘chirildi.
+- Holatlar: tovar sahifasi va qidiruvda yuklanish skeletoni, saralanganlarda skeleton, buyurtmalarda xato holati, topilmagan buyurtma uchun tushuntirish va chiqish yo‘li.
+- Rasmni to‘liq ekranda ko‘rish: barmoqlar bilan kattalashtirish, ikki marta bosish, surish, varaqlash, hisoblagich (`ImageViewer`).
+- Pastga tortib yangilashda haqiqiy aylanuvchi belgi; «Samarqand» tugmasidagi yolg‘on strelka o‘rniga aniq belgi.
+- To‘lovdagi «Tez orada» qatorlari olib tashlandi (Apple tugallanmagan funksiyani rad etadi); maxfiylik va savol-javob matni to‘g‘rilandi (buyurtmalar serverda saqlanadi, saqlash muddati yozildi).
+- Telefon ilovasidan admin kirishi olib tashlandi; `supportsTablet: false` (faqat iPhone).
 
 ### 4-bosqich. Do‘konlarga chiqish
-1. Kod: «Ma’lumotlarimni o‘chirish» (ilovada + web sahifa), maxfiylik siyosatini yangilash va web’da ochiq sahifa qilish, «Tez orada» to‘lovlarni yashirish, admin kirishni yashirish, iPad qarori, `eas.json` submit sozlamalari.
+1. Kod: «Ma’lumotlarimni o‘chirish» (ilovada + ochiq web sahifa), maxfiylik siyosatini web’da ochiq havola qilish, `eas.json` submit sozlamalari. («Tez orada» to‘lovlar, admin kirishi va iPad 3-bosqichda hal qilindi.)
 2. Hisoblar: Google Play Console (bir martalik 25$), Apple Developer (yiliga 99$; MCHJ nomidan bo‘lsa D-U-N-S raqami kerak).
 3. Hisoblar MCHJ nomidan: Google Play’dagi 12 testerli 14 kunlik yopiq test talabi (faqat shaxsiy hisoblar uchun) bizga tegishli emas, lekin tashkilot hisobini tasdiqlash uchun D-U-N-S raqami va hujjatlar so‘raladi. Apple ham MCHJ uchun D-U-N-S talab qiladi (bepul, lekin olish bir necha hafta cho‘zilishi mumkin — oldindan boshlash kerak).
 4. Materiallar: ikona 1024×1024, Play uchun 1024×500 banner, telefon (va iPad) skrinshotlari, qisqa va to‘liq tavsif (uz/ru), kontent reytingi, Data safety va App Privacy anketalari, qo‘llab-quvvatlash havolasi.

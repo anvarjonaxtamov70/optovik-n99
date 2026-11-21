@@ -4,13 +4,13 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, LinearTransition, ZoomOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ProductCard } from '../components/shop/ProductCard';
+import { ProductCard, ProductCardSkeleton } from '../components/shop/ProductCard';
 import { useGrid } from '../components/shop/ProductGrid';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Txt } from '../components/ui/Txt';
 import type { Product } from '../domain/products';
 import { useT } from '../i18n';
-import { catalogStore } from '../state/catalog';
+import { catalogStore, useCatalogStatus } from '../state/catalog';
 import { useStore } from '../lib/store';
 import { useFavorites } from '../state/prefs';
 import { colors } from '../theme/tokens';
@@ -20,8 +20,11 @@ export default function FavoritesScreen() {
   const { t } = useT();
   const ids = useFavorites();
   const byId = useStore(catalogStore, (s) => s.byId);
+  const status = useCatalogStatus();
   const list = useMemo(() => [...ids].reverse().map((id) => byId.get(id)).filter((p): p is Product => !!p), [ids, byId]);
   const { columns, cardWidth, gap } = useGrid();
+  // Katalog yuklanmaguncha saralanganlar bo'sh ko'rinadi — shuning uchun skeleton.
+  const loading = status === 'loading' && !byId.size && ids.length > 0;
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.titleRow}>
@@ -35,7 +38,9 @@ export default function FavoritesScreen() {
         keyExtractor={(p) => p.id}
         columnWrapperStyle={columns > 1 ? { gap, paddingHorizontal: 16 } : undefined}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState icon="heart-outline" title={t('fav.emptyTitle')} text={t('fav.emptyText')} action={{ label: t('cart.toCatalog'), onPress: () => router.navigate('/') }} />}
+        ListEmptyComponent={loading
+          ? <View style={[styles.skeletons, { gap }]}>{[0, 1].map((i) => <ProductCardSkeleton key={i} width={cardWidth} />)}</View>
+          : <EmptyState icon="heart-outline" title={t('fav.emptyTitle')} text={t('fav.emptyText')} action={{ label: t('cart.toCatalog'), onPress: () => router.navigate('/') }} />}
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(Math.min(index, 6) * 50).duration(320)} exiting={ZoomOut.duration(200)} layout={LinearTransition.springify().damping(18)}>
             <ProductCard product={item} width={cardWidth} />
@@ -51,4 +56,5 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
   list: { paddingTop: 4, paddingBottom: 32, gap: 10 },
+  skeletons: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16 },
 });

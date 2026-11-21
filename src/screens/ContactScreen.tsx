@@ -27,7 +27,7 @@ export default function ContactScreen() {
             <LogoMark size={64} />
             <View style={styles.flex}>
               <Txt variant="h2" color={colors.white}>{s.name}</Txt>
-              <Txt variant="small" color="rgba(255,255,255,0.85)">{t('app.tagline')}</Txt>
+              <Txt variant="small" color={colors.onBrandMuted}>{t('app.tagline')}</Txt>
             </View>
           </LinearGradient>
         </Animated.View>
@@ -56,7 +56,7 @@ export default function ContactScreen() {
           <Card style={styles.gap}>
             <Txt variant="label">{t('contact.legal')}</Txt>
             {s.legalName ? <Txt variant="bodyStrong">{s.legalName}</Txt> : null}
-            {s.inn ? <Txt variant="small">STIR / ИНН: {s.inn}</Txt> : null}
+            {s.inn ? <Txt variant="small">{t('contact.inn')}: {s.inn}</Txt> : null}
           </Card>
         ) : null}
       </ScrollView>

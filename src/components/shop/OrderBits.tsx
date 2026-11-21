@@ -17,7 +17,7 @@ export const STATUS_ICON: Record<OrderStatus, IconName> = {
   yetkazildi: 'bag-check-outline', bekor: 'close-circle-outline',
 };
 export const STATUS_TONE: Record<OrderStatus, [string, string]> = {
-  yangi: [colors.tint, colors.primary], tasdiqlandi: ['#E7F0FF', '#2D5BD8'], yolda: [colors.warningSoft, colors.warning],
+  yangi: [colors.tint, colors.primary], tasdiqlandi: [colors.infoSoft, colors.info], yolda: [colors.warningSoft, colors.warning],
   tayyor: [colors.warningSoft, colors.warning], yetkazildi: [colors.successSoft, colors.success], bekor: [colors.saleSoft, colors.sale],
 };
 

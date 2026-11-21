@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   Extrapolation, FadeInDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue,
@@ -25,7 +25,7 @@ import { modelBySlug } from '../domain/taxonomy';
 import { useT } from '../i18n';
 import { callPhone } from '../lib/links';
 import { openList } from '../lib/nav';
-import { retryCatalog, useBanners, useCatalogStatus, useProducts, useSettings } from '../state/catalog';
+import { catalogStore, retryCatalog, useBanners, useCatalogStatus, useProducts, useSettings } from '../state/catalog';
 import { useMyCar } from '../state/prefs';
 import { colors, fill, gradients, radius, shadow } from '../theme/tokens';
 
@@ -51,6 +51,17 @@ export default function HomeScreen() {
 
   const all = useMemo(() => [...products].sort((a, b) => Number(b.qoldiq > 0) - Number(a.qoldiq > 0)), [products]);
   const loading = status === 'loading' && products.length === 0;
+  // Pastga tortib yangilash: katalog qayta kelganda (yoki 6 soniyadan keyin) spinner to'xtaydi.
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = useCallback(() => {
+    setRefreshing(true);
+    const from = catalogStore.get().version;
+    retryCatalog();
+    let done = false;
+    const stop = () => { if (done) return; done = true; off(); clearTimeout(timer); setRefreshing(false); };
+    const off = catalogStore.subscribe(() => { if (catalogStore.get().version !== from) stop(); });
+    const timer = setTimeout(stop, 6000);
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -66,7 +77,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         initialNumToRender={6}
         windowSize={9}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={retryCatalog} progressViewOffset={headerH} tintColor={colors.primary} colors={[colors.primary]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} progressViewOffset={headerH} tintColor={colors.primary} colors={[colors.primary]} />}
         ListHeaderComponent={<HomeSections products={products} loading={loading} carSlug={carModel?.slug ?? null} />}
         ListEmptyComponent={loading ? (
           <View style={[styles.skeletons, { gap }]}>{[0, 1, 2, 3].map((i) => <ProductCardSkeleton key={i} width={cardWidth} />)}</View>
@@ -85,12 +96,14 @@ export default function HomeScreen() {
         <Animated.View style={[styles.topRow, topRow]}>
           <Logo height={24} />
           <View style={styles.topRight}>
-            <PressableScale onPress={() => router.push('/contact')} style={styles.location} accessibilityLabel={settings.address}>
+            {/* Joylashuvni tanlash yo'q — bu do'kon manzili, bosilganda «Biz bilan aloqa» ochiladi. */}
+            <PressableScale onPress={() => router.push('/contact')} style={styles.location} hitSlop={6}
+              accessibilityLabel={`${t('contact.shopLocation')}: ${settings.address}`}>
               <Icon name="location" size={15} color={colors.primary} />
               <Txt variant="smallStrong" color={colors.ink}>{t('home.location')}</Txt>
-              <Icon name="chevron-down" size={13} color={colors.muted} />
+              <Icon name="chevron-forward" size={13} color={colors.muted} />
             </PressableScale>
-            {settings.phone ? <IconButton icon="call" label={t('common.call')} onPress={() => callPhone(settings.phone)} size={38} bg={colors.tint} color={colors.primary} iconSize={18} /> : null}
+            {settings.phone ? <IconButton icon="call" label={t('common.call')} onPress={() => callPhone(settings.phone)} size={40} bg={colors.tint} color={colors.primary} iconSize={18} /> : null}
           </View>
         </Animated.View>
         <View style={styles.searchRow}>
@@ -171,7 +184,7 @@ function CarCta() {
         <View style={styles.ctaIcon}><PartIcon name="car-cog" size={30} color={colors.white} /></View>
         <View style={styles.flex}>
           <Txt variant="bodyStrong" color={colors.white}>{t('home.carBannerTitle')}</Txt>
-          <Txt variant="small" color="rgba(255,255,255,0.8)">{t('home.carBannerText')}</Txt>
+          <Txt variant="small" color={colors.onBrandMuted}>{t('home.carBannerText')}</Txt>
         </View>
         <Icon name="chevron-forward" size={20} color={colors.white} />
       </PressableScale>
@@ -188,7 +201,7 @@ const styles = StyleSheet.create({
   shade: { ...fill, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg, ...shadow.card, backgroundColor: colors.white },
   topRow: { height: TOP_ROW, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
   topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  location: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, height: 34, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt },
+  location: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, height: 40, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt },
   searchRow: { height: SEARCH_ROW, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 6 },
   car: { height: 48, minWidth: 48, paddingHorizontal: 10, borderRadius: radius.md, backgroundColor: colors.tint, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 },
   carOn: { backgroundColor: colors.primary },
@@ -201,6 +214,6 @@ const styles = StyleSheet.create({
   perkText: { flex: 1, lineHeight: 14 },
   ctaWrap: { paddingHorizontal: 16 },
   cta: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: radius.lg, overflow: 'hidden' },
-  ctaIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  ctaIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: colors.onBrandGlass, alignItems: 'center', justifyContent: 'center' },
   allTitle: { marginTop: 2 },
 });

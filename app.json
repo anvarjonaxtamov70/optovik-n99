@@ -14,7 +14,7 @@
     "runtimeVersion": { "policy": "appVersion" },
     "updates": { "url": "https://u.expo.dev/fe658f49-c712-4f16-8bfa-d9f96ee48f15" },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "uz.optovikn99.app",
       "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
     },

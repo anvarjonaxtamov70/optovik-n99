@@ -27,15 +27,38 @@ export const colors = {
   lineStrong: '#CCD9E6',
 
   sale: '#E5383B',
+  saleBright: '#EF5350',
   saleSoft: '#FDECEC',
+  saleTint: '#FFF8F8',
   success: '#17945A',
   successSoft: '#E6F6EE',
   warning: '#D9822B',
   warningSoft: '#FDF1E4',
+  /** "Tasdiqlandi" holati. */
+  info: '#2D5BD8',
+  infoSoft: '#E7F0FF',
+  /** Yangi xabar nuqtasi, bayram belgilari. */
+  gold: '#FFC94D',
   white: '#FFFFFF',
   black: '#000000',
   overlay: 'rgba(9, 25, 43, 0.45)',
+  /** Qorong'i fon ustidagi matn va yorliqlar (rasm ustidagi "Tugagan", miqdor). */
+  scrim: 'rgba(15, 35, 56, 0.78)',
+  /** Rasmni to'liq ekranda ko'rish oynasining foni. */
+  viewerBg: '#06101C',
+  /** Toast: qorong'i fon va undagi ikonka ranglari. */
+  toast: '#13283E',
+  toastError: '#FF8A8A',
+  toastSuccess: '#7EE2B0',
+  /** Ko'k gradient ustidagi oq matn/shisha qatlamlari. */
+  onBrandMuted: 'rgba(255, 255, 255, 0.82)',
+  onBrandGlass: 'rgba(255, 255, 255, 0.14)',
 } as const;
+
+/** Rasmi yo'q tovar uchun yumshoq fon ohanglari. */
+export const artTones: readonly (readonly [string, string])[] = [
+  ['#EEF6FD', '#DCEBF8'], ['#F1F5FB', '#E1E9F4'], ['#EDF7F7', '#D9EDF0'], ['#F3F2FB', '#E3E2F4'],
+];
 
 export const gradients = {
   brand: ['#3B8FD6', '#2173B1', '#164F84'] as const,

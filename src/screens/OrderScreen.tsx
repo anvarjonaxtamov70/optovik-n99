@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,7 +9,7 @@ import { ProductImage } from '../components/shop/ProductImage';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Controls';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Header } from '../components/ui/Header';
+import { goBack, Header } from '../components/ui/Header';
 import { Icon, type IconName } from '../components/ui/Icon';
 import { PressableScale } from '../components/ui/PressableScale';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -17,6 +17,7 @@ import { Txt } from '../components/ui/Txt';
 import { canCustomerCancel, orderNumber, recomputeTotals, type Order } from '../domain/order';
 import { displayPhone } from '../domain/phone';
 import { useT } from '../i18n';
+import { confirmAsync } from '../lib/confirm';
 import { haptic } from '../lib/haptics';
 import { callPhone } from '../lib/links';
 import { openProduct } from '../lib/nav';
@@ -36,8 +37,9 @@ export default function OrderScreen() {
     return (
       <View style={styles.root}>
         <Header title={t('orders.title')} />
-        {loading ? <View style={styles.body}><Skeleton height={220} radius={18} /><Skeleton height={160} radius={18} /></View>
-          : <EmptyState icon="receipt-outline" title={t('orders.notFound')} />}
+        {loading ? <View style={styles.body}><Skeleton height={220} radius={radius.lg} /><Skeleton height={160} radius={radius.lg} /></View>
+          : <EmptyState icon="receipt-outline" title={t('orders.notFound')} text={t('orders.notFoundText')}
+              action={{ label: t('orders.title'), onPress: () => goBack('/orders') }} />}
       </View>
     );
   }
@@ -55,13 +57,12 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
   const wide = !!admin && width >= layout.wide;
   const openItem = (id: string) => (admin ? router.push({ pathname: '/admin/product', params: { id } }) : openProduct(id));
 
-  const cancel = () => Alert.alert(t('orders.cancel'), t('orders.cancelConfirm'), [
-    { text: t('common.no'), style: 'cancel' },
-    { text: t('common.yes'), style: 'destructive', onPress: async () => {
-      setBusy(true);
-      try { await cancelMyOrder(o); haptic.success(); showToast(t('orders.cancelled'), { kind: 'success' }); } catch { showToast(t('common.error'), { kind: 'error' }); } finally { setBusy(false); }
-    } },
-  ]);
+  const cancel = async () => {
+    const ok = await confirmAsync(t('orders.cancel'), t('orders.cancelConfirm'), { ok: t('common.yes'), cancel: t('common.no'), destructive: true });
+    if (!ok) return;
+    setBusy(true);
+    try { await cancelMyOrder(o); haptic.success(); showToast(t('orders.cancelled'), { kind: 'success' }); } catch { showToast(t('common.error'), { kind: 'error' }); } finally { setBusy(false); }
+  };
   const repeat = () => {
     const byId = catalogStore.get().byId;
     let added = 0;
@@ -135,7 +136,7 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
           <View style={styles.actions}>
             <Button title={t('orders.repeat')} icon="repeat" variant="secondary" onPress={repeat} />
             {settings.phone ? <Button title={t('orders.callShop')} icon="call-outline" variant="outline" onPress={() => callPhone(settings.phone)} /> : null}
-            {canCustomerCancel(o) ? <Button title={t('orders.cancel')} variant="ghost" loading={busy} onPress={cancel} /> : null}
+            {canCustomerCancel(o) ? <Button title={t('orders.cancel')} variant="ghost" loading={busy} onPress={() => void cancel()} /> : null}
           </View>
         ) : null}
       </ScrollView>

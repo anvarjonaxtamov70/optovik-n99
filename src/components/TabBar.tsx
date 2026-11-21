@@ -107,7 +107,8 @@ const styles = StyleSheet.create({
   bar: {
     backgroundColor: colors.white, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: 6,
     ...Platform.select({
-      ios: { shadowColor: '#0F2338', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.06, shadowRadius: 12 },
+      ios: { shadowColor: colors.ink, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.06, shadowRadius: 12 },
+      web: { boxShadow: '0px -4px 12px rgba(15, 35, 56, 0.06)' },
       default: { elevation: 12 },
     }),
   },
@@ -115,7 +116,7 @@ const styles = StyleSheet.create({
   pill: { position: 'absolute', top: 0, left: 0, width: PILL_W, height: 32, borderRadius: 16, backgroundColor: colors.tint },
   item: { flex: 1, alignItems: 'center', gap: 3, minHeight: 50 },
   iconBox: { width: PILL_W, height: 32, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 10.5, lineHeight: 14 },
+  label: { fontSize: 11, lineHeight: 14 },
   badge: { position: 'absolute', top: 0, right: 10, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.sale, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.white },
   badgeText: { color: colors.white, fontSize: 10, fontFamily: fonts.heavy, lineHeight: 12 },
   dot: { position: 'absolute', top: 4, right: 16, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.sale, borderWidth: 1.5, borderColor: colors.white },

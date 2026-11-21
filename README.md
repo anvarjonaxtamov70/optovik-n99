@@ -14,13 +14,13 @@ Android va iPhone uchun mustaqil ilova (Telegram shart emas). GM / Chevrolet eht
 - Bosh sahifa: o‘zi aylanadigan bannerlar, kategoriyalar, «Mening mashinam» bo‘yicha tavsiyalar, aksiyalar, ommabop va yangi tovarlar, GM modellari, barcha tovarlar.
 - Qidiruv: nom, artikul (bo‘shliq va chiziqsiz), model; lotin va kirill (`кобальт колодка` → Cobalt kolodkalari), bitta harf xatosi, oxirgi qidiruvlar.
 - Katalog: ehtiyot qismlar / aksessuarlar, kategoriya va model bo‘yicha; saralash, «faqat mavjud», aksiya, model, narx oralig‘i filtrlari.
-- Tovar sahifasi: rasm galereyasi, chegirma va tejov, qoldiq, mos mashinalar (sizning mashinangizga mosligi), yetkazish shartlari, tavsif, o‘xshash tovarlar, artikulni nusxalash, ulashish.
+- Tovar sahifasi: rasm galereyasi (to‘liq ekranda kattalashtirish — pinch va ikki marta bosish), chegirma va tejov, qoldiq, mos mashinalar (sizning mashinangizga mosligi), yetkazish shartlari, tavsif, o‘xshash tovarlar, artikulni nusxalash, ulashish.
 - Savat: tanlab buyurtma berish, miqdor, o‘chirib «Qaytarish», bepul yetkazishgacha qolgan summa, qoldiq o‘zgarsa avtomatik moslash.
 - Rasmiylashtirish: do‘kondan olib ketish yoki kuryer, +998 telefon niqobi, naqd to‘lov (Payme / Click / Uzum Bank — «Tez orada»), izoh.
 - Buyurtmalar: holat chizig‘i (Qabul qilindi → Tasdiqlandi → Yo‘lda/Tayyor → Yetkazildi), jonli yangilanadi; tasdiqlanmagan buyurtmani bekor qilish, qayta buyurtma.
 - Kabinet: ism va telefon, mashina, til (UZ/RU), aloqa (qo‘ng‘iroq, Telegram, Instagram, Yandex/Google xarita), yetkazish va to‘lov, savol-javob, maxfiylik siyosati.
 
-**Do‘kon egasi (Kabinet → «Do‘kon egasi uchun» yoki kompyuterda https://optovikn99.web.app/admin)**
+**Do‘kon egasi (brauzerda: https://optovikn99.web.app/admin)**
 - Kompyuterda chap menyuli admin paneli; web versiya faqat admin uchun (do‘kon sahifalari brauzerda `/admin` ga yo‘naltiriladi). Firebase Hosting’ga «Web admin panel» amali joylaydi.
 - Bugungi buyurtmalar va savdo, yangi buyurtma kelsa xabar.
 - Buyurtmalar: holatni o‘zgartirish, mijozga qo‘ng‘iroq, ichki izoh. Tasdiqlanganda qoldiq avtomatik ayriladi, bekor qilinsa qaytariladi.

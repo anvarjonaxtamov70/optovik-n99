@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +18,7 @@ import { Stepper } from '../components/ui/Stepper';
 import { Txt } from '../components/ui/Txt';
 import { MAX_QTY, type CartLine } from '../domain/cart';
 import { useT } from '../i18n';
+import { confirmAsync } from '../lib/confirm';
 import { haptic } from '../lib/haptics';
 import { openProduct } from '../lib/nav';
 import { cart, useCart, useCartNotice } from '../state/cart';
@@ -67,14 +68,15 @@ export default function CartScreen() {
         <Txt variant="small">{t('common.items', { n: summary.count })}</Txt>
       </View>
       <View style={styles.toolbar}>
-        <Checkbox checked={allSelected} onPress={() => cart.selectAll(!allSelected)} label={t('cart.selectAll')} />
-        <PressableScale onPress={() => cart.selectAll(!allSelected)} style={styles.flex} accessibilityLabel={t('cart.selectAll')}>
+        {/* Bitta bosiladigan joy: ekran o'quvchida ham bir marta o'qiladi. */}
+        <PressableScale onPress={() => cart.selectAll(!allSelected)} style={styles.selectAll} accessibilityRole="checkbox"
+          accessibilityState={{ checked: allSelected }} accessibilityLabel={t('cart.selectAll')}>
+          <Checkbox checked={allSelected} onPress={() => cart.selectAll(!allSelected)} label={t('cart.selectAll')} />
           <Txt variant="bodyStrong">{t('cart.selectAll')}</Txt>
         </PressableScale>
         {selectedIds.length ? (
-          <PressableScale onPress={() => Alert.alert(t('cart.deleteSelected'), t('cart.removeAllConfirm'), [
-            { text: t('common.cancel'), style: 'cancel' }, { text: t('common.delete'), style: 'destructive', onPress: () => removeWithUndo(selectedIds) },
-          ])} style={styles.deleteSel} accessibilityLabel={t('cart.deleteSelected')}>
+          <PressableScale onPress={() => void confirmAsync(t('cart.deleteSelected'), t('cart.removeAllConfirm'), { ok: t('common.delete'), cancel: t('common.cancel'), destructive: true })
+            .then((ok) => { if (ok) removeWithUndo(selectedIds); })} hitSlop={6} style={styles.deleteSel} accessibilityLabel={t('cart.deleteSelected')}>
             <Icon name="trash-outline" size={17} color={colors.sale} />
             <Txt variant="smallStrong" color={colors.sale}>{t('common.delete')}</Txt>
           </PressableScale>
@@ -142,8 +144,8 @@ function CartRow({ line: l, index, onRemove }: { line: CartLine; index: number; 
         </View>
       ) : null}
       <View style={styles.rowBottom}>
-        <IconButton icon={fav ? 'heart' : 'heart-outline'} color={fav ? colors.sale : colors.muted} label={t('cart.toFavorites')} onPress={() => { prefs.toggleFavorite(l.id); haptic.tap(); }} size={38} bg={colors.surfaceAlt} />
-        <IconButton icon="trash-outline" color={colors.muted} label={t('common.delete')} onPress={onRemove} size={38} bg={colors.surfaceAlt} />
+        <IconButton icon={fav ? 'heart' : 'heart-outline'} color={fav ? colors.sale : colors.muted} label={t('cart.toFavorites')} onPress={() => { prefs.toggleFavorite(l.id); haptic.tap(); }} size={44} bg={colors.surfaceAlt} />
+        <IconButton icon="trash-outline" color={colors.muted} label={t('common.delete')} onPress={onRemove} size={44} bg={colors.surfaceAlt} />
         <View style={styles.flex} />
         {p && l.problem !== 'soldout' && l.problem !== 'missing' ? (
           <View style={styles.stepper}>
@@ -186,8 +188,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.white, marginHorizontal: 16, borderRadius: radius.md },
-  deleteSel: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 6 },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: colors.white, marginHorizontal: 16, borderRadius: radius.md },
+  selectAll: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },
+  deleteSel: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, minHeight: 44 },
   emptyBody: { paddingBottom: 32 },
   body: { padding: 16, gap: 12 },
   lines: { gap: 10 },
@@ -199,7 +202,7 @@ const styles = StyleSheet.create({
   strike: { textDecorationLine: 'line-through' },
   problem: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 8, borderRadius: radius.sm, backgroundColor: colors.warningSoft },
   rowBottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  stepper: { width: 128 },
+  stepper: { width: 142 },
   summary: { gap: 10 },
   sumRow: { flexDirection: 'row', alignItems: 'center' },
   hr: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },

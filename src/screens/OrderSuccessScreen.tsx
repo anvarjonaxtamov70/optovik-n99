@@ -12,7 +12,7 @@ import { Txt } from '../components/ui/Txt';
 import { orderNumber } from '../domain/order';
 import { displayPhone } from '../domain/phone';
 import { useT } from '../i18n';
-import { colors, fill, radius, shadow } from '../theme/tokens';
+import { colors, fill, fonts, radius, shadow } from '../theme/tokens';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -21,7 +21,7 @@ const C = 2 * Math.PI * R;
 const CHECK = 'M42 62 L56 76 L82 48';
 const CHECK_LEN = 60;
 const CONFETTI = Array.from({ length: 18 }, (_, i) => i);
-const CONFETTI_COLORS = [colors.primary, colors.sky, colors.sale, '#FFC94D', colors.success, colors.primaryBright];
+const CONFETTI_COLORS = [colors.primary, colors.sky, colors.sale, colors.gold, colors.success, colors.primaryBright];
 
 export default function OrderSuccessScreen() {
   const { id, raqam, phone } = useLocalSearchParams<{ id: string; raqam?: string; phone?: string }>();
@@ -105,6 +105,6 @@ const styles = StyleSheet.create({
   confetti: { position: 'absolute', borderRadius: 2 },
   copy: { gap: 10, alignItems: 'center' },
   number: { marginTop: 10, alignItems: 'center', gap: 2, paddingHorizontal: 28, paddingVertical: 14, backgroundColor: colors.white, borderRadius: radius.lg },
-  numberText: { fontFamily: 'Unbounded_700Bold', fontSize: 24, color: colors.primary, letterSpacing: 1 },
+  numberText: { fontFamily: fonts.display, fontSize: 24, color: colors.primary, letterSpacing: 1 },
   actions: { gap: 10 },
 });

@@ -11,7 +11,8 @@ export function Stepper({ value, onInc, onDec, max, size = 'md', tone = 'tint', 
   value: number; onInc: () => void; onDec: () => void; max: number; size?: 'sm' | 'md' | 'lg'; tone?: 'tint' | 'primary';
   labelInc: string; labelDec: string; trashAtOne?: boolean;
 }) {
-  const h = size === 'lg' ? 52 : size === 'md' ? 40 : 34;
+  // Barmoq bilan bosish uchun eng kichik o'lcham ham 44 px dan kam bo'lmaydi.
+  const h = size === 'lg' ? 52 : size === 'md' ? 46 : 44;
   const fg = tone === 'primary' ? colors.white : colors.primary;
   const atMax = value >= max;
   return (
