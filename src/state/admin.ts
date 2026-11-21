@@ -1,8 +1,9 @@
-import { push, ref, remove, serverTimestamp, set, update } from 'firebase/database';
+import { get, onValue, push, ref, remove, serverTimestamp, set, update } from 'firebase/database';
 
-import type { Banner, ShopSettings } from '../domain/content';
+import { LEGACY_PUBLIC_MEDIA_FIELDS, readMediaKey, type Banner, type ShopSettings } from '../domain/content';
 import type { Product } from '../domain/products';
 import { db, withTimeout } from '../lib/firebase';
+import { createStore, useStore } from '../lib/store';
 
 export type ProductForm = {
   kategoriya: string;
@@ -27,6 +28,16 @@ export function formFromProduct(p?: Product): ProductForm {
     qoldiq: p ? String(p.qoldiq) : '', birlik: p?.birlik ?? '', artikul: p?.artikul ?? '', brend: p?.brend ?? '', model: p?.model ?? '',
     tavsif: p?.tavsif ?? '', rasmlar: p?.rasmlar ?? [], ommabop: p?.ommabop ?? false, yangi: p?.yangi ?? !p, tartib: p?.tartib ? String(p.tartib) : '',
   };
+}
+
+/** Mavjud tovardan yangi tovar uchun forma: hamma maydon ko'chiriladi, nomiga belgi qo'shiladi. */
+export function formFromCopy(p: Product, suffix: string): ProductForm {
+  return { ...formFromProduct(p), nomi: `${p.nomi} ${suffix}`.slice(0, 160), yangi: true };
+}
+
+/** "Saqlash va yana qo'shish" dan keyingi bo'sh forma: kategoriya saqlanadi. */
+export function nextNewForm(prev: ProductForm): ProductForm {
+  return { ...formFromProduct(), kategoriya: prev.kategoriya };
 }
 
 const int = (s: string) => (/^\d{1,10}$/.test(s.replace(/\s/g, '')) ? parseInt(s.replace(/\s/g, ''), 10) : NaN);
@@ -69,8 +80,19 @@ export async function deleteProduct(p: Product) {
   await withTimeout(remove(ref(db, `tovarlar/${p.kategoriya}/${p.key}`)), 15000);
 }
 
-export async function quickStock(p: Product, qoldiq: number) {
-  await withTimeout(update(ref(db, `tovarlar/${p.kategoriya}/${p.key}`), { qoldiq: Math.max(0, Math.floor(qoldiq)), revision: p.revision + 1, updatedAt: serverTimestamp() }), 10000);
+/**
+ * Ro'yxatning o'zida narx yoki qoldiqni o'zgartirish. `revision` bazadagidan aynan +1 bo'lishi shart —
+ * tovar boshqa joyda o'zgargan bo'lsa, qoidalar rad etadi.
+ */
+export async function quickUpdate(p: Product, patch: { narxi?: number; qoldiq?: number }) {
+  const value: Record<string, unknown> = { revision: p.revision + 1, updatedAt: serverTimestamp() };
+  if (patch.qoldiq !== undefined) value.qoldiq = Math.max(0, Math.floor(patch.qoldiq));
+  if (patch.narxi !== undefined) {
+    value.narxi = Math.max(0, Math.floor(patch.narxi));
+    // Yangi narx eski narxdan katta yoki teng bo'lsa — aksiya tugaydi.
+    if (p.eskiNarx && p.eskiNarx <= (value.narxi as number)) value.eskiNarx = null;
+  }
+  await withTimeout(update(ref(db, `tovarlar/${p.kategoriya}/${p.key}`), value), 10000);
 }
 
 export async function saveBanner(b: Omit<Banner, 'id'>, id?: string) {
@@ -87,39 +109,92 @@ export async function deleteBanner(id: string) {
 }
 
 export async function saveSettings(s: ShopSettings) {
+  // `set` butun tugunni almashtiradi — eski ochiq kalit maydonlari ham shu bilan o'chadi.
   await withTimeout(set(ref(db, 'settings/shop'), {
     ...s,
     lat: s.lat ?? null, lng: s.lng ?? null,
   }), 15000);
 }
 
-/** Cloudinary yoki ImgBB orqali rasmni yuklaydi va HTTPS havolani qaytaradi. */
-export async function uploadImage(uri: string, cloudOrKey: string, preset?: string): Promise<string> {
-  if (preset) {
-    // Cloudinary
-    const body = new FormData();
-    body.append('file', { uri, name: `n99-${Date.now()}.jpg`, type: 'image/jpeg' } as any);
-    body.append('upload_preset', preset);
-    body.append('folder', 'n99');
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudOrKey)}/image/upload`, { method: 'POST', body });
-    const json = (await res.json().catch(() => ({}))) as { secure_url?: string; error?: { message?: string } };
-    if (!res.ok || !json.secure_url) throw new Error(json.error?.message ?? `upload ${res.status}`);
-    return json.secure_url.replace('/upload/', '/upload/f_auto,q_auto,w_1200/');
-  } else {
-    // ImgBB - base64 format (React Native uchun)
-    const res = await fetch(uri);
-    const blob = await res.blob();
-    const reader = new FileReader();
-    const base64 = await new Promise<string>((resolve, reject) => {
-      reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-    const body = new FormData();
-    body.append('image', base64);
-    const uploadRes = await fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(cloudOrKey)}`, { method: 'POST', body });
-    const json = (await uploadRes.json().catch(() => ({}))) as { data?: { url?: string }; error?: { message?: string } };
-    if (!uploadRes.ok || !json.data?.url) throw new Error(json.error?.message ?? `upload ${uploadRes.status}`);
-    return json.data.url;
+// ─── Rasm yuklash (ImgBB) ──────────────────────────────────────────────────────
+// Kalit `settings/private/imgbbApiKey` da — uni faqat admin o'qiy oladi.
+
+export type MediaKeyState = {
+  key: string;
+  ready: boolean;
+  /** false — qoidalar hali yangilanmagan, kalit vaqtincha eski ochiq joydan o'qilmoqda. */
+  secure: boolean;
+};
+
+export const mediaStore = createStore<MediaKeyState>({ key: '', ready: false, secure: true });
+export const useMediaKey = () => useStore(mediaStore, (s) => s);
+
+/** Admin bo'limi ochiq turganda kalitni kuzatadi. Qaytgan funksiya kuzatishni to'xtatadi. */
+export function watchMediaKey(): () => void {
+  let offLegacy: (() => void) | null = null;
+  const offPrivate = onValue(ref(db, 'settings/private/imgbbApiKey'), (snap) => {
+    offLegacy?.();
+    offLegacy = null;
+    mediaStore.set({ key: readMediaKey(snap.val()), ready: true, secure: true });
+  }, () => {
+    // Yangi qoidalar hali joylanmagan: yuklash to'xtab qolmasligi uchun eski joydan o'qiymiz.
+    offLegacy = onValue(ref(db, 'settings/shop/imgbbApiKey'),
+      (snap) => mediaStore.set({ key: readMediaKey(snap.val()), ready: true, secure: false }),
+      () => mediaStore.set({ key: '', ready: true, secure: false }));
+  });
+  return () => { offPrivate(); offLegacy?.(); };
+}
+
+export async function saveMediaKey(key: string) {
+  const clean = key.trim();
+  await withTimeout(set(ref(db, 'settings/private/imgbbApiKey'), clean ? clean : null), 15000);
+}
+
+/**
+ * Bir martalik ko'chirish: kalit hamma o'qiy oladigan `settings/shop` da qolgan bo'lsa,
+ * uni `settings/private` ga o'tkazadi va ochiq joydan o'chiradi (bitta atomar yozuvda).
+ * Yangi qoidalar joylanmagan bo'lsa, hech narsa o'zgarmaydi.
+ */
+export async function migrateMediaKey(): Promise<'moved' | 'nothing'> {
+  const shop = (await withTimeout(get(ref(db, 'settings/shop')), 15000)).val() as Record<string, unknown> | null;
+  const legacy = LEGACY_PUBLIC_MEDIA_FIELDS.filter((k) => shop && k in shop);
+  if (!shop || !legacy.length) return 'nothing';
+  const current = readMediaKey((await withTimeout(get(ref(db, 'settings/private/imgbbApiKey')), 15000)).val());
+  const writes: Record<string, unknown> = {};
+  const old = readMediaKey(shop.imgbbApiKey);
+  if (!current && old) writes['settings/private/imgbbApiKey'] = old;
+  for (const k of legacy) writes[`settings/shop/${k}`] = null;
+  await withTimeout(update(ref(db), writes), 15000);
+  return 'moved';
+}
+
+export class UploadError extends Error {
+  constructor(public kind: 'badKey' | 'tooBig' | 'network' | 'server', message: string) {
+    super(message);
   }
+}
+
+export const MAX_UPLOAD_BYTES = 32 * 1024 * 1024;
+
+/**
+ * Rasmni ImgBB ga yuklaydi va https havolani qaytaradi.
+ * `image` — brauzerda File/Blob, telefonda base64 matn (RN FormData Blob'ni ImgBB ga to'g'ri yubormaydi).
+ */
+export async function uploadToImgbb(image: Blob | string, key: string): Promise<string> {
+  if (typeof image !== 'string' && image.size > MAX_UPLOAD_BYTES) throw new UploadError('tooBig', 'too big');
+  const body = new FormData();
+  body.append('image', image);
+  let res: Response;
+  try {
+    res = await withTimeout(fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(key)}`, { method: 'POST', body }), 90000);
+  } catch (e) {
+    throw new UploadError('network', String((e as Error)?.message ?? e));
+  }
+  const json = (await res.json().catch(() => ({}))) as { data?: { url?: string }; error?: { message?: string; code?: number } };
+  const url = json.data?.url;
+  if (res.ok && url && /^https:\/\/\S+$/.test(url)) return url;
+  const message = json.error?.message ?? `HTTP ${res.status}`;
+  if (/key/i.test(message) || res.status === 401 || res.status === 403) throw new UploadError('badKey', message);
+  if (res.status === 413 || /size|large/i.test(message)) throw new UploadError('tooBig', message);
+  throw new UploadError('server', message);
 }

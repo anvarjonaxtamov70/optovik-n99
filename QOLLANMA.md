@@ -53,13 +53,19 @@ GitHub → **Actions → Expo Go Publish → Run workflow**. Tugagach natija sah
 
 **Buyurtma jarayoni:** Yangi → mijozga qo‘ng‘iroq → **Tasdiqlash** (qoldiq shu paytda ayriladi) → **Yo‘lda** (kuryer) yoki **Olib ketishga tayyor** → **Yetkazildi**. Bekor qilsangiz, ayrilgan qoldiq omborga qaytadi. Mijoz faqat tasdiqlanmagan buyurtmani bekor qila oladi.
 
-### Telefondan rasm yuklash (ixtiyoriy, bepul)
+### Rasm yuklash (ImgBB, bepul)
 
-1. [cloudinary.com](https://cloudinary.com) da bepul hisob oching. Dashboard’dagi **Cloud name** ni yozib oling.
-2. **Settings → Upload → Upload presets → Add upload preset**: Signing mode — **Unsigned**, Folder — `n99`. Saqlang va preset nomini yozib oling.
-3. Ilovada Admin → Sozlamalar → «Rasm yuklash» ga ikkalasini kiriting. Endi tovar sahifasida **Telefondan yuklash** ishlaydi.
+1. [imgbb.com](https://imgbb.com) da bepul hisob oching, so‘ng [api.imgbb.com](https://api.imgbb.com) → **Get API key**.
+2. Ilovada Admin → Sozlamalar → «Rasm yuklash (ImgBB)» ga kalitni kiriting va saqlang. Kalit faqat adminlarga ko‘rinadigan joyda saqlanadi.
+3. Tovar sahifasida **Rasm qo‘shish** — bir vaqtda bir nechta rasm tanlash mumkin (10 tagacha). Kompyuterda rasmni sahifaga sudrab tashlash yoki Ctrl+V bilan qo‘yish ham ishlaydi. Birinchi rasm — asosiy; ‹ › tugmalari bilan tartibni o‘zgartiring.
 
-Cloudinary ulanmasa ham tovarga rasm **havolasini** (`https://…`) qo‘shish mumkin.
+Kalit kiritilmagan bo‘lsa ham tovarga rasm **havolasini** (`https://…`) qo‘shish mumkin.
+
+### Kompyuterda tovar bilan ishlash
+
+- **Ctrl+S** — tovarni saqlash. **«Saqlash va yana qo‘shish»** — saqlab, shu kategoriyada bo‘sh forma ochadi.
+- Tovar sahifasidagi **nusxa** belgisi — o‘xshash tovarni tez qo‘shish uchun hamma maydonlari ko‘chirilgan yangi forma.
+- Tovarlar ro‘yxatida narx va qoldiqni shu yerning o‘zida o‘zgartirib, **Enter** bosing. Kategoriya, «Tugagan», «Kam qolgan», «Aksiyalar», «Rasmsiz» filtrlari bor.
 
 ## Keyingi qadamlar
 

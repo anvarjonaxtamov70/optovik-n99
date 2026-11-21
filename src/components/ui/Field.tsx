@@ -63,6 +63,7 @@ const styles = StyleSheet.create({
   focused: { borderColor: colors.primary, backgroundColor: colors.white },
   errorBox: { borderColor: colors.sale, backgroundColor: '#FFF8F8' },
   prefix: { color: colors.ink },
-  input: { flex: 1, fontFamily: fonts.semibold, fontSize: 16, color: colors.ink, paddingVertical: 12, minWidth: 0, ...Platform.select({ web: { outlineWidth: 0 }, default: {} }) },
+  // Brauzerda `outline-style: auto` qalinlikdan qat'i nazar qora ramka chizadi — fokus ramkasi `focused` uslubida.
+  input: { flex: 1, fontFamily: fonts.semibold, fontSize: 16, color: colors.ink, paddingVertical: 12, minWidth: 0, ...Platform.select({ web: { outlineWidth: 0, outlineStyle: 'none' } as object, default: {} }) },
   multi: { minHeight: 80, textAlignVertical: 'top', paddingTop: 4 },
 });

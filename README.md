@@ -23,7 +23,7 @@ Android va iPhone uchun mustaqil ilova (Telegram shart emas). GM / Chevrolet eht
 **Do‘kon egasi (Kabinet → «Do‘kon egasi uchun»)**
 - Bugungi buyurtmalar va savdo, yangi buyurtma kelsa xabar.
 - Buyurtmalar: holatni o‘zgartirish, mijozga qo‘ng‘iroq, ichki izoh. Tasdiqlanganda qoldiq avtomatik ayriladi, bekor qilinsa qaytariladi.
-- Tovarlar: qo‘shish/tahrirlash/o‘chirish, narx, eski narx (aksiya), qoldiq, artikul, mos modellar, rasmlar (havola yoki telefondan Cloudinary orqali).
+- Tovarlar: qo‘shish/tahrirlash/nusxalash/o‘chirish, narx, eski narx (aksiya), qoldiq, artikul, mos modellar, rasmlar (havola yoki ImgBB orqali; bir nechta rasm, kompyuterda sudrab tashlash va Ctrl+V). Kompyuterda ro‘yxatning o‘zida narx va qoldiqni o‘zgartirish.
 - Bannerlar (o‘zbekcha/ruscha, rang, havola) va do‘kon sozlamalari (telefonlar, manzil, xarita, yetkazish narxi, bepul yetkazish chegarasi, MCHJ nomi va STIR).
 
 ## Texnologiya

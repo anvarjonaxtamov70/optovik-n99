@@ -1,49 +1,82 @@
-import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, LinearTransition, ZoomIn, ZoomOut } from 'react-native-reanimated';
+import { router, useLocalSearchParams, usePreventRemove } from 'expo-router';
+import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ProductImage } from '../../components/shop/ProductImage';
+import { ImageManager } from '../../components/admin/ImageManager';
 import { Button } from '../../components/ui/Button';
 import { Card, Chip, SwitchRow } from '../../components/ui/Controls';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Field } from '../../components/ui/Field';
 import { goBack, Header } from '../../components/ui/Header';
 import { IconButton } from '../../components/ui/IconButton';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Txt } from '../../components/ui/Txt';
+import type { Product } from '../../domain/products';
 import { CAR_MODELS, CATEGORIES, categoryLabel } from '../../domain/taxonomy';
 import { useT, type TKey } from '../../i18n';
+import { confirmAsync } from '../../lib/confirm';
 import { classifyError } from '../../lib/firebase';
 import { haptic } from '../../lib/haptics';
-import { deleteProduct, formFromProduct, saveProduct, uploadImage, validateProduct, type ProductForm } from '../../state/admin';
-import { useProduct, useProducts, useSettings } from '../../state/catalog';
+import { deleteProduct, formFromCopy, formFromProduct, nextNewForm, saveProduct, validateProduct, type ProductForm } from '../../state/admin';
+import { useCatalogStatus, useProduct, useProducts } from '../../state/catalog';
 import { showToast } from '../../state/toast';
-import { colors, radius } from '../../theme/tokens';
+import { colors } from '../../theme/tokens';
 
 const UNITS = ['dona', 'komplekt', 'juft', 'litr', 'metr'];
+const IS_WEB = Platform.OS === 'web';
+/** Shu kenglikdan boshlab forma ikki ustunga bo'linadi (noutbuk). */
+const WIDE = 980;
 
 export default function AdminProductEdit() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, copy } = useLocalSearchParams<{ id?: string; copy?: string }>();
+  const { t } = useT();
   const existing = useProduct(id ?? '');
-  return <Editor key={existing?.id ?? 'new'} existing={existing} />;
+  const source = useProduct(copy ?? '');
+  const status = useCatalogStatus();
+  const wanted = id || copy;
+  if (wanted && !(existing ?? source)) {
+    // Sahifa to'g'ridan-to'g'ri ochilganda katalog hali yuklanmagan bo'lishi mumkin — bo'sh forma ko'rsatib yuborilmaydi.
+    return (
+      <View style={styles.root}>
+        <Header title={t('admin.product.title')} />
+        {status === 'loading'
+          ? <View style={styles.loading}><Skeleton height={200} radius={18} /><Skeleton height={140} radius={18} /></View>
+          : <EmptyState icon="cube-outline" title={t('admin.product.notFound')} action={{ label: t('admin.products'), onPress: () => goBack('/admin/products') }} />}
+      </View>
+    );
+  }
+  const initial = existing ? formFromProduct(existing) : source ? formFromCopy(source, t('admin.product.copySuffix')) : formFromProduct();
+  return <Editor key={existing?.id ?? (source ? `copy:${source.id}` : 'new')} existing={existing} initial={initial} copied={!!source && !existing} />;
 }
 
-function Editor({ existing }: { existing?: ReturnType<typeof useProduct> }) {
-  const [form, setForm] = useState<ProductForm>(() => formFromProduct(existing));
+function Editor({ existing, initial, copied }: { existing?: Product; initial: ProductForm; copied: boolean }) {
+  const [form, setForm] = useState<ProductForm>(initial);
+  const [baseline, setBaseline] = useState<ProductForm>(initial);
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const wide = width >= WIDE;
   const { t, lang, money } = useT();
-  const settings = useSettings();
   const products = useProducts();
+  const scroll = useRef<ScrollViewInstance>(null);
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [url, setUrl] = useState('');
+  const [leaving, setLeaving] = useState(false);
   const errors = validateProduct(form);
   const err = (k: keyof ProductForm) => (touched && errors[k] ? t(`admin.product.err.${errors[k]}` as TKey) : null);
   const set = (patch: Partial<ProductForm>) => setForm((f) => ({ ...f, ...patch }));
+  const setImages = useCallback((update: (list: string[]) => string[]) => setForm((f) => ({ ...f, rasmlar: update(f.rasmlar) })), []);
   const categories = Array.from(new Set([...CATEGORIES.map((c) => c.slug), ...products.map((p) => p.kategoriya)]));
-  const canUpload = (!!settings.cloudinaryCloud && !!settings.cloudinaryPreset) || !!settings.imgbbApiKey;
+  const dirty = JSON.stringify(form) !== JSON.stringify(baseline);
+
+  // Saqlanmagan o'zgarish bo'lsa, orqaga qaytishda (va brauzer yopilganda) so'raymiz.
+  const disablePrevention = usePreventRemove(dirty && !busy && !leaving, ({ repeat }) => {
+    void confirmAsync(t('admin.product.unsavedTitle'), t('admin.product.unsavedText'), { ok: t('admin.product.leave'), cancel: t('common.cancel'), destructive: true })
+      .then((ok) => { if (ok) { setLeaving(true); repeat(); } });
+  });
+  const allowLeave = () => { setLeaving(true); disablePrevention(); };
 
   const toggleModel = (name: string) => {
     const parts = form.model.split(/[,;/]+/).map((s) => s.trim()).filter(Boolean);
@@ -52,50 +85,30 @@ function Editor({ existing }: { existing?: ReturnType<typeof useProduct> }) {
   };
   const hasModel = (name: string) => form.model.toLowerCase().split(/[,;/]+/).map((s) => s.trim()).includes(name.toLowerCase());
 
-  const pick = async () => {
-    if (!canUpload) { Alert.alert(t('admin.product.upload'), t('admin.product.uploadOff')); return; }
-    
-    // Ruxsat so'rash
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(t('admin.product.uploadPermission'), t('admin.product.uploadPermissionText'));
+  const save = async (mode: 'close' | 'next') => {
+    if (busy) return;
+    setTouched(true);
+    if (uploading) { showToast(t('admin.product.uploadingWait')); return; }
+    if (Object.keys(errors).length) {
+      haptic.warning();
+      showToast(t('admin.product.checkFields'), { kind: 'error' });
       return;
     }
-    
-    const res = await ImagePicker.launchImageLibraryAsync({ 
-      mediaTypes: ['images'], 
-      quality: 0.85, 
-      allowsEditing: true, 
-      aspect: [1, 1],
-      allowsMultipleSelection: false 
-    });
-    
-    if (res.canceled || !res.assets[0]) return;
-    setUploading(true);
-    
-    try {
-      const link = settings.imgbbApiKey 
-        ? await uploadImage(res.assets[0].uri, settings.imgbbApiKey)
-        : await uploadImage(res.assets[0].uri, settings.cloudinaryCloud, settings.cloudinaryPreset);
-      set({ rasmlar: [...form.rasmlar, link].slice(0, 10) });
-      haptic.success();
-    } catch (e) {
-      haptic.warning();
-      showToast(String((e as Error).message ?? t('common.error')), { kind: 'error' });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const save = async () => {
-    setTouched(true);
-    if (Object.keys(errors).length) { haptic.warning(); return; }
     setBusy(true);
     try {
       await saveProduct(form, existing);
       haptic.success();
       showToast(t('admin.product.saved'), { kind: 'success' });
-      goBack('/admin/products');
+      if (mode === 'next') {
+        const next = nextNewForm(form);
+        setForm(next);
+        setBaseline(next);
+        setTouched(false);
+        scroll.current?.scrollTo({ y: 0, animated: true });
+      } else {
+        allowLeave();
+        goBack('/admin/products');
+      }
     } catch (e) {
       haptic.warning();
       showToast(classifyError(e) === 'permission' ? t('admin.product.conflict') : t('common.error'), { kind: 'error' });
@@ -103,97 +116,147 @@ function Editor({ existing }: { existing?: ReturnType<typeof useProduct> }) {
       setBusy(false);
     }
   };
+  const onShortcut = useEffectEvent(() => { void save('close'); });
 
-  const remove = () => existing && Alert.alert(t('common.delete'), t('admin.product.deleteConfirm'), [
-    { text: t('common.cancel'), style: 'cancel' },
-    { text: t('common.delete'), style: 'destructive', onPress: async () => {
-      try { await deleteProduct(existing); showToast(t('admin.product.deleted'), { kind: 'success' }); goBack('/admin/products'); } catch { showToast(t('common.error'), { kind: 'error' }); }
-    } },
-  ]);
+  // Brauzer: Ctrl+S (Mac'da Cmd+S) — saqlash. `capture`: react-native-web TextInput tugma hodisalarini yuqoriga o'tkazmaydi.
+  useEffect(() => {
+    if (!IS_WEB || typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); onShortcut(); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
 
+  const remove = async () => {
+    if (!existing) return;
+    const ok = await confirmAsync(t('common.delete'), t('admin.product.deleteConfirm'), { ok: t('common.delete'), cancel: t('common.cancel'), destructive: true });
+    if (!ok) return;
+    try {
+      await deleteProduct(existing);
+      showToast(t('admin.product.deleted'), { kind: 'success' });
+      allowLeave();
+      goBack('/admin/products');
+    } catch {
+      showToast(t('common.error'), { kind: 'error' });
+    }
+  };
+
+  const duplicate = async () => {
+    if (!existing) return;
+    if (dirty) {
+      const ok = await confirmAsync(t('admin.product.unsavedTitle'), t('admin.product.unsavedText'), { ok: t('admin.product.duplicate'), cancel: t('common.cancel') });
+      if (!ok) return;
+    }
+    allowLeave();
+    router.replace({ pathname: '/admin/product', params: { copy: existing.id } });
+  };
+
+  const images = (
+    <Card style={styles.gap}>
+      <ImageManager images={form.rasmlar} onChange={setImages} kategoriya={form.kategoriya} error={err('rasmlar')} onBusyChange={setUploading} />
+    </Card>
+  );
+  const main = (
+    <Card style={styles.gap}>
+      <Field label={t('admin.product.name')} value={form.nomi} onChangeText={(v) => set({ nomi: v })} error={err('nomi')} maxLength={160} autoFocus={IS_WEB && !existing} />
+      <Txt variant="label">{t('admin.product.category')}</Txt>
+      {wide ? (
+        <View style={styles.wrap}>
+          {categories.map((c) => <Chip key={c} label={categoryLabel(c, lang)} selected={form.kategoriya === c} onPress={() => set({ kategoriya: c })} />)}
+        </View>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {categories.map((c) => <Chip key={c} label={categoryLabel(c, lang)} selected={form.kategoriya === c} onPress={() => set({ kategoriya: c })} />)}
+        </ScrollView>
+      )}
+      <View style={styles.two}>
+        <View style={styles.flex}><Field label={t('admin.product.price')} value={form.narxi} onChangeText={(v) => set({ narxi: v.replace(/\D/g, '') })} keyboardType="number-pad" error={err('narxi')} hint={form.narxi ? money(Number(form.narxi)) : undefined} /></View>
+        <View style={styles.flex}><Field label={t('admin.product.stock')} value={form.qoldiq} onChangeText={(v) => set({ qoldiq: v.replace(/\D/g, '') })} keyboardType="number-pad" error={err('qoldiq')} /></View>
+      </View>
+      <Field label={t('admin.product.oldPrice')} value={form.eskiNarx} onChangeText={(v) => set({ eskiNarx: v.replace(/\D/g, '') })} keyboardType="number-pad" error={err('eskiNarx')} />
+      <Txt variant="label">{t('admin.product.unit')}</Txt>
+      <View style={styles.wrap}>
+        {UNITS.map((u) => <Chip key={u} label={u} selected={(form.birlik || 'dona') === u} onPress={() => set({ birlik: u === 'dona' ? '' : u })} />)}
+      </View>
+    </Card>
+  );
+  const details = (
+    <Card style={styles.gap}>
+      <Field label={t('admin.product.article')} value={form.artikul} onChangeText={(v) => set({ artikul: v })} autoCapitalize="characters" maxLength={80} />
+      <Field label={t('admin.product.brand')} value={form.brend} onChangeText={(v) => set({ brend: v })} maxLength={60} placeholder="GM, Valeo, Bosch…" />
+      <Field label={t('admin.product.models')} value={form.model} onChangeText={(v) => set({ model: v })} hint={t('admin.product.modelsHint')} maxLength={300} />
+      <View style={styles.wrap}>
+        {['Universal', ...CAR_MODELS.map((m) => m.name)].map((n) => <Chip key={n} label={n} selected={hasModel(n)} onPress={() => toggleModel(n)} />)}
+      </View>
+      <Field label={t('admin.product.description')} value={form.tavsif} onChangeText={(v) => set({ tavsif: v })} multiline maxLength={5000} />
+    </Card>
+  );
+  const flags = (
+    <Card style={styles.gapSm}>
+      <SwitchRow title={t('admin.product.popular')} value={form.ommabop} onChange={(v) => set({ ommabop: v })} />
+      <SwitchRow title={t('admin.product.isNew')} value={form.yangi} onChange={(v) => set({ yangi: v })} />
+      <Field label={t('admin.product.order')} value={form.tartib} onChangeText={(v) => set({ tartib: v.replace(/\D/g, '') })} keyboardType="number-pad" />
+    </Card>
+  );
+
+  const title = existing ? t('admin.product.title') : copied ? t('admin.product.copy') : t('admin.product.new');
+  const stacked = !existing && !wide;
   return (
     <View style={styles.root}>
-      <Header title={existing ? t('admin.product.title') : t('admin.product.new')}
-        right={existing ? <IconButton icon="trash-outline" label={t('common.delete')} onPress={remove} size={40} bg={colors.saleSoft} color={colors.sale} /> : undefined} />
+      <Header title={title} subtitle={existing?.nomi}
+        right={existing ? (
+          <>
+            <IconButton icon="copy-outline" label={t('admin.product.duplicate')} onPress={() => void duplicate()} size={40} bg={colors.tint} color={colors.primary} />
+            <IconButton icon="trash-outline" label={t('common.delete')} onPress={() => void remove()} size={40} bg={colors.saleSoft} color={colors.sale} />
+          </>
+        ) : undefined} />
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 110 }]} keyboardShouldPersistTaps="handled">
-          <Card style={styles.gap}>
-            <Txt variant="label">{t('admin.product.images')}</Txt>
-            <Animated.View layout={LinearTransition} style={styles.images}>
-              {form.rasmlar.map((u, i) => (
-                <Animated.View key={u} entering={ZoomIn} exiting={ZoomOut} style={styles.imageBox}>
-                  <ProductImage uri={u} kategoriya={form.kategoriya} seed={u} style={styles.image} />
-                  <IconButton icon="close" label={t('common.delete')} size={26} bg="rgba(15,35,56,0.75)" color={colors.white} iconSize={15}
-                    style={styles.imageDel} onPress={() => set({ rasmlar: form.rasmlar.filter((_, j) => j !== i) })} />
-                  {i === 0 ? <View style={styles.mainTag}><Txt variant="tiny" color={colors.white}>1</Txt></View> : null}
-                </Animated.View>
-              ))}
-              {!form.rasmlar.length ? <ProductImage kategoriya={form.kategoriya} seed="new" style={styles.image} /> : null}
-            </Animated.View>
-            <Button title={uploading ? t('admin.product.uploading') : t('admin.product.upload')} icon="images-outline" variant="secondary" loading={uploading} onPress={pick} />
-            {!canUpload ? <Txt variant="tiny">{t('admin.product.uploadOff')}</Txt> : null}
-            <View style={styles.urlRow}>
-              <View style={styles.flex}><Field placeholder={t('admin.product.imageUrl')} value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" error={err('rasmlar')} /></View>
-              <IconButton icon="add" label={t('admin.product.addUrl')} size={50} bg={colors.primary} color={colors.white}
-                onPress={() => { if (/^https:\/\/\S+$/.test(url.trim())) { set({ rasmlar: [...form.rasmlar, url.trim()].slice(0, 10) }); setUrl(''); } else showToast(t('admin.product.err.url'), { kind: 'error' }); }} />
+        <ScrollView ref={scroll} contentContainerStyle={[styles.body, wide && styles.bodyWide, { paddingBottom: insets.bottom + (stacked ? 170 : 110) }]} keyboardShouldPersistTaps="handled">
+          {wide ? (
+            <View style={styles.columns}>
+              <Column>{images}{main}</Column>
+              <Column>{details}{flags}</Column>
             </View>
-          </Card>
-
-          <Card style={styles.gap}>
-            <Field label={t('admin.product.name')} value={form.nomi} onChangeText={(v) => set({ nomi: v })} error={err('nomi')} maxLength={160} />
-            <Txt variant="label">{t('admin.product.category')}</Txt>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-              {categories.map((c) => <Chip key={c} label={categoryLabel(c, lang)} selected={form.kategoriya === c} onPress={() => set({ kategoriya: c })} />)}
-            </ScrollView>
-            <View style={styles.two}>
-              <View style={styles.flex}><Field label={t('admin.product.price')} value={form.narxi} onChangeText={(v) => set({ narxi: v.replace(/\D/g, '') })} keyboardType="number-pad" error={err('narxi')} hint={form.narxi ? money(Number(form.narxi)) : undefined} /></View>
-              <View style={styles.flex}><Field label={t('admin.product.stock')} value={form.qoldiq} onChangeText={(v) => set({ qoldiq: v.replace(/\D/g, '') })} keyboardType="number-pad" error={err('qoldiq')} /></View>
-            </View>
-            <Field label={t('admin.product.oldPrice')} value={form.eskiNarx} onChangeText={(v) => set({ eskiNarx: v.replace(/\D/g, '') })} keyboardType="number-pad" error={err('eskiNarx')} />
-            <Txt variant="label">{t('admin.product.unit')}</Txt>
-            <View style={styles.wrap}>
-              {UNITS.map((u) => <Chip key={u} label={u} selected={(form.birlik || 'dona') === u} onPress={() => set({ birlik: u === 'dona' ? '' : u })} />)}
-            </View>
-          </Card>
-
-          <Card style={styles.gap}>
-            <Field label={t('admin.product.article')} value={form.artikul} onChangeText={(v) => set({ artikul: v })} autoCapitalize="characters" maxLength={80} />
-            <Field label={t('admin.product.brand')} value={form.brend} onChangeText={(v) => set({ brend: v })} maxLength={60} placeholder="GM, Valeo, Bosch…" />
-            <Field label={t('admin.product.models')} value={form.model} onChangeText={(v) => set({ model: v })} hint={t('admin.product.modelsHint')} maxLength={300} />
-            <View style={styles.wrap}>
-              {['Universal', ...CAR_MODELS.map((m) => m.name)].map((n) => <Chip key={n} label={n} selected={hasModel(n)} onPress={() => toggleModel(n)} />)}
-            </View>
-            <Field label={t('admin.product.description')} value={form.tavsif} onChangeText={(v) => set({ tavsif: v })} multiline maxLength={5000} />
-          </Card>
-
-          <Card style={styles.gapSm}>
-            <SwitchRow title={t('admin.product.popular')} value={form.ommabop} onChange={(v) => set({ ommabop: v })} />
-            <SwitchRow title={t('admin.product.isNew')} value={form.yangi} onChange={(v) => set({ yangi: v })} />
-            <Field label={t('admin.product.order')} value={form.tartib} onChangeText={(v) => set({ tartib: v.replace(/\D/g, '') })} keyboardType="number-pad" />
-          </Card>
+          ) : (
+            <>{images}{main}{details}{flags}</>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
       <Animated.View entering={FadeIn} style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Button title={t('common.save')} size="lg" loading={busy} onPress={save} />
+        <View style={[styles.barInner, wide && styles.barWide, stacked && styles.barStacked]}>
+          {IS_WEB && wide ? <Txt variant="tiny" style={styles.flex}>{t('admin.product.shortcut')}</Txt> : null}
+          {!existing ? (
+            <Button title={t('admin.product.saveAndNew')} icon="add-circle-outline" variant="secondary" size={wide ? 'lg' : 'md'} full={!wide}
+              disabled={busy} onPress={() => void save('next')} style={wide ? styles.barBtn : undefined} />
+          ) : null}
+          <Button title={t('common.save')} size="lg" loading={busy} full={!wide} onPress={() => void save('close')} style={wide ? styles.barBtn : undefined} />
+        </View>
       </Animated.View>
     </View>
   );
 }
 
+function Column({ children }: { children: ReactNode }) {
+  return <View style={styles.column}>{children}</View>;
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
+  loading: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
   body: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  bodyWide: { maxWidth: 1240, padding: 24 },
+  columns: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
+  column: { flex: 1, gap: 16, minWidth: 0 },
   gap: { gap: 12 },
   gapSm: { gap: 4 },
-  images: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  imageBox: { width: 88, height: 88 },
-  image: { width: 88, height: 88, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line },
-  imageDel: { position: 'absolute', top: 4, right: 4 },
-  mainTag: { position: 'absolute', left: 4, bottom: 4, backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 6 },
-  urlRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
   chips: { gap: 8 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   two: { flexDirection: 'row', gap: 10 },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 12, backgroundColor: colors.white, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
+  barInner: { width: '100%', maxWidth: 760, alignSelf: 'center', flexDirection: 'row', gap: 10 },
+  barStacked: { flexDirection: 'column' },
+  barWide: { maxWidth: 1240, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'flex-end' },
+  barBtn: { minWidth: 220 },
 });

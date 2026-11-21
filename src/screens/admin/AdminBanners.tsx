@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,6 +16,7 @@ import { Txt } from '../../components/ui/Txt';
 import { BANNER_THEMES, DEFAULT_BANNERS, isSafeLink, type Banner } from '../../domain/content';
 import { CATEGORIES, CAR_MODELS } from '../../domain/taxonomy';
 import { useT } from '../../i18n';
+import { confirmAsync } from '../../lib/confirm';
 import { haptic } from '../../lib/haptics';
 import { deleteBanner, saveBanner } from '../../state/admin';
 import { useBanners } from '../../state/catalog';
@@ -93,7 +94,9 @@ function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
     <View style={styles.root}>
       <Header title={id ? t('admin.banner.title') : t('admin.banner.new')}
         right={id ? <IconButton icon="trash-outline" label={t('common.delete')} size={40} bg={colors.saleSoft} color={colors.sale}
-          onPress={() => Alert.alert(t('common.delete'), '', [{ text: t('common.cancel'), style: 'cancel' }, { text: t('common.delete'), style: 'destructive', onPress: () => void deleteBanner(id).then(() => goBack('/admin/banners')) }])} /> : undefined} />
+          onPress={() => void confirmAsync(t('common.delete'), '', { ok: t('common.delete'), cancel: t('common.cancel'), destructive: true }).then((ok) => {
+            if (ok) void deleteBanner(id).then(() => goBack('/admin/banners')).catch(() => showToast(t('common.error'), { kind: 'error' }));
+          })} /> : undefined} />
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 110 }]} keyboardShouldPersistTaps="handled">
           <Txt variant="label">{t('admin.banner.preview')}</Txt>

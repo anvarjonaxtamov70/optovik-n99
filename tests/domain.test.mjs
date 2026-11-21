@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { cartLines, clampToStock, emptyCart, MAX_LINES, restoreCart, setQty, summarize, toggleLine } from '../src/domain/cart.ts';
-import { DEFAULT_SETTINGS, isSafeLink, readBanners, readSettings } from '../src/domain/content.ts';
+import { DEFAULT_SETTINGS, isSafeLink, LEGACY_PUBLIC_MEDIA_FIELDS, readBanners, readMediaKey, readSettings } from '../src/domain/content.ts';
 import { formatSom, groupDigits } from '../src/domain/money.ts';
 import { buildOrderWrite, nextStatus, orderNumber, readOrder, recomputeTotals, statusFlow, validateCheckout } from '../src/domain/order.ts';
 import { displayPhone, formatLocal, isValidUzPhone, localDigits, toE164 } from '../src/domain/phone.ts';
-import { applyFilters, discountPercent, isPlaceholderCatalog, readCachedProducts, readProducts, searchScore, similarProducts, toCache } from '../src/domain/products.ts';
+import { addImages, applyFilters, discountPercent, isPlaceholderCatalog, MAX_IMAGES, moveImage, parseWhole, readCachedProducts, readProducts, searchScore, similarProducts, toCache } from '../src/domain/products.ts';
 import { categoryFor, categoryLabel, parseModels } from '../src/domain/taxonomy.ts';
 import { compactCode, fold } from '../src/domain/text.ts';
 import { ru } from '../src/i18n/ru.ts';
@@ -176,6 +176,34 @@ test('bannerlar va sozlamalar: xavfsiz havola, standart qiymatlar', () => {
   assert.equal(s.courierEnabled, false);
   assert.equal(s.lat, 39.65);
   assert.equal(s.lng, null);
+  // Rasm kalitlari ochiq sozlamalardan o'qilmaydi (ular endi settings/private da).
+  const legacy = readSettings({ imgbbApiKey: 'abcdef1234567890', cloudinaryCloud: 'x', cloudinaryPreset: 'y' });
+  for (const k of LEGACY_PUBLIC_MEDIA_FIELDS) assert.equal(k in legacy, false, k);
+  assert.equal(readMediaKey(' abcdef1234567890 '), 'abcdef1234567890');
+  assert.equal(readMediaKey('short'), '');
+  assert.equal(readMediaKey('has space inside 123'), '');
+  assert.equal(readMediaKey(42), '');
+});
+
+test('tovar rasmlari: https, takrorsiz, 10 tadan oshmaydi; tartibni surish', () => {
+  const a = 'https://i.ibb.co/a.jpg', b = 'https://i.ibb.co/b.jpg', c = 'https://i.ibb.co/c.jpg';
+  assert.deepEqual(addImages([a], [b, a, 'http://x/y.jpg', ' ', c]), [a, b, c]);
+  const many = Array.from({ length: 12 }, (_, i) => `https://i.ibb.co/${i}.jpg`);
+  assert.equal(addImages([], many).length, MAX_IMAGES);
+  assert.deepEqual(moveImage([a, b, c], 2, 0), [c, a, b]);
+  assert.deepEqual(moveImage([a, b, c], 0, 1), [b, a, c]);
+  const same = [a, b];
+  assert.equal(moveImage(same, 0, 5), same);
+  assert.equal(moveImage(same, -1, 0), same);
+});
+
+test('tez tahrir: faqat butun son, chegaradan oshmaydi', () => {
+  assert.equal(parseWhole('45 000', 1e9), 45000);
+  assert.equal(parseWhole('0', 10), 0);
+  assert.equal(parseWhole('12.5', 1e9), null);
+  assert.equal(parseWhole('-3', 1e9), null);
+  assert.equal(parseWhole('', 1e9), null);
+  assert.equal(parseWhole('1000001', 1000000), null);
 });
 
 test('tarjima: o‘zbekcha va ruscha kalitlar va {o‘zgaruvchilar} bir xil', () => {

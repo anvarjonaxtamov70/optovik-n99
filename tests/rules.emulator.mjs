@@ -144,6 +144,33 @@ test('admin: tovar, banner va sozlamalar tekshiriladi; mijoz yoza olmaydi', asyn
   denied(await req('admins/alice', { method: 'PUT', auth: ALICE, body: true }), 'o‘zini admin qila olmaydi');
 });
 
+test('rasm kaliti: faqat admin o‘qiydi va yozadi, ochiq sozlamalarga yozib bo‘lmaydi', async () => {
+  const KEY = 'abcdef0123456789abcdef0123456789';
+  ok(await req('settings/private/imgbbApiKey', { method: 'PUT', auth: OWNER, body: KEY }), 'admin kalit yozadi');
+  const mine = await req('settings/private', { auth: OWNER });
+  ok(mine, 'admin kalitni o‘qiydi');
+  assert.equal(mine.body.imgbbApiKey, KEY);
+  denied(await req('settings/private'), 'kirmagan o‘qiy olmaydi');
+  denied(await req('settings/private', { auth: ALICE }), 'mijoz o‘qiy olmaydi');
+  denied(await req('settings/private/imgbbApiKey', { method: 'PUT', auth: ALICE, body: KEY }), 'mijoz yoza olmaydi');
+  denied(await req('settings/private/imgbbApiKey', { method: 'PUT', auth: OWNER, body: 'bad key!' }), 'noto‘g‘ri format');
+  denied(await req('settings/private/other', { method: 'PUT', auth: OWNER, body: 'x' }), 'begona maydon');
+  denied(await req('settings/shop/imgbbApiKey', { method: 'PUT', auth: OWNER, body: KEY }), 'kalit ochiq joyga yozilmaydi');
+  denied(await req('settings/shop/cloudinaryCloud', { method: 'PUT', auth: OWNER, body: 'demo' }), 'cloudinary ham olib tashlangan');
+  // Eski ma’lumotdagi ochiq kalitni ko‘chirish: bitta atomar yozuvda yashirin joyga va ochiqdan o‘chirish.
+  ok(await req('settings/shop/imgbbApiKey', { method: 'PUT', admin: true, body: KEY }), 'eski holat (seed)');
+  ok(await req('', { method: 'PATCH', auth: OWNER, body: { 'settings/private/imgbbApiKey': KEY, 'settings/shop/imgbbApiKey': null } }), 'ko‘chirish');
+  assert.equal((await req('settings/shop/imgbbApiKey')).body, null);
+});
+
+test('admin: ro‘yxatdan narx va qoldiqni tez o‘zgartirish revision bilan', async () => {
+  ok(await req('tovarlar/filtrlar/q1', { method: 'PUT', auth: OWNER, body: { nomi: 'Salon filtri', narxi: 30000, eskiNarx: 40000, qoldiq: 2, revision: 1 } }), 'tovar');
+  ok(await req('tovarlar/filtrlar/q1', { method: 'PATCH', auth: OWNER, body: { qoldiq: 3, revision: 2, updatedAt: TS } }), 'qoldiq +1');
+  ok(await req('tovarlar/filtrlar/q1', { method: 'PATCH', auth: OWNER, body: { narxi: 45000, eskiNarx: null, revision: 3, updatedAt: TS } }), 'narx eski narxdan oshdi — aksiya o‘chadi');
+  denied(await req('tovarlar/filtrlar/q1', { method: 'PATCH', auth: OWNER, body: { qoldiq: 9, revision: 3, updatedAt: TS } }), 'eskirgan revision');
+  denied(await req('tovarlar/filtrlar/q1', { method: 'PATCH', auth: ALICE, body: { qoldiq: 9, revision: 4, updatedAt: TS } }), 'mijoz o‘zgartira olmaydi');
+});
+
 test('profil: faqat egasi, to‘g‘ri telefon bilan', async () => {
   ok(await req('customers/alice/profile', { method: 'PUT', auth: ALICE, body: { name: 'Ali', phone: '+998901234567', address: '', landmark: '', updatedAt: 1 } }), 'profil');
   denied(await req('customers/alice/profile', { method: 'PUT', auth: ALICE, body: { name: 'Ali', phone: '12345' } }), 'telefon');

@@ -15,6 +15,7 @@ import { useT } from '../../i18n';
 import { classifyError } from '../../lib/firebase';
 import { haptic } from '../../lib/haptics';
 import { adminSignIn, adminSignOut, useAccount } from '../../state/account';
+import { migrateMediaKey, watchMediaKey } from '../../state/admin';
 import { useAdminOrders } from '../../state/orders';
 import { showToast } from '../../state/toast';
 import { colors } from '../../theme/tokens';
@@ -30,8 +31,19 @@ export default function AdminGate() {
     <>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'slide_from_right' }} />
       <NewOrderWatcher />
+      <MediaKeyWatcher />
     </>
   );
+}
+
+/** Rasm yuklash kalitini kuzatadi va eski ochiq joyda qolgan bo'lsa, yashirin joyga ko'chiradi. */
+function MediaKeyWatcher() {
+  useEffect(() => {
+    const off = watchMediaKey();
+    void migrateMediaKey().catch(() => {}); // qoidalar hali yangilanmagan bo'lsa — keyingi safar
+    return off;
+  }, []);
+  return null;
 }
 
 function Loading() {

@@ -83,15 +83,18 @@
         "deliveryNote": { ".validate": "newData.isString() && newData.val().length <= 300" },
         "legalName": { ".validate": "newData.isString() && newData.val().length <= 120" },
         "inn": { ".validate": "newData.isString() && newData.val().length <= 20" },
-        "cloudinaryCloud": { ".validate": "newData.isString() && newData.val().length <= 60" },
-        "cloudinaryPreset": { ".validate": "newData.isString() && newData.val().length <= 60" },
-        "imgbbApiKey": { ".validate": "newData.isString() && newData.val().length <= 60" },
         "lat": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
         "lng": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
         "courierEnabled": { ".validate": "newData.isBoolean()" },
         "pickupEnabled": { ".validate": "newData.isBoolean()" },
         "courierFee": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000 && newData.val() % 1 === 0" },
         "freeDeliveryFrom": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000 && newData.val() % 1 === 0" },
+        "$other": { ".validate": false }
+      },
+      "private": {
+        ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+        "imgbbApiKey": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{8,100}$/)" },
         "$other": { ".validate": false }
       }
     },
