@@ -44,7 +44,19 @@ GitHub → **Actions → Expo Go Publish → Run workflow**. Tugagach natija sah
 
 ## Ilovani boshqarish
 
-**Kabinet** → eng pastda **«Do‘kon egasi uchun»** → email va parol → **Do‘kon boshqaruvi**.
+**Telefonda:** **Kabinet** → eng pastda **«Do‘kon egasi uchun»** → email va parol → **Do‘kon boshqaruvi**.
+
+**Kompyuterda (noutbukda):** brauzerda **https://optovikn99.web.app/admin** ni oching va o‘sha email/parol bilan kiring. Chap tomonda menyu: Bosh sahifa, Buyurtmalar, Tovarlar, Bannerlar, Sozlamalar. Yangi buyurtma kelsa, menyuda va brauzer yorlig‘ida soni chiqadi. Web manzil faqat do‘kon egasi uchun — do‘kon sahifalari (katalog, savat) brauzerda ochilmaydi, mijozlar telefondagi ilovadan foydalanadi.
+
+### Web versiyani joylash (bir marta)
+
+Web versiya master’ga har o‘zgarish tushganda o‘zi yangilanadi. Birinchi marta: GitHub → **Actions → «Web admin panel» → Run workflow**. Tugagach, natija sahifasida havola chiqadi.
+
+Agar amal **«Service account'da Hosting ruxsati yo'q»** xatosi bilan to‘xtasa:
+1. [console.cloud.google.com/iam-admin/iam](https://console.cloud.google.com/iam-admin/iam) → yuqorida **optovikn99** loyihasini tanlang.
+2. `firebase-adminsdk-…@optovikn99.iam.gserviceaccount.com` qatorida ✏️ (Edit) ni bosing.
+3. **Add another role** → **Firebase Hosting Admin**; yana bittasi → **API Keys Viewer** → **Save**.
+4. «Web admin panel» amalini qayta ishga tushiring.
 
 1. **Sozlamalar** — birinchi navbatda: telefon raqam (mijozlar qo‘ng‘iroq qiladi), Telegram, manzil, xaritadagi joy (Google/Yandex xaritadan `39.65, 66.96` ko‘rinishida), ish vaqti, yetkazish narxi, bepul yetkazish chegarasi, MCHJ nomi va STIR.
 2. **Tovarlar** — yangi tovar, narx, eski narx (aksiya belgisi va «−N%» o‘zi chiqadi), qoldiq, artikul, mos modellar (`Cobalt, Gentra` yoki `Universal`), rasmlar.

@@ -1,9 +1,10 @@
 import * as Clipboard from 'expo-clipboard';
 import { Stack } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { ADMIN_WIDE, AdminShellProvider, AdminSidebar } from '../../components/admin/AdminShell';
 import { LogoMark } from '../../components/brand/Logo';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Controls';
@@ -27,12 +28,25 @@ export default function AdminGate() {
   if (!account.uid || account.anonymous) return <AdminLogin />;
   if (!account.adminChecked) return <Loading />;
   if (!account.admin) return <NotAdmin uid={account.uid} email={account.email} />;
+  return <AdminShell />;
+}
+
+/** Kompyuterda — chap menyu + sahifa, telefonda — oddiy sahifalar ketma-ketligi. */
+function AdminShell() {
+  const { width } = useWindowDimensions();
+  const sidebar = IS_WEB && width >= ADMIN_WIDE;
+  const shell = useMemo(() => ({ sidebar }), [sidebar]);
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'slide_from_right' }} />
+    <AdminShellProvider value={shell}>
+      <View style={styles.shell}>
+        {sidebar ? <AdminSidebar /> : null}
+        <View style={styles.page}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: sidebar ? 'none' : 'slide_from_right' }} />
+        </View>
+      </View>
       <NewOrderWatcher />
       <MediaKeyWatcher />
-    </>
+    </AdminShellProvider>
   );
 }
 
@@ -72,7 +86,7 @@ function AdminLogin() {
   };
   return (
     <View style={styles.root}>
-      <Header title={t('admin.title')} />
+      <Header title={t('admin.title')} back={!IS_WEB} />
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Animated.View entering={FadeInDown} style={styles.center}><LogoMark size={76} /></Animated.View>
@@ -94,7 +108,7 @@ function NotAdmin({ uid, email }: { uid: string; email: string | null }) {
   const { t } = useT();
   return (
     <View style={styles.root}>
-      <Header title={t('admin.title')} />
+      <Header title={t('admin.title')} back={!IS_WEB} />
       <ScrollView contentContainerStyle={styles.body}>
         <Txt variant="h2" center>{t('admin.notAdmin')}</Txt>
         <Txt variant="body" center color={colors.muted}>{t('admin.notAdminText')}</Txt>
@@ -128,8 +142,12 @@ function NewOrderWatcher() {
   return null;
 }
 
+const IS_WEB = Platform.OS === 'web';
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  shell: { flex: 1, flexDirection: 'row', backgroundColor: colors.bg },
+  page: { flex: 1, minWidth: 0 },
   center: { alignItems: 'center', justifyContent: 'center' },
   body: { padding: 20, gap: 14, width: '100%', maxWidth: 520, alignSelf: 'center' },
   gap: { gap: 12 },

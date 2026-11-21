@@ -1,0 +1,79 @@
+name: Web admin panel
+# Admin panelning kompyuter (brauzer) versiyasini Firebase Hosting'ga joylaydi: https://optovikn99.web.app/admin
+# master'ga o'zgarish tushganda o'zi ishlaydi; qo'lda: Actions → "Web admin panel" → Run workflow.
+# Kerak: Settings → Secrets and variables → Actions → FIREBASE_SERVICE_ACCOUNT (Firebase sozlash bilan bir xil).
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'app.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'firebase.json'
+      - '.github/workflows/web-deploy.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: web-deploy
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PROJECT: optovikn99
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Build web
+        run: npx expo export --platform web --output-dir dist/web
+      - name: Service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT secret yo'q. QOLLANMA.md → 2-qadamga qarang."
+            exit 1
+          fi
+          # Secret JSON yoki base64 ko'rinishida bo'lishi mumkin (scripts/firebase-setup.mjs dagi kabi).
+          node -e "
+            const raw = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+            const json = raw.startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8');
+            JSON.parse(json);
+            require('fs').writeFileSync(process.env.RUNNER_TEMP + '/sa.json', json, { mode: 0o600 });
+          "
+      - name: Deploy to Firebase Hosting
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          FB="npx --yes firebase-tools@14"
+          # Standart sayt hali yaratilmagan bo'lsa — yaratamiz (bor bo'lsa, bu qadam hech narsa qilmaydi).
+          $FB hosting:sites:get "$PROJECT" --project "$PROJECT" > /dev/null 2>&1 \
+            || $FB hosting:sites:create "$PROJECT" --project "$PROJECT" --non-interactive || true
+          set +e
+          $FB deploy --only hosting --project "$PROJECT" --non-interactive --message "$(echo "${MESSAGE:-manual}" | head -1 | cut -c1-200)" 2>&1 | tee deploy.log
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" -ne 0 ]; then
+            if grep -qiE "403|permission|PERMISSION_DENIED|does not have" deploy.log; then
+              echo "::error::Service account'da Hosting ruxsati yo'q. console.cloud.google.com → IAM → firebase-adminsdk-… qatori → ✏️ → 'Firebase Hosting Admin' va 'API Keys Viewer' rollarini qo'shing, saqlang va bu amalni qayta ishga tushiring."
+            fi
+            exit "$code"
+          fi
+          {
+            echo "## Web admin panel"
+            echo ""
+            echo "https://$PROJECT.web.app/admin"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

@@ -20,7 +20,8 @@ Android va iPhone uchun mustaqil ilova (Telegram shart emas). GM / Chevrolet eht
 - Buyurtmalar: holat chizig‘i (Qabul qilindi → Tasdiqlandi → Yo‘lda/Tayyor → Yetkazildi), jonli yangilanadi; tasdiqlanmagan buyurtmani bekor qilish, qayta buyurtma.
 - Kabinet: ism va telefon, mashina, til (UZ/RU), aloqa (qo‘ng‘iroq, Telegram, Instagram, Yandex/Google xarita), yetkazish va to‘lov, savol-javob, maxfiylik siyosati.
 
-**Do‘kon egasi (Kabinet → «Do‘kon egasi uchun»)**
+**Do‘kon egasi (Kabinet → «Do‘kon egasi uchun» yoki kompyuterda https://optovikn99.web.app/admin)**
+- Kompyuterda chap menyuli admin paneli; web versiya faqat admin uchun (do‘kon sahifalari brauzerda `/admin` ga yo‘naltiriladi). Firebase Hosting’ga «Web admin panel» amali joylaydi.
 - Bugungi buyurtmalar va savdo, yangi buyurtma kelsa xabar.
 - Buyurtmalar: holatni o‘zgartirish, mijozga qo‘ng‘iroq, ichki izoh. Tasdiqlanganda qoldiq avtomatik ayriladi, bekor qilinsa qaytariladi.
 - Tovarlar: qo‘shish/tahrirlash/nusxalash/o‘chirish, narx, eski narx (aksiya), qoldiq, artikul, mos modellar, rasmlar (havola yoki ImgBB orqali; bir nechta rasm, kompyuterda sudrab tashlash va Ctrl+V). Kompyuterda ro‘yxatning o‘zida narx va qoldiqni o‘zgartirish.

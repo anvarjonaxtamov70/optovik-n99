@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimens
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ADMIN_WIDE } from '../../components/admin/AdminShell';
 import { ImageManager } from '../../components/admin/ImageManager';
 import { Button } from '../../components/ui/Button';
 import { Card, Chip, SwitchRow } from '../../components/ui/Controls';
@@ -26,8 +27,6 @@ import { colors } from '../../theme/tokens';
 
 const UNITS = ['dona', 'komplekt', 'juft', 'litr', 'metr'];
 const IS_WEB = Platform.OS === 'web';
-/** Shu kenglikdan boshlab forma ikki ustunga bo'linadi (noutbuk). */
-const WIDE = 980;
 
 export default function AdminProductEdit() {
   const { id, copy } = useLocalSearchParams<{ id?: string; copy?: string }>();
@@ -56,7 +55,8 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
   const [baseline, setBaseline] = useState<ProductForm>(initial);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const wide = width >= WIDE;
+  // Shu kenglikdan boshlab forma ikki ustunga bo'linadi (noutbuk).
+  const wide = width >= ADMIN_WIDE;
   const { t, lang, money } = useT();
   const products = useProducts();
   const scroll = useRef<ScrollViewInstance>(null);

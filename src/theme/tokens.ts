@@ -60,21 +60,26 @@ export const fonts = {
   displayHeavy: 'Unbounded_800ExtraBold',
 } as const;
 
+// Brauzerda `elevation` ishlamaydi — o'sha soyalar CSS `boxShadow` bilan beriladi.
 export const shadow = StyleSheet.create({
   card: Platform.select({
     ios: { shadowColor: '#1B3E63', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 14 },
+    web: { boxShadow: '0px 6px 14px rgba(27, 62, 99, 0.08)' },
     default: { elevation: 2, shadowColor: '#1B3E63' },
   }) as object,
   soft: Platform.select({
     ios: { shadowColor: '#1B3E63', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
+    web: { boxShadow: '0px 2px 6px rgba(27, 62, 99, 0.06)' },
     default: { elevation: 1, shadowColor: '#1B3E63' },
   }) as object,
   float: Platform.select({
     ios: { shadowColor: '#0F2338', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.16, shadowRadius: 22 },
+    web: { boxShadow: '0px 10px 22px rgba(15, 35, 56, 0.16)' },
     default: { elevation: 10, shadowColor: '#0F2338' },
   }) as object,
   button: Platform.select({
     ios: { shadowColor: '#1D68A6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.28, shadowRadius: 12 },
+    web: { boxShadow: '0px 6px 12px rgba(29, 104, 166, 0.28)' },
     default: { elevation: 4, shadowColor: '#1D68A6' },
   }) as object,
 });
@@ -93,7 +98,8 @@ export const type = StyleSheet.create({
   label: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 16, color: colors.muted, letterSpacing: 0.2 },
 });
 
-export const layout = { maxWidth: 760, gutter: 16 } as const;
+/** `wide` — noutbuk: admin bo'limi chap menyu va ikki ustun bilan ochiladi. */
+export const layout = { maxWidth: 760, wideMaxWidth: 1240, gutter: 16, wide: 980 } as const;
 
 /** StyleSheet.absoluteFillObject o'rniga (RN 0.88 da olib tashlangan). */
 export const fill = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as const;

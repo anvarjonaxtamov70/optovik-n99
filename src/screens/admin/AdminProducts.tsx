@@ -3,6 +3,7 @@ import { memo, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ADMIN_WIDE, useAdminShell } from '../../components/admin/AdminShell';
 import { ProductImage } from '../../components/shop/ProductImage';
 import { Button } from '../../components/ui/Button';
 import { Chip, Pill } from '../../components/ui/Controls';
@@ -23,12 +24,12 @@ import { showToast } from '../../state/toast';
 import { colors, fonts, radius, shadow } from '../../theme/tokens';
 
 type Only = 'low' | 'out' | 'sale' | 'noImage' | null;
-const WIDE = 980;
 
 export default function AdminProducts() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const wide = width >= WIDE;
+  const wide = width >= ADMIN_WIDE;
+  const { sidebar } = useAdminShell();
   const { t, money, lang } = useT();
   const products = useProducts();
   const [q, setQ] = useState('');
@@ -53,7 +54,7 @@ export default function AdminProducts() {
 
   return (
     <View style={styles.root}>
-      <Header title={t('admin.products')} subtitle={t('admin.productsCount', { n: list.length })}
+      <Header title={t('admin.products')} subtitle={t('admin.productsCount', { n: list.length })} back={!sidebar}
         right={wide ? <Button title={t('admin.addProduct')} icon="add" size="sm" full={false} onPress={add} /> : undefined} />
       <View style={styles.bar}>
         <View style={[styles.barInner, wide && styles.wideInner]}>

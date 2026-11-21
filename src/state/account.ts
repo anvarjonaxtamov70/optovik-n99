@@ -1,5 +1,6 @@
 import { onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { onValue, ref, set } from 'firebase/database';
+import { Platform } from 'react-native';
 
 import { auth, classifyError, db, withTimeout, type FirebaseProblem } from '../lib/firebase';
 import { createStore, useStore } from '../lib/store';
@@ -51,7 +52,8 @@ export async function startAccount() {
         accountStore.set((s) => (s.uid === user.uid ? { ...s, admin: snap.val() === true, adminChecked: true } : s));
       }, () => accountStore.set((s) => ({ ...s, admin: false, adminChecked: true })));
     }
-    if (!user) void ensureCustomer().catch(() => {});
+    // Brauzer — faqat admin paneli: mijoz uchun anonim hisob ochilmaydi.
+    if (!user && Platform.OS !== 'web') void ensureCustomer().catch(() => {});
   });
 }
 

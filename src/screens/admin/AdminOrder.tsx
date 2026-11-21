@@ -1,6 +1,7 @@
+import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { statusKey } from '../../components/shop/OrderBits';
@@ -72,7 +73,13 @@ function AdminPanel({ order: o }: { order: Order }) {
           </View>
           <Pill text={o.zaxira ? t('admin.stockReserved') : t('admin.stockWillReserve')} tone={o.zaxira ? 'success' : 'muted'} />
         </View>
-        <Button title={t('admin.callCustomer')} icon="call" variant="secondary" onPress={() => callPhone(o.mijoz.telefon)} />
+        {Platform.OS === 'web' ? (
+          // Kompyuterdan qo'ng'iroq qilib bo'lmaydi — raqamni nusxalab, telefonda teriladi.
+          <Button title={t('admin.copyPhone')} icon="copy-outline" variant="secondary"
+            onPress={() => void Clipboard.setStringAsync(o.mijoz.telefon).then(() => showToast(t('common.copied'), { kind: 'success' }))} />
+        ) : (
+          <Button title={t('admin.callCustomer')} icon="call" variant="secondary" onPress={() => callPhone(o.mijoz.telefon)} />
+        )}
         {mismatch ? (
           <View style={styles.warn}>
             <Icon name="warning-outline" size={18} color={colors.warning} />
