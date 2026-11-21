@@ -9,6 +9,7 @@ import { displayPhone, formatLocal, isValidUzPhone, localDigits, toE164 } from '
 import { addImages, applyFilters, discountPercent, isPlaceholderCatalog, MAX_IMAGES, moveImage, parseWhole, readCachedProducts, readProducts, searchScore, similarProducts, toCache } from '../src/domain/products.ts';
 import { categoryFor, categoryLabel, parseModels } from '../src/domain/taxonomy.ts';
 import { compactCode, fold } from '../src/domain/text.ts';
+import { isWebAllowedPath } from '../src/domain/webAccess.ts';
 import { ru } from '../src/i18n/ru.ts';
 import { uz } from '../src/i18n/uz.ts';
 
@@ -195,6 +196,11 @@ test('tovar rasmlari: https, takrorsiz, 10 tadan oshmaydi; tartibni surish', () 
   const same = [a, b];
   assert.equal(moveImage(same, 0, 5), same);
   assert.equal(moveImage(same, -1, 0), same);
+});
+
+test('web versiya: faqat admin va ochiq ma’lumot sahifalari', () => {
+  for (const p of ['/admin', '/admin/', '/admin/products', '/admin/order/u1/o1', '/info/privacy']) assert.equal(isWebAllowedPath(p), true, p);
+  for (const p of ['/', '/cart', '/catalog', '/product/dvigatel/oil', '/checkout', '/administrator', '/information']) assert.equal(isWebAllowedPath(p), false, p);
 });
 
 test('tez tahrir: faqat butun son, chegaradan oshmaydi', () => {

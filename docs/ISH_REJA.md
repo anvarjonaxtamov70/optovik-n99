@@ -11,7 +11,7 @@ Tekshirilgan sana: 2026-11-21. Holat: `typecheck`, `lint`, 14 ta unit test o‘t
 
 ## Bajarilish holati
 - [x] 1-bosqich (Excel’siz) — `feat/admin-tovar-qoshish` PR.
-- [ ] 2-bosqich — web admin paneli + hosting.
+- [x] 2-bosqich — web admin paneli + hosting (`feat/web-admin-panel` PR).
 - [ ] 3-bosqich — dizayn tozalash.
 - [ ] 4-bosqich — do‘konlarga chiqish.
 - [ ] Excel/CSV import va eksport.
@@ -62,8 +62,9 @@ Tekshirilgan sana: 2026-11-21. Holat: `typecheck`, `lint`, 14 ta unit test o‘t
 5. Tovarlar ro‘yxati: kategoriya, «Tugagan», «Kam qolgan», «Aksiyalar», «Rasmsiz» filtrlari; kompyuterda jadval, joyida narx va qoldiq tahriri (revision bilan).
 6. CSV/Excel import va eksport — keyinga qoldirildi.
 
-### 2-bosqich. Noutbuk uchun web admin paneli
+### 2-bosqich. Noutbuk uchun web admin paneli ✅
 Web faqat adminlar uchun bo‘lgani sababli do‘kon sahifalarini kompyuterga moslash shart emas.
+Bajarildi: `/admin` va `/info/*` dan boshqa sahifalar web’da `/admin` ga yo‘naltiriladi; web’da intro va mijoz uchun anonim hisob yo‘q; chap menyu (yangi buyurtmalar soni, brauzer yorlig‘ida ham); bosh sahifa, buyurtmalar (2 ustun), buyurtma (2 ustun, «Raqamni nusxalash»), sozlamalar (2 ustun), bannerlar keng ekranga moslandi; web soyalari; `firebase.json` hosting (SPA, kesh, xavfsizlik sarlavhalari, `noindex`) va «Web admin panel» GitHub amali.
 1. Web’da bosh sahifa → `/admin` ga yo‘naltirish; mijoz sahifalari web’da ochilmaydi (maxfiylik siyosati va «ma’lumotni o‘chirish» sahifalari bundan mustasno — ular do‘konlar uchun ochiq havola bo‘ladi).
 2. Kompyuterda chap menyuli admin paneli (Buyurtmalar, Tovarlar, Bannerlar, Sozlamalar), intro animatsiyasi web’da o‘chiriladi.
 3. Buyurtmalar, bannerlar va sozlamalar sahifalarini keng ekranga moslash; web soyalari va hover.

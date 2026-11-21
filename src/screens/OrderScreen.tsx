@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,7 +25,7 @@ import { cart } from '../state/cart';
 import { catalogStore, useSettings } from '../state/catalog';
 import { cancelMyOrder, useOrder } from '../state/orders';
 import { showToast } from '../state/toast';
-import { colors, radius } from '../theme/tokens';
+import { colors, layout, radius } from '../theme/tokens';
 
 export default function OrderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -50,6 +50,10 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
   const settings = useSettings();
   const [busy, setBusy] = useState(false);
   const totals = recomputeTotals(o);
+  const { width } = useWindowDimensions();
+  // Admin noutbukda: chapda holat va boshqaruv, o'ngda tarkib va ma'lumotlar.
+  const wide = !!admin && width >= layout.wide;
+  const openItem = (id: string) => (admin ? router.push({ pathname: '/admin/product', params: { id } }) : openProduct(id));
 
   const cancel = () => Alert.alert(t('orders.cancel'), t('orders.cancelConfirm'), [
     { text: t('common.no'), style: 'cancel' },
@@ -69,54 +73,63 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
     else showToast(t('orders.repeatNone'), { kind: 'error' });
   };
 
+  const status = (
+    <Animated.View entering={FadeInDown.duration(320)}>
+      <Card style={styles.gap}>
+        <View style={styles.row}>
+          <Txt variant="h3" style={styles.flex}>{t('orders.status')}</Txt>
+          <StatusPill status={o.holat} kind={o.yetkazish.turi} />
+        </View>
+        <OrderTimeline order={o} />
+      </Card>
+    </Animated.View>
+  );
+  const contents = (
+    <Animated.View entering={FadeInDown.delay(80).duration(320)}>
+      <Card style={styles.gap}>
+        <Txt variant="h3">{t('orders.contents')}</Txt>
+        {o.items.map((it) => {
+          const p = catalogStore.get().byId.get(it.id);
+          return (
+            <PressableScale key={it.id} onPress={() => p && openItem(it.id)} disabled={!p} style={styles.item} accessibilityLabel={it.nomi}>
+              <ProductImage uri={p?.rasmlar[0]} kategoriya={it.id.split('/')[0]} seed={it.id} style={styles.thumb} iconScale={0.45} />
+              <View style={styles.flex}>
+                <Txt variant="smallStrong" numberOfLines={2}>{it.nomi}</Txt>
+                <Txt variant="tiny">{it.soni} × {money(it.narxi)}</Txt>
+              </View>
+              <Txt variant="bodyStrong">{money(it.soni * it.narxi)}</Txt>
+            </PressableScale>
+          );
+        })}
+        <View style={styles.hr} />
+        <Line label={t('cart.goods', { n: totals.soni })} value={money(totals.summa)} />
+        <Line label={t('checkout.deliveryFee')} value={o.yetkazish.turi === 'olib' || !o.yetkazishNarxi ? (o.yetkazish.turi === 'olib' ? t('checkout.free') : t('checkout.byAgreement')) : money(o.yetkazishNarxi)} />
+        <Line label={t('cart.total')} value={money(totals.jami)} strong />
+      </Card>
+    </Animated.View>
+  );
+  const details = (
+    <Animated.View entering={FadeInDown.delay(140).duration(320)}>
+      <Card style={styles.gap}>
+        <Info icon={o.yetkazish.turi === 'kuryer' ? 'bicycle-outline' : 'storefront-outline'} title={t('orders.delivery')}
+          text={o.yetkazish.turi === 'kuryer' ? `${t('checkout.courier')}: ${o.yetkazish.manzil ?? ''}${o.yetkazish.moljal ? ` (${o.yetkazish.moljal})` : ''}` : `${t('checkout.pickup')}: ${settings.address}`} />
+        <Info icon="cash-outline" title={t('orders.payment')} text={t('checkout.cash')} />
+        <Info icon="person-outline" title={t('checkout.contact')} text={`${o.mijoz.ism}, ${displayPhone(o.mijoz.telefon)}`} />
+        {o.izoh ? <Info icon="chatbubble-ellipses-outline" title={t('checkout.comment')} text={o.izoh} /> : null}
+      </Card>
+    </Animated.View>
+  );
+
   return (
     <View style={styles.root}>
       <Header title={t('orders.item', { num: orderNumber(o.raqam) })} subtitle={formatDate(o.createdAt, lang)} />
-      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
-        <Animated.View entering={FadeInDown.duration(320)}>
-          <Card style={styles.gap}>
-            <View style={styles.row}>
-              <Txt variant="h3" style={styles.flex}>{t('orders.status')}</Txt>
-              <StatusPill status={o.holat} kind={o.yetkazish.turi} />
-            </View>
-            <OrderTimeline order={o} />
-          </Card>
-        </Animated.View>
-
-        {admin}
-
-        <Animated.View entering={FadeInDown.delay(80).duration(320)}>
-          <Card style={styles.gap}>
-            <Txt variant="h3">{t('orders.contents')}</Txt>
-            {o.items.map((it) => {
-              const p = catalogStore.get().byId.get(it.id);
-              return (
-                <PressableScale key={it.id} onPress={() => p && openProduct(it.id)} disabled={!p} style={styles.item} accessibilityLabel={it.nomi}>
-                  <ProductImage uri={p?.rasmlar[0]} kategoriya={it.id.split('/')[0]} seed={it.id} style={styles.thumb} iconScale={0.45} />
-                  <View style={styles.flex}>
-                    <Txt variant="smallStrong" numberOfLines={2}>{it.nomi}</Txt>
-                    <Txt variant="tiny">{it.soni} × {money(it.narxi)}</Txt>
-                  </View>
-                  <Txt variant="bodyStrong">{money(it.soni * it.narxi)}</Txt>
-                </PressableScale>
-              );
-            })}
-            <View style={styles.hr} />
-            <Line label={t('cart.goods', { n: totals.soni })} value={money(totals.summa)} />
-            <Line label={t('checkout.deliveryFee')} value={o.yetkazish.turi === 'olib' || !o.yetkazishNarxi ? (o.yetkazish.turi === 'olib' ? t('checkout.free') : t('checkout.byAgreement')) : money(o.yetkazishNarxi)} />
-            <Line label={t('cart.total')} value={money(totals.jami)} strong />
-          </Card>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(140).duration(320)}>
-          <Card style={styles.gap}>
-            <Info icon={o.yetkazish.turi === 'kuryer' ? 'bicycle-outline' : 'storefront-outline'} title={t('orders.delivery')}
-              text={o.yetkazish.turi === 'kuryer' ? `${t('checkout.courier')}: ${o.yetkazish.manzil ?? ''}${o.yetkazish.moljal ? ` (${o.yetkazish.moljal})` : ''}` : `${t('checkout.pickup')}: ${settings.address}`} />
-            <Info icon="cash-outline" title={t('orders.payment')} text={t('checkout.cash')} />
-            <Info icon="person-outline" title={t('checkout.contact')} text={`${o.mijoz.ism}, ${displayPhone(o.mijoz.telefon)}`} />
-            {o.izoh ? <Info icon="chatbubble-ellipses-outline" title={t('checkout.comment')} text={o.izoh} /> : null}
-          </Card>
-        </Animated.View>
+      <ScrollView contentContainerStyle={[styles.body, wide && styles.bodyWide, { paddingBottom: insets.bottom + 32 }]}>
+        {wide ? (
+          <View style={styles.columns}>
+            <View style={styles.column}>{status}{admin}</View>
+            <View style={styles.column}>{contents}{details}</View>
+          </View>
+        ) : <>{status}{admin}{contents}{details}</>}
 
         {!admin ? (
           <View style={styles.actions}>
@@ -155,6 +168,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   body: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  bodyWide: { maxWidth: layout.wideMaxWidth, padding: 24 },
+  columns: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
+  column: { flex: 1, minWidth: 0, gap: 12 },
   gap: { gap: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   item: { flexDirection: 'row', alignItems: 'center', gap: 12 },

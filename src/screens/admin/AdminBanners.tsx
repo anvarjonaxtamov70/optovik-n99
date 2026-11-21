@@ -1,11 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAdminShell } from '../../components/admin/AdminShell';
 import { BannerCarousel } from '../../components/shop/BannerCarousel';
 import { Notice } from '../../components/shop/CatalogBits';
+import { BottomBar, barButton } from '../../components/ui/BottomBar';
 import { Button } from '../../components/ui/Button';
 import { Card, Chip, Pill, SwitchRow } from '../../components/ui/Controls';
 import { Field } from '../../components/ui/Field';
@@ -21,17 +23,22 @@ import { haptic } from '../../lib/haptics';
 import { deleteBanner, saveBanner } from '../../state/admin';
 import { useBanners } from '../../state/catalog';
 import { showToast } from '../../state/toast';
-import { colors, radius, shadow } from '../../theme/tokens';
+import { colors, layout, radius, shadow } from '../../theme/tokens';
 
 export function AdminBannerList() {
   const insets = useSafeAreaInsets();
   const { t, lang } = useT();
+  const { sidebar } = useAdminShell();
+  const { width } = useWindowDimensions();
+  const wide = width >= layout.wide;
   const remote = useBanners();
   const list = remote ?? [];
+  const add = () => router.push('/admin/banner');
   return (
     <View style={styles.root}>
-      <Header title={t('admin.banners')} />
-      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 100 }]}>
+      <Header title={t('admin.banners')} back={!sidebar}
+        right={wide ? <Button title={t('admin.banner.new')} icon="add" size="sm" full={false} onPress={add} /> : undefined} />
+      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + (wide ? 30 : 100) }]}>
         {!list.length ? <Notice icon="images-outline" text={t('admin.banner.defaults')} /> : null}
         <View style={styles.preview}><BannerCarousel banners={list.length ? list : DEFAULT_BANNERS} /></View>
         {list.map((b, i) => (
@@ -46,9 +53,11 @@ export function AdminBannerList() {
           </Animated.View>
         ))}
       </ScrollView>
-      <View style={[styles.fab, { bottom: insets.bottom + 16 }]}>
-        <Button title={t('admin.banner.new')} icon="add" size="lg" onPress={() => router.push('/admin/banner')} />
-      </View>
+      {!wide ? (
+        <View style={[styles.fab, { bottom: insets.bottom + 16 }]}>
+          <Button title={t('admin.banner.new')} icon="add" size="lg" onPress={add} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -66,6 +75,8 @@ export function AdminBannerEdit() {
 function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
   const insets = useSafeAreaInsets();
   const { t } = useT();
+  const { width } = useWindowDimensions();
+  const wide = width >= layout.wide;
   const [d, setD] = useState<Draft>(initial);
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
@@ -124,9 +135,9 @@ function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>
-      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Button title={t('common.save')} size="lg" loading={busy} disabled={!valid} onPress={save} />
-      </View>
+      <BottomBar wide={wide}>
+        <Button title={t('common.save')} size="lg" loading={busy} disabled={!valid} onPress={save} full={!wide} style={wide ? barButton : undefined} />
+      </BottomBar>
     </View>
   );
 }
@@ -141,5 +152,4 @@ const styles = StyleSheet.create({
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   two: { flexDirection: 'row', gap: 10 },
   fab: { position: 'absolute', left: 16, right: 16 },
-  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 12, backgroundColor: colors.white, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
 });

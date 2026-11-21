@@ -1,14 +1,15 @@
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold } from '@expo-google-fonts/manrope';
 import { Unbounded_700Bold, Unbounded_800ExtraBold } from '@expo-google-fonts/unbounded';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { router, Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { IntroSplash } from '../components/brand/IntroSplash';
 import { ToastHost } from '../components/ui/ToastHost';
+import { isWebAllowedPath } from '../domain/webAccess';
 import { startAccount } from '../state/account';
 import { hydrateCart } from '../state/cart';
 import { startCatalog } from '../state/catalog';
@@ -23,7 +24,10 @@ export default function RootLayout() {
     Unbounded_700Bold, Unbounded_800ExtraBold,
   });
   const [booted, setBooted] = useState(false);
-  const [intro, setIntro] = useState(true);
+  // Brauzerda (admin paneli) intro animatsiyasi har sahifa yangilanganda halal beradi.
+  const [intro, setIntro] = useState(!IS_WEB);
+  const pathname = usePathname();
+  const blocked = IS_WEB && !isWebAllowedPath(pathname);
 
   useEffect(() => {
     void Promise.allSettled([hydratePrefs(), hydrateCart()]).then(() => setBooted(true));
@@ -35,6 +39,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready) SplashScreen.hide();
   }, [ready]);
+  // Web versiya faqat admin uchun: do'kon sahifalari brauzerda ochilmaydi.
+  useEffect(() => {
+    if (ready && blocked) router.replace('/admin');
+  }, [ready, blocked]);
   const endIntro = useCallback(() => setIntro(false), []);
 
   if (!ready) return null;
@@ -49,9 +57,16 @@ export default function RootLayout() {
         <Stack.Screen name="admin" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
       <ToastHost />
+      {blocked ? <View style={styles.cover} /> : null}
       {intro ? <IntroSplash onDone={endIntro} /> : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: colors.bg } });
+const IS_WEB = Platform.OS === 'web';
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  // Yo'naltirish tugaguncha do'kon sahifasi bir lahza ham ko'rinmasin.
+  cover: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg },
+});
