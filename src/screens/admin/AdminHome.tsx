@@ -19,7 +19,7 @@ import { useT } from '../../i18n';
 import { adminSignOut, useAccount } from '../../state/account';
 import { useProducts } from '../../state/catalog';
 import { useAdminOrders } from '../../state/orders';
-import { colors, gradients, radius, shadow } from '../../theme/tokens';
+import { colors, fonts, gradients, radius, shadow } from '../../theme/tokens';
 
 const IS_WEB = Platform.OS === 'web';
 
@@ -131,7 +131,7 @@ function Stat({ icon, label, value, onPress, big }: { icon: IconName; label: str
     <>
       <View style={[styles.statIcon, big && styles.statIconBig]}><Icon name={icon} size={18} color={big ? colors.primary : colors.primary} /></View>
       <Txt style={[styles.statValue, big && { color: colors.white, fontSize: 40, lineHeight: 46 }]}>{value}</Txt>
-      <Txt variant="tiny" color={big ? 'rgba(255,255,255,0.85)' : colors.muted} numberOfLines={2}>{label}</Txt>
+      <Txt variant="tiny" color={big ? colors.onBrandMuted : colors.muted} numberOfLines={2}>{label}</Txt>
     </>
   );
   return (
@@ -158,9 +158,9 @@ const styles = StyleSheet.create({
   statBig: { justifyContent: 'flex-end' },
   statIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.tint, alignItems: 'center', justifyContent: 'center' },
   statIconBig: { backgroundColor: colors.white },
-  statValue: { fontFamily: 'Manrope_800ExtraBold', fontSize: 24, lineHeight: 30, color: colors.ink },
+  statValue: { fontFamily: fonts.heavy, fontSize: 24, lineHeight: 30, color: colors.ink },
   revenue: { gap: 4 },
-  revenueValue: { fontFamily: 'Unbounded_700Bold', fontSize: 24, lineHeight: 32, color: colors.ink },
+  revenueValue: { fontFamily: fonts.display, fontSize: 24, lineHeight: 32, color: colors.ink },
   menu: { paddingHorizontal: 14 },
   lowRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   line: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },

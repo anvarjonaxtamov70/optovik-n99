@@ -36,6 +36,14 @@ EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1 npx expo start --web
 7. Rasmiylashtirish: olib ketish va kuryer; noto‘g‘ri telefon/bo‘sh ism xato ko‘rsatsin. Buyurtma bering → yashil belgi va konfetti, buyurtma raqami.
 8. Buyurtmalarim: holat chizig‘i; admin holatni o‘zgartirsa ekran o‘zi yangilansin. «Bekor qilish» faqat tasdiqlanmaguncha.
 9. Til: Kabinet → Til → Русский — barcha matnlar ruscha.
-10. Admin: Kabinet → «Do‘kon egasi uchun» → kiring → buyurtmani tasdiqlang → tovar qoldig‘i kamaysin; bekor qiling → qaytsin. Tovar narxini o‘zgartiring → mijoz ekranida darhol yangilansin.
+10. Rasm: tovar sahifasida rasmni bosing → to‘liq ekran. Ikki marta bosing va barmoqlar bilan cho‘zing — kattalashsin, surilsin; bir marta bosilganda yopilsin; bir nechta rasm bo‘lsa varaqlanib, hisoblagich («2 / 3») o‘zgarsin.
 11. Internetni o‘chiring: saqlangan katalog ko‘rinsin, «Internet yo‘q» xabari, savatga qo‘shish o‘chiq bo‘lsin.
 12. iPhone (qosh/Dynamic Island), Android orqaga tugmasi, katta shrift, klaviatura ochilganda maydonlar yopilib qolmasin.
+13. Kabinetda admin kirishi **bo‘lmasligi** kerak (boshqaruv faqat brauzerda).
+
+## Do‘kon boshqaruvi (brauzerda)
+
+1. https://optovikn99.web.app/admin — email va parol bilan kiring. Do‘kon sahifalari (`/`, `/cart`) `/admin` ga yo‘naltirilsin.
+2. Buyurtmani tasdiqlang → tovar qoldig‘i kamaysin; bekor qiling → qaytsin.
+3. Tovar narxini ro‘yxatda o‘zgartirib Enter bosing → telefondagi ilovada darhol yangilansin.
+4. Rasm qo‘shish: bir nechta fayl, sahifaga sudrab tashlash, Ctrl+V; tartibni ‹ › bilan o‘zgartirish; Ctrl+S bilan saqlash.

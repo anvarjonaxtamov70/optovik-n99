@@ -16,7 +16,8 @@ export function Button({
   title?: string; onPress?: () => void; variant?: Variant; size?: Size; icon?: IconName; iconRight?: IconName;
   loading?: boolean; disabled?: boolean; style?: StyleProp<ViewStyle>; full?: boolean; children?: ReactNode; accessibilityLabel?: string;
 }) {
-  const height = size === 'lg' ? 56 : size === 'md' ? 48 : 38;
+  // Eng kichik tugma ham barmoq uchun 44 px dan kam bo'lmaydi (Apple/Google tavsiyasi).
+  const height = size === 'lg' ? 56 : size === 'md' ? 48 : 44;
   const fg = variant === 'primary' || variant === 'danger' ? colors.white : variant === 'white' ? colors.primary : variant === 'outline' ? colors.primary : colors.primary;
   const content = (
     <View style={[styles.row, { minHeight: height, paddingHorizontal: size === 'sm' ? 14 : 20 }]}>
@@ -39,7 +40,7 @@ export function Button({
       style={[full && styles.full, styles.base, { borderRadius: size === 'sm' ? radius.sm : radius.md }, variant === 'primary' && !isOff && shadow.button, style]}
     >
       {variant === 'primary' || variant === 'danger' ? (
-        <LinearGradient colors={variant === 'danger' ? ['#EF5350', colors.sale] : gradients.button} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.fill, { borderRadius: size === 'sm' ? radius.sm : radius.md }]}>
+        <LinearGradient colors={variant === 'danger' ? [colors.saleBright, colors.sale] : gradients.button} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.fill, { borderRadius: size === 'sm' ? radius.sm : radius.md }]}>
           {content}
         </LinearGradient>
       ) : (

@@ -22,7 +22,7 @@ import { useAccount } from '../state/account';
 import { useCartCount } from '../state/cart';
 import { useMyOrders } from '../state/orders';
 import { useFavorites, useMyCar } from '../state/prefs';
-import { colors, gradients, radius, shadow } from '../theme/tokens';
+import { colors, fonts, gradients, radius, shadow } from '../theme/tokens';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -50,7 +50,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.flex}>
               <Txt variant="h2" color={colors.white} numberOfLines={1}>{p.name || t('profile.guest')}</Txt>
-              <Txt variant="small" color="rgba(255,255,255,0.82)">{p.phone ? displayPhone(p.phone) : t('profile.fillProfile')}</Txt>
+              <Txt variant="small" color={colors.onBrandMuted}>{p.phone ? displayPhone(p.phone) : t('profile.fillProfile')}</Txt>
             </View>
             <PressableScale onPress={() => router.push('/profile-edit')} style={styles.edit} accessibilityLabel={t('profile.personal')}>
               <Icon name="create-outline" size={20} color={colors.white} />
@@ -93,23 +93,11 @@ export default function ProfileScreen() {
             <ListRow icon="shield-checkmark-outline" title={t('profile.privacy')} onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'privacy' } })} last />
           </Group>
 
-          {account.admin ? (
-            <Group title={t('profile.owner')} delay={220}>
-              <ListRow icon="speedometer-outline" title={t('profile.admin')} onPress={() => router.push('/admin')} last />
-            </Group>
-          ) : null}
-
+          {/* Do'kon boshqaruvi telefon ilovasida yo'q: admin https://optovikn99.web.app/admin dan ishlaydi. */}
           <View style={styles.footer}>
-            <PressableScale onLongPress={() => { haptic.medium(); router.push('/admin'); }} delayLongPress={900} accessibilityLabel={t('profile.owner')}>
-              <Logo height={22} />
-            </PressableScale>
+            <Logo height={22} />
             <Txt variant="tiny" center>{t('app.tagline')}</Txt>
             <Txt variant="tiny" center color={colors.faint}>{t('profile.version', { v: version })}</Txt>
-            {!account.admin && account.anonymous ? (
-              <PressableScale onPress={() => router.push('/admin')} hitSlop={8} accessibilityLabel={t('profile.owner')}>
-                <Txt variant="tiny" color={colors.faint} style={styles.ownerLink}>{t('profile.owner')}</Txt>
-              </PressableScale>
-            ) : null}
           </View>
         </View>
       </ScrollView>
@@ -135,7 +123,7 @@ function Stat({ icon, value, label, onPress, badge }: { icon: IconName; value: n
         {badge ? <View style={styles.statBadge} /> : null}
       </View>
       <Txt variant="h3" color={colors.white}>{value}</Txt>
-      <Txt variant="tiny" color="rgba(255,255,255,0.8)" numberOfLines={1}>{label}</Txt>
+      <Txt variant="tiny" color={colors.onBrandMuted} numberOfLines={1}>{label}</Txt>
     </PressableScale>
   );
 }
@@ -156,11 +144,11 @@ const styles = StyleSheet.create({
   heroGlow: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(255,255,255,0.08)', top: -110, right: -70 },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatar: { width: 62, height: 62, borderRadius: 22, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
-  initials: { fontFamily: 'Unbounded_700Bold', fontSize: 22, color: colors.primary },
-  edit: { width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
+  initials: { fontFamily: fonts.display, fontSize: 22, color: colors.primary },
+  edit: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.onBrandGlass, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', gap: 10 },
-  stat: { flex: 1, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.13)', padding: 12, gap: 2 },
-  statBadge: { position: 'absolute', top: -2, left: 16, width: 9, height: 9, borderRadius: 5, backgroundColor: '#FFC94D' },
+  stat: { flex: 1, borderRadius: radius.md, backgroundColor: colors.onBrandGlass, padding: 12, gap: 2 },
+  statBadge: { position: 'absolute', top: -2, left: 16, width: 9, height: 9, borderRadius: 5, backgroundColor: colors.gold },
   body: { padding: 16, gap: 18, width: '100%', maxWidth: 760, alignSelf: 'center' },
   car: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: radius.lg, backgroundColor: colors.white },
   carIcon: { width: 54, height: 54, borderRadius: 16, backgroundColor: colors.tint, alignItems: 'center', justifyContent: 'center' },
@@ -168,7 +156,6 @@ const styles = StyleSheet.create({
   groupTitle: { marginLeft: 4 },
   groupCard: { paddingHorizontal: 14 },
   footer: { alignItems: 'center', gap: 6, paddingTop: 8 },
-  ownerLink: { textDecorationLine: 'underline', marginTop: 6 },
   langRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
-  flag: { fontFamily: 'Unbounded_700Bold', fontSize: 13, color: colors.primary, width: 32 },
+  flag: { fontFamily: fonts.display, fontSize: 13, color: colors.primary, width: 32 },
 });

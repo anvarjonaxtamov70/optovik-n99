@@ -11,11 +11,11 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { isActive } from '../domain/order';
 import { useT } from '../i18n';
 import { useMyOrders } from '../state/orders';
-import { colors } from '../theme/tokens';
+import { colors, radius } from '../theme/tokens';
 
 export default function OrdersScreen() {
   const { t } = useT();
-  const { orders, loading } = useMyOrders();
+  const { orders, loading, error } = useMyOrders();
   const [tab, setTab] = useState<'active' | 'done'>('active');
   const list = orders.filter((o) => (tab === 'active' ? isActive(o.holat) : !isActive(o.holat)));
   return (
@@ -32,7 +32,9 @@ export default function OrdersScreen() {
         keyExtractor={(o) => o.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={loading ? (
-          <View style={styles.gap}>{[0, 1, 2].map((i) => <Skeleton key={i} height={112} radius={18} />)}</View>
+          <View style={styles.gap}>{[0, 1, 2].map((i) => <Skeleton key={i} height={112} radius={radius.lg} />)}</View>
+        ) : error ? (
+          <EmptyState icon="cloud-offline-outline" title={t('orders.errorTitle')} text={t('orders.errorText')} />
         ) : (
           <EmptyState icon="receipt-outline" title={tab === 'active' ? t('orders.emptyTitle') : t('orders.emptyDone')} text={tab === 'active' ? t('orders.emptyText') : undefined}
             action={tab === 'active' ? { label: t('cart.toCatalog'), onPress: () => router.navigate('/') } : undefined} />

@@ -14,7 +14,7 @@ export function ToastHost({ bottomOffset = 76 }: { bottomOffset?: number }) {
   const insets = useSafeAreaInsets();
   if (!toast) return null;
   const icon: IconName = (toast.icon as IconName) ?? (toast.kind === 'success' ? 'checkmark-circle' : toast.kind === 'error' ? 'alert-circle' : 'information-circle');
-  const iconColor = toast.kind === 'error' ? '#FF8A8A' : toast.kind === 'success' ? '#7EE2B0' : colors.sky;
+  const iconColor = toast.kind === 'error' ? colors.toastError : toast.kind === 'success' ? colors.toastSuccess : colors.sky;
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: insets.bottom + bottomOffset }]}>
       <Animated.View key={toast.id} entering={SlideInDown.springify().damping(18).stiffness(220)} exiting={FadeOutDown.duration(160)} style={[styles.toast, shadow.float]}>
@@ -32,7 +32,7 @@ export function ToastHost({ bottomOffset = 76 }: { bottomOffset?: number }) {
 
 const styles = StyleSheet.create({
   host: { position: 'absolute', left: 12, right: 12, alignItems: 'center', zIndex: 1000 },
-  toast: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#13283E', borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 14, width: '100%', maxWidth: 560 },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.toast, borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 14, width: '100%', maxWidth: 560 },
   msg: { flex: 1 },
   action: { paddingHorizontal: 8, paddingVertical: 6 },
 });

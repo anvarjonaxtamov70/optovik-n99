@@ -4,14 +4,16 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTim
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import { tNow } from '../../i18n';
 import { colors, radius } from '../../theme/tokens';
 import { IconButton } from './IconButton';
 import { Txt } from './Txt';
 
 /** Pastdan chiqadigan oyna: fon xiralashadi, oyna prujina bilan ko'tariladi. */
-export function Sheet({ visible, onClose, title, children, footer, closeLabel = 'Close' }: {
+export function Sheet({ visible, onClose, title, children, footer, closeLabel }: {
   visible: boolean; onClose: () => void; title?: string; children: ReactNode; footer?: ReactNode; closeLabel?: string;
 }) {
+  const close = closeLabel ?? tNow('common.close');
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(visible);
@@ -36,14 +38,14 @@ export function Sheet({ visible, onClose, title, children, footer, closeLabel = 
     <Modal transparent visible statusBarTranslucent navigationBarTranslucent animationType="none" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.root}>
         <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdrop]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel={closeLabel} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel={close} />
         </Animated.View>
         <Animated.View style={[styles.panel, { maxHeight: height * 0.88, paddingBottom: Math.max(insets.bottom, 16) }, panel]}>
           <View style={styles.grabber} />
           {title ? (
             <View style={styles.header}>
               <Txt variant="h2" style={styles.title}>{title}</Txt>
-              <IconButton icon="close" label={closeLabel} onPress={onClose} size={36} bg={colors.surfaceAlt} />
+              <IconButton icon="close" label={close} onPress={onClose} size={44} bg={colors.surfaceAlt} />
             </View>
           ) : null}
           <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>{children}</ScrollView>

@@ -5,11 +5,12 @@ import { router, Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { IntroSplash } from '../components/brand/IntroSplash';
 import { ToastHost } from '../components/ui/ToastHost';
 import { isWebAllowedPath } from '../domain/webAccess';
+import { IS_WEB, WEB_ADMIN_ONLY } from '../lib/platform';
 import { startAccount } from '../state/account';
 import { hydrateCart } from '../state/cart';
 import { startCatalog } from '../state/catalog';
@@ -27,7 +28,7 @@ export default function RootLayout() {
   // Brauzerda (admin paneli) intro animatsiyasi har sahifa yangilanganda halal beradi.
   const [intro, setIntro] = useState(!IS_WEB);
   const pathname = usePathname();
-  const blocked = IS_WEB && !isWebAllowedPath(pathname);
+  const blocked = WEB_ADMIN_ONLY && !isWebAllowedPath(pathname);
 
   useEffect(() => {
     void Promise.allSettled([hydratePrefs(), hydrateCart()]).then(() => setBooted(true));
@@ -62,8 +63,6 @@ export default function RootLayout() {
     </View>
   );
 }
-
-const IS_WEB = Platform.OS === 'web';
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },

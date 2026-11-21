@@ -7,9 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Notice } from '../components/shop/CatalogBits';
 import { ProductImage } from '../components/shop/ProductImage';
 import { Button } from '../components/ui/Button';
-import { Card, Pill, Radio, Segmented } from '../components/ui/Controls';
+import { Card, Radio, Segmented } from '../components/ui/Controls';
 import { Field, PhoneField } from '../components/ui/Field';
-import { Header } from '../components/ui/Header';
+import { goBack, Header } from '../components/ui/Header';
 import { Icon, PartIcon } from '../components/ui/Icon';
 import { PressableScale } from '../components/ui/PressableScale';
 import { Txt } from '../components/ui/Txt';
@@ -43,7 +43,8 @@ export default function CheckoutScreen() {
   const done = useRef(false);
 
   useEffect(() => {
-    if (!done.current && summary.lines === 0 && !busy) router.back();
+    // Savat bo'shab qolsa — orqaga. `goBack` tarix bo'lmasa savatga olib chiqadi.
+    if (!done.current && summary.lines === 0 && !busy) goBack('/cart');
   }, [summary.lines, busy]);
 
   const order: CheckoutForm = { ...form, turi: kind };
@@ -99,7 +100,7 @@ export default function CheckoutScreen() {
                     <Txt variant="label">{t('checkout.shopAddress')}</Txt>
                     <Txt variant="bodyStrong">{settings.address}</Txt>
                     {settings.workHours ? <Txt variant="small">{settings.workHours}</Txt> : null}
-                    <PressableScale onPress={() => openMap(settings)} style={styles.mapLink} accessibilityLabel={t('checkout.openMap')}>
+                    <PressableScale onPress={() => openMap(settings)} hitSlop={8} style={styles.mapLink} accessibilityLabel={t('checkout.openMap')}>
                       <Icon name="navigate" size={15} color={colors.primary} />
                       <Txt variant="smallStrong" color={colors.primary}>{t('checkout.openMap')}</Txt>
                     </PressableScale>
@@ -122,8 +123,9 @@ export default function CheckoutScreen() {
             <PhoneField label={t('checkout.phone')} value={form.telefon} onChange={(v) => set({ telefon: v })} error={errText(shown.telefon)} hint={t('checkout.phoneHint')} />
           </Step>
 
+          {/* Hozircha faqat naqd to'lov. Onlayn to'lov ulanganda shu yerga qo'shiladi. */}
           <Step n={3} title={t('checkout.payment')}>
-            <View style={[styles.pay, styles.payOn]}>
+            <View style={[styles.pay, styles.payOn]} accessibilityRole="radio" accessibilityState={{ checked: true }} accessibilityLabel={t('checkout.cash')}>
               <View style={[styles.payIcon, { backgroundColor: colors.successSoft }]}><Icon name="cash-outline" size={22} color={colors.success} /></View>
               <View style={styles.flex}>
                 <Txt variant="bodyStrong">{t('checkout.cash')}</Txt>
@@ -131,13 +133,6 @@ export default function CheckoutScreen() {
               </View>
               <Radio checked />
             </View>
-            {['Payme', 'Click', 'Uzum Bank'].map((name) => (
-              <View key={name} style={[styles.pay, styles.payOff]} accessibilityState={{ disabled: true }}>
-                <View style={styles.payIcon}><Icon name="card-outline" size={20} color={colors.faint} /></View>
-                <Txt variant="bodyStrong" color={colors.faint} style={styles.flex}>{name}</Txt>
-                <Pill text={t('common.soon')} tone="muted" style={styles.center} />
-              </View>
-            ))}
           </Step>
 
           <Step n={4} title={t('checkout.comment')}>
@@ -216,15 +211,15 @@ const styles = StyleSheet.create({
   stepNum: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   shop: { flexDirection: 'row', gap: 12, padding: 12, borderRadius: radius.md, backgroundColor: colors.tint },
   shopIcon: { width: 44, height: 44, borderRadius: 13, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
-  mapLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, alignSelf: 'flex-start' },
+  mapLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, alignSelf: 'flex-start', minHeight: 40 },
   pay: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: radius.md, borderWidth: 1.5 },
-  payOn: { borderColor: colors.primary, backgroundColor: '#F7FBFF' },
+  payOn: { borderColor: colors.primary, backgroundColor: colors.tint },
   payOff: { borderColor: colors.line, backgroundColor: colors.surfaceAlt },
   payIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   summary: { gap: 10 },
   thumbs: { gap: 8, paddingVertical: 2 },
   thumb: { width: 58, height: 58, borderRadius: radius.sm },
-  qty: { position: 'absolute', right: 2, bottom: 2, backgroundColor: 'rgba(15,35,56,0.8)', borderRadius: 8, paddingHorizontal: 5 },
+  qty: { position: 'absolute', right: 2, bottom: 2, backgroundColor: colors.scrim, borderRadius: radius.xs, paddingHorizontal: 5 },
   line: { flexDirection: 'row', alignItems: 'center' },
   hr: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
   remember: { flexDirection: 'row', alignItems: 'center', gap: 6 },

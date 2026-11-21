@@ -21,7 +21,8 @@ export function AddToCart({ product, size = 'sm' }: { product: Product; size?: '
   const live = useCatalogLive();
   const { t } = useT();
   const soldOut = product.qoldiq <= 0;
-  const h = size === 'md' ? 44 : 36;
+  // Barmoq bilan bosiladigan eng kichik o'lcham — 44 px.
+  const h = size === 'md' ? 48 : 44;
   if (soldOut) {
     return (
       <View style={[styles.off, { height: h }]}>

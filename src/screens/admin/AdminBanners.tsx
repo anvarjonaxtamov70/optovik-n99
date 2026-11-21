@@ -17,7 +17,7 @@ import { PressableScale } from '../../components/ui/PressableScale';
 import { Txt } from '../../components/ui/Txt';
 import { BANNER_THEMES, DEFAULT_BANNERS, isSafeLink, type Banner } from '../../domain/content';
 import { CATEGORIES, CAR_MODELS } from '../../domain/taxonomy';
-import { useT } from '../../i18n';
+import { useT, type TKey } from '../../i18n';
 import { confirmAsync } from '../../lib/confirm';
 import { haptic } from '../../lib/haptics';
 import { deleteBanner, saveBanner } from '../../state/admin';
@@ -48,7 +48,7 @@ export function AdminBannerList() {
                 <Txt variant="bodyStrong" numberOfLines={1}>{b.title[lang].replace(/\n/g, ' ')}</Txt>
                 <Txt variant="tiny">{b.link} · #{b.order}</Txt>
               </View>
-              <Pill text={b.theme} tone="tint" />
+              <Pill text={t(`admin.banner.theme.${b.theme}` as TKey)} tone="tint" />
             </PressableScale>
           </Animated.View>
         ))}
@@ -74,7 +74,7 @@ export function AdminBannerEdit() {
 
 function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
   const insets = useSafeAreaInsets();
-  const { t } = useT();
+  const { t, lang } = useT();
   const { width } = useWindowDimensions();
   const wide = width >= layout.wide;
   const [d, setD] = useState<Draft>(initial);
@@ -84,7 +84,7 @@ function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
     { value: 'sale', label: t('home.sale') }, { value: 'new', label: t('home.new') }, { value: 'popular', label: t('home.popular') },
     { value: 'group:parts', label: t('catalog.parts') }, { value: 'group:accessories', label: t('catalog.accessories') },
     { value: 'contact', label: t('profile.contact') }, { value: 'delivery', label: t('profile.delivery') },
-    ...CATEGORIES.map((c) => ({ value: `cat:${c.slug}`, label: c.label.uz })),
+    ...CATEGORIES.map((c) => ({ value: `cat:${c.slug}`, label: c.label[lang] })),
     ...CAR_MODELS.slice(0, 10).map((m) => ({ value: `model:${m.slug}`, label: m.name })),
   ];
   const valid = !!(d.title.uz.trim() || d.title.ru.trim()) && isSafeLink(d.link) && (!d.image || /^https:\/\/\S+$/.test(d.image));
@@ -126,9 +126,9 @@ function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
             <Txt variant="label">{t('admin.banner.link')}</Txt>
             <View style={styles.wrap}>{links.map((l) => <Chip key={l.value} label={l.label} selected={d.link === l.value} onPress={() => set({ link: l.value })} />)}</View>
             <Txt variant="label">{t('admin.banner.theme')}</Txt>
-            <View style={styles.wrap}>{BANNER_THEMES.map((th) => <Chip key={th} label={th} selected={d.theme === th} onPress={() => set({ theme: th })} />)}</View>
+            <View style={styles.wrap}>{BANNER_THEMES.map((th) => <Chip key={th} label={t(`admin.banner.theme.${th}` as TKey)} selected={d.theme === th} onPress={() => set({ theme: th })} />)}</View>
             <Txt variant="label">{t('admin.banner.art')}</Txt>
-            <View style={styles.wrap}>{(['gm', 'accessories', 'sale', 'delivery', 'cash'] as const).map((a) => <Chip key={a} label={a} selected={d.art === a} onPress={() => set({ art: a })} />)}</View>
+            <View style={styles.wrap}>{(['gm', 'accessories', 'sale', 'delivery', 'cash'] as const).map((a) => <Chip key={a} label={t(`admin.banner.art.${a}` as TKey)} selected={d.art === a} onPress={() => set({ art: a })} />)}</View>
             <Field label={t('admin.banner.image')} value={d.image ?? ''} onChangeText={(v) => set({ image: v.trim() || undefined })} autoCapitalize="none" keyboardType="url" />
             <Field label={t('admin.banner.order')} value={String(d.order)} onChangeText={(v) => set({ order: parseInt(v.replace(/\D/g, '') || '0', 10) })} keyboardType="number-pad" />
             <SwitchRow title={t('admin.banner.active')} value={d.active} onChange={(v) => set({ active: v })} />
