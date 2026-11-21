@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { statusKey } from '../../components/shop/OrderBits';
@@ -15,6 +15,7 @@ import { Txt } from '../../components/ui/Txt';
 import { isActive, nextStatus, recomputeTotals, type Order, type OrderStatus } from '../../domain/order';
 import { displayPhone } from '../../domain/phone';
 import { useT } from '../../i18n';
+import { confirmAsync } from '../../lib/confirm';
 import { classifyError } from '../../lib/firebase';
 import { haptic } from '../../lib/haptics';
 import { callPhone } from '../../lib/links';
@@ -84,10 +85,8 @@ function AdminPanel({ order: o }: { order: Order }) {
         ) : null}
         {isActive(o.holat) ? (
           <Button title={t('admin.cancelOrder')} variant="ghost" loading={busy === 'bekor'} disabled={!!busy}
-            onPress={() => Alert.alert(t('admin.cancelOrder'), t('admin.cancelConfirm'), [
-              { text: t('common.no'), style: 'cancel' },
-              { text: t('common.yes'), style: 'destructive', onPress: () => void move('bekor') },
-            ])} />
+            onPress={() => void confirmAsync(t('admin.cancelOrder'), t('admin.cancelConfirm'), { ok: t('common.yes'), cancel: t('common.no'), destructive: true })
+              .then((ok) => { if (ok) void move('bekor'); })} />
         ) : null}
         <Field label={t('admin.adminNote')} value={note} onChangeText={setNote} multiline maxLength={500}
           onBlur={() => { if (note !== (o.adminIzoh ?? '')) void adminSaveNote(o, note).then(() => showToast(t('common.saved'), { kind: 'success' })).catch(() => showToast(t('common.error'), { kind: 'error' })); }} />

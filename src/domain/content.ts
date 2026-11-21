@@ -110,10 +110,15 @@ export type ShopSettings = {
   deliveryNote: string;
   legalName: string;
   inn: string;
-  cloudinaryCloud: string;
-  cloudinaryPreset: string;
-  imgbbApiKey: string;
 };
+
+/** Hamma o'qiy oladigan `settings/shop` ga tushmasligi kerak bo'lgan eski maydonlar (kalitlar endi `settings/private` da). */
+export const LEGACY_PUBLIC_MEDIA_FIELDS = ['imgbbApiKey', 'cloudinaryCloud', 'cloudinaryPreset'] as const;
+
+/** ImgBB API kaliti: faqat harf va raqam, 100 belgigacha. */
+export function readMediaKey(value: unknown): string {
+  return typeof value === 'string' && /^[A-Za-z0-9]{8,100}$/.test(value.trim()) ? value.trim() : '';
+}
 
 export const DEFAULT_SETTINGS: ShopSettings = {
   name: 'OPTOVIK N99',
@@ -133,9 +138,6 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   deliveryNote: '',
   legalName: '',
   inn: '',
-  cloudinaryCloud: '',
-  cloudinaryPreset: '',
-  imgbbApiKey: '',
 };
 
 export function readSettings(value: unknown): ShopSettings {
@@ -152,7 +154,5 @@ export function readSettings(value: unknown): ShopSettings {
     courierFee: money('courierFee'), freeDeliveryFrom: money('freeDeliveryFrom'),
     pickupEnabled: value.pickupEnabled !== false,
     deliveryNote: s('deliveryNote', 300), legalName: s('legalName', 120), inn: s('inn', 20),
-    cloudinaryCloud: s('cloudinaryCloud', 60), cloudinaryPreset: s('cloudinaryPreset', 60),
-    imgbbApiKey: s('imgbbApiKey', 60),
   };
 }

@@ -209,3 +209,33 @@ export function similarProducts(all: Product[], p: Product, limit = 10): Product
 export function isPlaceholderCatalog(products: Product[]): boolean {
   return products.length > 0 && products.every((p) => /^kategoriya_\d+$/.test(p.kategoriya) && /^mahsulot \d+$/i.test(p.nomi));
 }
+
+export const MAX_IMAGES = 10;
+
+/** Rasm havolalarini qo'shadi: faqat https, takrorlarsiz, ko'pi bilan MAX_IMAGES ta. */
+export function addImages(list: string[], urls: string[]): string[] {
+  const out = [...list];
+  for (const raw of urls) {
+    const u = raw.trim();
+    if (out.length >= MAX_IMAGES) break;
+    if (/^https:\/\/\S+$/.test(u) && !out.includes(u)) out.push(u);
+  }
+  return out;
+}
+
+/** Rasmni boshqa o'ringa suradi (0 — asosiy rasm). Noto'g'ri indekslarda ro'yxat o'zgarmaydi. */
+export function moveImage(list: string[], from: number, to: number): string[] {
+  if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return list;
+  const out = [...list];
+  const [item] = out.splice(from, 1);
+  out.splice(to, 0, item);
+  return out;
+}
+
+/** Ro'yxatda tez tahrirlash uchun: faqat butun son, bo'shliqlar e'tiborsiz. Noto'g'ri bo'lsa null. */
+export function parseWhole(text: string, max: number): number | null {
+  const clean = text.replace(/[\s\u00a0]/g, '');
+  if (!/^\d{1,10}$/.test(clean)) return null;
+  const n = parseInt(clean, 10);
+  return n <= max ? n : null;
+}

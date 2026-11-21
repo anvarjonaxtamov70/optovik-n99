@@ -7,37 +7,49 @@ import { Card, SwitchRow } from '../../components/ui/Controls';
 import { Field, PhoneField } from '../../components/ui/Field';
 import { goBack, Header } from '../../components/ui/Header';
 import { Txt } from '../../components/ui/Txt';
-import type { ShopSettings } from '../../domain/content';
+import { readMediaKey, type ShopSettings } from '../../domain/content';
 import { useT } from '../../i18n';
 import { haptic } from '../../lib/haptics';
-import { saveSettings } from '../../state/admin';
+import { saveMediaKey, saveSettings, useMediaKey } from '../../state/admin';
 import { useSettings } from '../../state/catalog';
 import { showToast } from '../../state/toast';
 import { colors } from '../../theme/tokens';
 
 export default function AdminSettings() {
   const current = useSettings();
-  return <Form key={JSON.stringify(current)} initial={current} />;
+  const media = useMediaKey();
+  return <Form key={JSON.stringify(current) + media.key} initial={current} initialKey={media.key} secure={media.secure} />;
 }
 
-function Form({ initial }: { initial: ShopSettings }) {
+function Form({ initial, initialKey, secure }: { initial: ShopSettings; initialKey: string; secure: boolean }) {
   const insets = useSafeAreaInsets();
   const { t, money } = useT();
   const [s, setS] = useState(initial);
+  const [key, setKey] = useState(initialKey);
   const [coords, setCoords] = useState(initial.lat != null && initial.lng != null ? `${initial.lat}, ${initial.lng}` : '');
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<ShopSettings>) => setS((x) => ({ ...x, ...patch }));
   const num = (v: string) => parseInt(v.replace(/\D/g, '') || '0', 10);
+  const keyError = key && !readMediaKey(key) ? t('admin.settings.mediaKeyBad') : null;
   const save = async () => {
+    if (keyError) { showToast(keyError, { kind: 'error' }); return; }
     const m = coords.match(/(-?\d{1,2}\.\d+)\s*[,; ]\s*(-?\d{1,3}\.\d+)/);
     setBusy(true);
     try {
       await saveSettings({ ...s, lat: m ? parseFloat(m[1]) : null, lng: m ? parseFloat(m[2]) : null });
+    } catch {
+      showToast(t('admin.err.permission'), { kind: 'error' });
+      setBusy(false);
+      return;
+    }
+    try {
+      if (key !== initialKey) await saveMediaKey(key);
       haptic.success();
       showToast(t('admin.settings.saved'), { kind: 'success' });
       goBack('/admin');
     } catch {
-      showToast(t('admin.err.permission'), { kind: 'error' });
+      // Yangi qoidalar joylanmagan bo'lsa, kalitni yashirin joyga yozib bo'lmaydi.
+      showToast(t('admin.settings.mediaInsecure'), { kind: 'error', duration: 5000 });
     } finally {
       setBusy(false);
     }
@@ -77,15 +89,10 @@ function Form({ initial }: { initial: ShopSettings }) {
 
           <Txt variant="h3">{t('admin.settings.media')}</Txt>
           <Card style={styles.gap}>
-            <Txt variant="label">ImgBB (tavsiya qilinadi, cheklovsiz)</Txt>
-            <Txt variant="small">imgbb.com da bepul hisob oching → API → Get API key</Txt>
-            <Field label="ImgBB API Key" value={s.imgbbApiKey} onChangeText={(v) => set({ imgbbApiKey: v.trim() })} autoCapitalize="none" placeholder="a1b2c3d4e5f6g7h8" />
-          </Card>
-          <Card style={styles.gap}>
-            <Txt variant="label">Cloudinary (ixtiyoriy)</Txt>
             <Txt variant="small">{t('admin.settings.mediaHint')}</Txt>
-            <Field label={t('admin.settings.cloud')} value={s.cloudinaryCloud} onChangeText={(v) => set({ cloudinaryCloud: v.trim() })} autoCapitalize="none" />
-            <Field label={t('admin.settings.preset')} value={s.cloudinaryPreset} onChangeText={(v) => set({ cloudinaryPreset: v.trim() })} autoCapitalize="none" />
+            <Field label={t('admin.settings.mediaKey')} value={key} onChangeText={(v) => setKey(v.trim())} autoCapitalize="none" autoCorrect={false}
+              placeholder="a1b2c3d4e5f6…" error={keyError} />
+            {!secure ? <Txt variant="smallStrong" color={colors.warning}>{t('admin.settings.mediaInsecure')}</Txt> : null}
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>
