@@ -13,6 +13,7 @@ Tekshirilgan sana: 2026-11-21. Holat: `typecheck`, `lint`, 14 ta unit test o‘t
 - [x] 1-bosqich (Excel’siz) — `feat/admin-tovar-qoshish` PR.
 - [x] 2-bosqich — web admin paneli + hosting (`feat/web-admin-panel` PR).
 - [x] 3-bosqich — dizayn (`feat/dizayn-mukammal` PR).
+- [x] 3.1 — tugmalar bosilishi, nozik soyalar, likillaydigan animatsiyalarni olib tashlash (`feat/animatsiya-soya` PR).
 - [ ] 4-bosqich — do‘konlarga chiqish.
 - [ ] Excel/CSV import va eksport.
 
@@ -79,6 +80,13 @@ Bajarildi: `/admin` va `/info/*` dan boshqa sahifalar web’da `/admin` ga yo‘
 - Pastga tortib yangilashda haqiqiy aylanuvchi belgi; «Samarqand» tugmasidagi yolg‘on strelka o‘rniga aniq belgi.
 - To‘lovdagi «Tez orada» qatorlari olib tashlandi (Apple tugallanmagan funksiyani rad etadi); maxfiylik va savol-javob matni to‘g‘rilandi (buyurtmalar serverda saqlanadi, saqlash muddati yozildi).
 - Telefon ilovasidan admin kirishi olib tashlandi; `supportsTablet: false` (faqat iPhone).
+
+### 3.1. Harakat va soyalar ✅
+Do‘kon egasining fikri: tugmalar bosilganda «tirik» tursin, nozik soyalar bo‘lsin, likillaydigan animatsiya yo‘qolsin, arzon telefonda ham silliq ishlasin.
+- Bosilish: tez botish + prujinadek qaytish, ustki qatlam biroz qorayadi; karta soyasi bilan birga siqiladi; ro‘yxat qatorlari tus oladi.
+- Soyalar: yangi `shadow.xs`, `buttonSm`, `danger`; mavjudlari yumshatildi; soyali ko‘rinishlar shaffof bo‘lmagan fonli.
+- Olib tashlandi: skeletondagi yaltiroq chiziq, bo‘sh holatdagi «nafas oluvchi» halqa, buyurtma holatidagi pulsatsiya, bannerdagi tebranuvchi «%», introdagi yonib-o‘chish, bo‘limlar orasidagi yarim shaffof o‘tish, ro‘yxatda kartalarning birma-bir chiqishi.
+- Qoidalar: `docs/DESIGN.md` → «Harakat va soya qoidalari».
 
 ### 4-bosqich. Do‘konlarga chiqish
 1. Kod: «Ma’lumotlarimni o‘chirish» (ilovada + ochiq web sahifa), maxfiylik siyosatini web’da ochiq havola qilish, `eas.json` submit sozlamalari. («Tez orada» to‘lovlar, admin kirishi va iPad 3-bosqichda hal qilindi.)

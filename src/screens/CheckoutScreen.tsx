@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Notice } from '../components/shop/CatalogBits';
@@ -35,6 +35,7 @@ export default function CheckoutScreen() {
   const courierOk = settings.courierEnabled;
   const pickupOk = settings.pickupEnabled || !courierOk;
   const [kind, setKind] = useState<DeliveryKind>(pickupOk ? 'olib' : 'kuryer');
+  const [switched, setSwitched] = useState(false);
   const { lines, summary } = useCart(kind);
   const [form, setForm] = useState<CheckoutForm>({ ism: profile.name, telefon: profile.phone, turi: kind, manzil: profile.address, moljal: profile.landmark, izoh: '' });
   const [touched, setTouched] = useState(false);
@@ -87,12 +88,13 @@ export default function CheckoutScreen() {
           {authProblem ? <View style={styles.noticeWrap}><Notice icon="alert-circle-outline" tone="warning" text={t('checkout.err.auth')} /></View> : null}
           <Step n={1} title={t('checkout.method')}>
             {courierOk && pickupOk ? (
-              <Segmented value={kind} onChange={(v) => { haptic.tap(); setKind(v); }} options={[
+              <Segmented value={kind} onChange={(v) => { haptic.tap(); setSwitched(true); setKind(v); }} options={[
                 { value: 'olib', label: t('checkout.pickup'), icon: 'storefront-outline' },
                 { value: 'kuryer', label: t('checkout.courier'), icon: 'bicycle-outline' },
               ]} />
             ) : null}
-            <Animated.View key={kind} entering={FadeIn.duration(220)} exiting={FadeOut.duration(120)} style={styles.gap}>
+            {/* Faqat usul almashtirilganda yumshoq almashadi (ekran ochilganda emas). */}
+            <Animated.View key={kind} entering={switched ? FadeIn.duration(200) : undefined} exiting={switched ? FadeOut.duration(110) : undefined} style={styles.gap}>
               {kind === 'olib' ? (
                 <View style={styles.shop}>
                   <View style={styles.shopIcon}><PartIcon name="storefront-outline" size={24} color={colors.primary} /></View>
@@ -160,7 +162,7 @@ export default function CheckoutScreen() {
             </View>
           </Card>
           {error ? (
-            <Animated.View entering={FadeInDown} layout={LinearTransition} style={styles.error}>
+            <Animated.View entering={FadeIn.duration(200)} layout={LinearTransition.duration(200)} style={styles.error}>
               <Icon name="alert-circle" size={20} color={colors.sale} />
               <Txt variant="smallStrong" color={colors.sale} style={styles.flex}>{error}</Txt>
             </Animated.View>
@@ -180,13 +182,13 @@ export default function CheckoutScreen() {
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
-    <Animated.View entering={FadeInDown.delay(n * 70).duration(360)} style={[styles.step, shadow.soft]}>
+    <View style={[styles.step, shadow.soft]}>
       <View style={styles.stepHead}>
         <View style={styles.stepNum}><Txt variant="smallStrong" color={colors.white}>{n}</Txt></View>
         <Txt variant="h3">{title}</Txt>
       </View>
       {children}
-    </Animated.View>
+    </View>
   );
 }
 

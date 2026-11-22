@@ -41,6 +41,8 @@ export function ImageManager({ images, onChange, kategoriya, error, onBusyChange
   const { t } = useT();
   const media = useMediaKey();
   const [pending, setPending] = useState<Pending[]>([]);
+  // Forma ochilganda bor rasmlar "sakrab" chiqmaydi — faqat yangi qo'shilgani yumshoq paydo bo'ladi.
+  const [initial] = useState(() => new Set(images));
   const [url, setUrl] = useState('');
   const [dragging, setDragging] = useState(false);
   const seq = useRef(0);
@@ -156,10 +158,10 @@ export function ImageManager({ images, onChange, kategoriya, error, onBusyChange
         <Txt variant="label">{t('admin.product.images')}</Txt>
         <Txt variant="tiny">{images.length}/{MAX_IMAGES}</Txt>
       </View>
-      <Animated.View layout={LinearTransition} style={styles.grid}>
+      <Animated.View layout={LinearTransition.duration(200)} style={styles.grid}>
         {images.map((u, i) => (
-          <Animated.View key={u} entering={ZoomIn} exiting={ZoomOut} layout={LinearTransition} style={styles.tile}>
-            <ProductImage uri={u} kategoriya={kategoriya} seed={u} style={styles.image} />
+          <Animated.View key={u} entering={initial.has(u) ? undefined : ZoomIn.duration(180)} exiting={ZoomOut.duration(160)} layout={LinearTransition.duration(200)} style={styles.tile}>
+            <ProductImage uri={u} kategoriya={kategoriya} seed={u} style={styles.image} size={TILE} />
             <IconButton icon="close" label={t('common.delete')} size={28} bg={colors.overlay} color={colors.white} iconSize={16}
               style={styles.del} onPress={() => onChange((list) => list.filter((x) => x !== u))} />
             {i === 0 ? <View style={styles.main}><Txt variant="tiny" color={colors.white}>{t('admin.product.mainImage')}</Txt></View> : null}
@@ -174,7 +176,7 @@ export function ImageManager({ images, onChange, kategoriya, error, onBusyChange
           </Animated.View>
         ))}
         {pending.map((p) => (
-          <Animated.View key={`p${p.id}`} entering={FadeIn} exiting={ZoomOut} style={styles.tile}>
+          <Animated.View key={`p${p.id}`} entering={FadeIn.duration(160)} exiting={ZoomOut.duration(160)} style={styles.tile}>
             <Image source={{ uri: p.preview }} style={styles.image} contentFit="cover" />
             <View style={styles.busy}><ActivityIndicator color={colors.white} /></View>
           </Animated.View>

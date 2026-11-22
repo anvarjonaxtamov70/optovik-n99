@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { OrderCard } from '../components/shop/OrderBits';
 import { Segmented } from '../components/ui/Controls';
@@ -39,11 +38,7 @@ export default function OrdersScreen() {
           <EmptyState icon="receipt-outline" title={tab === 'active' ? t('orders.emptyTitle') : t('orders.emptyDone')} text={tab === 'active' ? t('orders.emptyText') : undefined}
             action={tab === 'active' ? { label: t('cart.toCatalog'), onPress: () => router.navigate('/') } : undefined} />
         )}
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 50).duration(320)}>
-            <OrderCard order={item} onPress={() => router.push({ pathname: '/orders/[id]', params: { id: item.id } })} />
-          </Animated.View>
-        )}
+        renderItem={({ item }) => <OrderCard order={item} onPress={() => router.push({ pathname: '/orders/[id]', params: { id: item.id } })} />}
       />
     </View>
   );

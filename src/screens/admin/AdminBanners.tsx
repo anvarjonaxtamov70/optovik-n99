@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAdminShell } from '../../components/admin/AdminShell';
@@ -41,16 +40,14 @@ export function AdminBannerList() {
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + (wide ? 30 : 100) }]}>
         {!list.length ? <Notice icon="images-outline" text={t('admin.banner.defaults')} /> : null}
         <View style={styles.preview}><BannerCarousel banners={list.length ? list : DEFAULT_BANNERS} /></View>
-        {list.map((b, i) => (
-          <Animated.View key={b.id} entering={FadeInDown.delay(i * 40)}>
-            <PressableScale onPress={() => router.push({ pathname: '/admin/banner', params: { id: b.id } })} style={[styles.row, shadow.soft]} accessibilityLabel={b.title[lang]}>
-              <View style={styles.flex}>
-                <Txt variant="bodyStrong" numberOfLines={1}>{b.title[lang].replace(/\n/g, ' ')}</Txt>
-                <Txt variant="tiny">{b.link} · #{b.order}</Txt>
-              </View>
-              <Pill text={t(`admin.banner.theme.${b.theme}` as TKey)} tone="tint" />
-            </PressableScale>
-          </Animated.View>
+        {list.map((b) => (
+          <PressableScale key={b.id} onPress={() => router.push({ pathname: '/admin/banner', params: { id: b.id } })} scaleTo={0.98} style={[styles.row, shadow.soft]} accessibilityLabel={b.title[lang]}>
+            <View style={styles.flex}>
+              <Txt variant="bodyStrong" numberOfLines={1}>{b.title[lang].replace(/\n/g, ' ')}</Txt>
+              <Txt variant="tiny">{b.link} · #{b.order}</Txt>
+            </View>
+            <Pill text={t(`admin.banner.theme.${b.theme}` as TKey)} tone="tint" />
+          </PressableScale>
         ))}
       </ScrollView>
       {!wide ? (

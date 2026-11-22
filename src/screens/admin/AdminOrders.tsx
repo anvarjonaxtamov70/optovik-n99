@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ADMIN_WIDE, useAdminShell } from '../../components/admin/AdminShell';
 import { OrderCard, statusKey } from '../../components/shop/OrderBits';
@@ -56,10 +55,10 @@ export default function AdminOrders() {
         columnWrapperStyle={columns > 1 ? styles.row : undefined}
         ListEmptyComponent={loading ? <View style={styles.gap}>{[0, 1, 2].map((i) => <Skeleton key={i} height={104} radius={18} />)}</View>
           : <EmptyState icon={error ? 'cloud-offline-outline' : 'receipt-outline'} title={error ? t('admin.ordersError') : t('admin.noOrders')} compact />}
-        renderItem={({ item, index }) => (
-          <Animated.View entering={index < 10 ? FadeInDown.delay(index * 30).duration(260) : undefined} style={columns > 1 ? styles.cell : undefined}>
+        renderItem={({ item }) => (
+          <View style={columns > 1 ? styles.cell : undefined}>
             <OrderCard order={item} showCustomer onPress={() => router.push({ pathname: '/admin/order/[uid]/[id]', params: { uid: item.uid, id: item.id } })} />
-          </Animated.View>
+          </View>
         )}
       />
     </View>
@@ -71,7 +70,7 @@ const styles = StyleSheet.create({
   bar: { backgroundColor: colors.white, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   barInner: { gap: 10, width: '100%', alignSelf: 'center' },
   wideInner: { maxWidth: 1240, width: '100%', alignSelf: 'center' },
-  chips: { gap: 8 },
+  chips: { gap: 8, paddingVertical: 4 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   list: { padding: 16, gap: 10, paddingBottom: 40 },
   // Ikki ustun: `flex: 1` o'rniga 50% — oxirgi toq buyurtma ham yarim kenglikda qoladi.

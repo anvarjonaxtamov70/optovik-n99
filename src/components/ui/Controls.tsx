@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, ZoomIn } from '
 import { spring } from '../../theme/motion';
 import { colors, radius, shadow } from '../../theme/tokens';
 import { Icon, PartIcon, type IconName } from './Icon';
-import { PressableScale } from './PressableScale';
+import { PressableScale, PressOverlay } from './PressableScale';
 import { Txt } from './Txt';
 
 export function Card({ children, style, padded = true }: { children: ReactNode; style?: StyleProp<ViewStyle>; padded?: boolean }) {
@@ -26,12 +26,18 @@ export function SectionTitle({ title, action, onAction, style }: { title: string
   );
 }
 
+/** 38 px chipning bosiladigan maydoni 46 px gacha kengayadi (barmoq uchun). */
+const CHIP_SLOP = { top: 4, bottom: 4 };
+/** Qator orqasidagi bosilish tusi karta chetiga biroz chiqadi va ajratuvchi chiziqqa tegmaydi. */
+const ROW_HIGHLIGHT = { left: -8, right: -8, top: 3, bottom: 3 };
+
 export function Chip({ label, selected, onPress, icon, partIcon, count }: {
   label: string; selected?: boolean; onPress?: () => void; icon?: IconName; partIcon?: string; count?: number;
 }) {
   return (
-    <PressableScale onPress={onPress} feedback="tap" accessibilityState={{ selected: !!selected }} accessibilityLabel={label}
-      style={[styles.chip, selected ? styles.chipOn : styles.chipOff]}>
+    <PressableScale onPress={onPress} feedback="tap" scaleTo={0.95} hitSlop={CHIP_SLOP} accessibilityState={{ selected: !!selected }} accessibilityLabel={label}
+      style={[styles.chip, selected ? [styles.chipOn, shadow.buttonSm] : [styles.chipOff, shadow.xs]]}>
+      <PressOverlay color={selected ? colors.ink : colors.primary} max={selected ? 0.12 : 0.08} radius={radius.pill} />
       {icon ? <Icon name={icon} size={16} color={selected ? colors.white : colors.primary} /> : null}
       {partIcon ? <PartIcon name={partIcon} size={17} color={selected ? colors.white : colors.primary} /> : null}
       <Txt variant="smallStrong" color={selected ? colors.white : colors.ink} numberOfLines={1}>{label}</Txt>
@@ -41,10 +47,12 @@ export function Chip({ label, selected, onPress, icon, partIcon, count }: {
 }
 
 export function Checkbox({ checked, onPress, label }: { checked: boolean; onPress: () => void; label: string }) {
+  // Belgi faqat foydalanuvchi bosganda "paydo bo'ladi" — ekran ochilganda hammasi birdan sakramaydi.
+  const [touched, setTouched] = useState(false);
   return (
-    <PressableScale onPress={onPress} feedback="tap" scaleTo={0.85} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked }} accessibilityLabel={label}
+    <PressableScale onPress={() => { setTouched(true); onPress(); }} feedback="tap" scaleTo={0.88} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked }} accessibilityLabel={label}
       style={[styles.check, checked ? styles.checkOn : styles.checkOff]}>
-      {checked ? <Animated.View entering={ZoomIn.springify().damping(14)}><Icon name="checkmark" size={16} color={colors.white} /></Animated.View> : null}
+      {checked ? <Animated.View entering={touched ? ZoomIn.duration(150) : undefined}><Icon name="checkmark" size={16} color={colors.white} /></Animated.View> : null}
     </PressableScale>
   );
 }
@@ -52,7 +60,7 @@ export function Checkbox({ checked, onPress, label }: { checked: boolean; onPres
 export function Radio({ checked }: { checked: boolean }) {
   return (
     <View style={[styles.radio, checked && styles.radioOn]}>
-      {checked ? <Animated.View entering={ZoomIn.springify().damping(14)} style={styles.radioDot} /> : null}
+      {checked ? <View style={styles.radioDot} /> : null}
     </View>
   );
 }
@@ -63,13 +71,13 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
   const index = Math.max(0, options.findIndex((o) => o.value === value));
   const x = useSharedValue(0);
   const segW = w / options.length;
-  useEffect(() => { x.value = withSpring(index * segW, spring.snappy); }, [index, segW, x]);
+  useEffect(() => { x.set(withSpring(index * segW, spring.snappy)); }, [index, segW, x]);
   const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   return (
     <View style={styles.seg} onLayout={(e) => setW(e.nativeEvent.layout.width - 8)} accessibilityRole="tablist">
       {w > 0 ? <Animated.View style={[styles.segThumb, shadow.soft, { width: segW }, thumb]} /> : null}
       {options.map((o) => (
-        <PressableScale key={o.value} onPress={() => onChange(o.value)} feedback="tap" scaleTo={0.97} accessibilityRole="tab" accessibilityState={{ selected: o.value === value }}
+        <PressableScale key={o.value} onPress={() => onChange(o.value)} feedback="tap" scaleTo={0.96} accessibilityRole="tab" accessibilityState={{ selected: o.value === value }}
           accessibilityLabel={o.label} style={styles.segItem}>
           {o.icon ? <Icon name={o.icon} size={17} color={o.value === value ? colors.primary : colors.muted} /> : null}
           <Txt variant="smallStrong" color={o.value === value ? colors.ink : colors.muted} numberOfLines={1}>{o.label}</Txt>
@@ -79,6 +87,7 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
   );
 }
 
+/** Ro'yxat qatori: bosilganda kichraymaydi (karta ichida g'alati ko'rinadi), orqasi yumshoq ko'k tusga kiradi. */
 export function ListRow({ icon, title, subtitle, value, onPress, danger, right, last }: {
   icon?: IconName; title: string; subtitle?: string; value?: string; onPress?: () => void; danger?: boolean; right?: ReactNode; last?: boolean;
 }) {
@@ -93,7 +102,12 @@ export function ListRow({ icon, title, subtitle, value, onPress, danger, right, 
       {right ?? (onPress ? <Icon name="chevron-forward" size={18} color={colors.faint} /> : null)}
     </View>
   );
-  return onPress ? <PressableScale onPress={onPress} scaleTo={0.985} accessibilityLabel={title}>{body}</PressableScale> : body;
+  return onPress ? (
+    <PressableScale onPress={onPress} scaleTo={1} accessibilityLabel={title}>
+      <PressOverlay color={danger ? colors.sale : colors.primary} max={0.07} radius={radius.sm} inset={ROW_HIGHLIGHT} />
+      {body}
+    </PressableScale>
+  ) : body;
 }
 
 export function SwitchRow({ title, subtitle, value, onChange }: { title: string; subtitle?: string; value: boolean; onChange: (v: boolean) => void }) {

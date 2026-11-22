@@ -2,7 +2,6 @@ import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { statusKey } from '../../components/shop/OrderBits';
 import { Button } from '../../components/ui/Button';
@@ -63,7 +62,7 @@ function AdminPanel({ order: o }: { order: Order }) {
   };
 
   return (
-    <Animated.View entering={FadeInDown.delay(40).duration(320)}>
+    <View>
       <Card style={styles.gap}>
         <View style={styles.row}>
           <Icon name="person-circle-outline" size={22} color={colors.primary} />
@@ -98,7 +97,7 @@ function AdminPanel({ order: o }: { order: Order }) {
         <Field label={t('admin.adminNote')} value={note} onChangeText={setNote} multiline maxLength={500}
           onBlur={() => { if (note !== (o.adminIzoh ?? '')) void adminSaveNote(o, note).then(() => showToast(t('common.saved'), { kind: 'success' })).catch(() => showToast(t('common.error'), { kind: 'error' })); }} />
       </Card>
-    </Animated.View>
+    </View>
   );
 }
 

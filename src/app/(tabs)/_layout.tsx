@@ -7,7 +7,8 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <TabBar {...props} />}
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg }, animation: 'fade', tabBarHideOnKeyboard: true }}
+      // Bo'limlar orasida o'tish darhol: avvalgi "fade" ikkala ekranni yarim shaffof qilib, bir lahza likillatardi.
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg }, animation: 'none', tabBarHideOnKeyboard: true }}
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="catalog" />

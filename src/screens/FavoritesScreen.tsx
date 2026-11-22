@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, LinearTransition, ZoomOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProductCard, ProductCardSkeleton } from '../components/shop/ProductCard';
@@ -41,11 +40,7 @@ export default function FavoritesScreen() {
         ListEmptyComponent={loading
           ? <View style={[styles.skeletons, { gap }]}>{[0, 1].map((i) => <ProductCardSkeleton key={i} width={cardWidth} />)}</View>
           : <EmptyState icon="heart-outline" title={t('fav.emptyTitle')} text={t('fav.emptyText')} action={{ label: t('cart.toCatalog'), onPress: () => router.navigate('/') }} />}
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(Math.min(index, 6) * 50).duration(320)} exiting={ZoomOut.duration(200)} layout={LinearTransition.springify().damping(18)}>
-            <ProductCard product={item} width={cardWidth} />
-          </Animated.View>
-        )}
+        renderItem={({ item }) => <ProductCard product={item} width={cardWidth} />}
       />
     </View>
   );

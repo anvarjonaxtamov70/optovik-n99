@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
 import { orderNumber, statusFlow, type Order, type OrderIndex, type OrderStatus } from '../../domain/order';
 import type { DeliveryKind } from '../../domain/cart';
@@ -46,20 +46,17 @@ export function StatusPill({ status, kind }: { status: OrderStatus; kind: Delive
   );
 }
 
-/** Holat chizig'i: bajarilgan bosqichlar bo'yab chiqiladi, joriy bosqich "nafas oladi". */
+/** Holat chizig'i: bajarilgan bosqichlar bir marta bo'yab chiqiladi, joriy bosqich tinch halqa bilan belgilanadi. */
 export function OrderTimeline({ order }: { order: Pick<Order, 'holat' | 'yetkazish' | 'tarix'> }) {
   const { t, lang } = useT();
   const flow = statusFlow(order.yetkazish.turi);
   const cancelled = order.holat === 'bekor';
   const current = cancelled ? -1 : flow.indexOf(order.holat);
   const fill = useSharedValue(0);
-  const pulse = useSharedValue(0);
   useEffect(() => {
-    fill.value = withDelay(150, withTiming(current < 0 ? 0 : current / (flow.length - 1), { duration: 900, easing: ease.out }));
-    pulse.value = withRepeat(withSequence(withTiming(1, { duration: 900 }), withTiming(0, { duration: 900 })), -1);
-  }, [current, flow.length, fill, pulse]);
+    fill.set(withDelay(120, withTiming(current < 0 ? 0 : current / (flow.length - 1), { duration: 700, easing: ease.out })));
+  }, [current, flow.length, fill]);
   const bar = useAnimatedStyle(() => ({ height: `${fill.value * 100}%` }));
-  const halo = useAnimatedStyle(() => ({ transform: [{ scale: 1 + pulse.value * 0.35 }], opacity: 0.45 - pulse.value * 0.35 }));
   if (cancelled) {
     return (
       <View style={styles.cancelRow}>
@@ -78,9 +75,9 @@ export function OrderTimeline({ order }: { order: Pick<Order, 'holat' | 'yetkazi
         return (
           <View key={s} style={styles.step}>
             <View style={styles.nodeBox}>
-              {isCurrent && current < flow.length - 1 ? <Animated.View style={[styles.halo, halo]} /> : null}
+              {isCurrent && current < flow.length - 1 ? <View style={styles.halo} /> : null}
               <View style={[styles.node, done ? styles.nodeOn : styles.nodeOff]}>
-                {done ? <Animated.View entering={ZoomIn.delay(150 + i * 120)}><Icon name={i < current || i === flow.length - 1 ? 'checkmark' : STATUS_ICON[s]} size={14} color={colors.white} /></Animated.View> : null}
+                {done ? <Icon name={i < current || i === flow.length - 1 ? 'checkmark' : STATUS_ICON[s]} size={14} color={colors.white} /> : null}
               </View>
             </View>
             <View style={styles.stepText}>
@@ -101,7 +98,7 @@ export function OrderCard({ order, onPress, showCustomer }: { order: Order | Ord
   const name = 'mijoz' in order ? order.mijoz.ism : order.ism;
   const phone = 'mijoz' in order ? order.mijoz.telefon : order.telefon;
   return (
-    <PressableScale onPress={onPress} scaleTo={0.98} style={[styles.card, shadow.soft]} accessibilityLabel={t('orders.item', { num: orderNumber(order.raqam) })}>
+    <PressableScale onPress={onPress} scaleTo={0.975} style={[styles.card, shadow.soft]} accessibilityLabel={t('orders.item', { num: orderNumber(order.raqam) })}>
       <View style={styles.cardTop}>
         <View style={[styles.cardIcon, { backgroundColor: STATUS_TONE[order.holat][0] }]}>
           <Icon name={STATUS_ICON[order.holat]} size={20} color={STATUS_TONE[order.holat][1]} />
@@ -131,7 +128,7 @@ const styles = StyleSheet.create({
   trackFill: { width: '100%', backgroundColor: colors.primary, borderRadius: 2 },
   step: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, minHeight: 52 },
   nodeBox: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-  halo: { position: 'absolute', width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primary },
+  halo: { position: 'absolute', width: 34, height: 34, borderRadius: 17, backgroundColor: colors.tintStrong },
   node: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   nodeOn: { backgroundColor: colors.primary },
   nodeOff: { backgroundColor: colors.white, borderWidth: 2, borderColor: colors.lineStrong },

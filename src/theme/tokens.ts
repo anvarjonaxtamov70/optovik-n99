@@ -67,7 +67,6 @@ export const gradients = {
   night: ['#16507F', '#0E355A'] as const,
   sunrise: ['#FF8A5B', '#E5383B'] as const,
   mint: ['#E8F8F0', '#CDEFDD'] as const,
-  shimmer: ['rgba(255,255,255,0)', 'rgba(255,255,255,0.65)', 'rgba(255,255,255,0)'] as const,
 };
 
 export const radius = { xs: 8, sm: 10, md: 14, lg: 18, xl: 24, pill: 999 } as const;
@@ -83,27 +82,51 @@ export const fonts = {
   displayHeavy: 'Unbounded_800ExtraBold',
 } as const;
 
-// Brauzerda `elevation` ishlamaydi — o'sha soyalar CSS `boxShadow` bilan beriladi.
+/**
+ * Soyalar — past va yumshoq ("nozik"). Soya qaysi elementga berilsa, uning foni shaffof bo'lmasin:
+ * shunda iOS soyani tez chizadi, Android esa to'g'ri shaklda chizadi.
+ * - Android: `elevation` (eng arzon, apparat chizadi) + yarim shaffof rang — Android 9+ da soya rangi va kuchini shu beradi.
+ * - Brauzer: `elevation` ishlamaydi, CSS `boxShadow`.
+ * Soyalar animatsiya qilinmaydi (qimmat); bosilganda faqat `transform` o'zgaradi.
+ */
 export const shadow = StyleSheet.create({
-  card: Platform.select({
-    ios: { shadowColor: '#1B3E63', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 14 },
-    web: { boxShadow: '0px 6px 14px rgba(27, 62, 99, 0.08)' },
-    default: { elevation: 2, shadowColor: '#1B3E63' },
+  /** Chip va oq tugmalar: zo'rg'a sezilarli ko'tarilish. */
+  xs: Platform.select({
+    ios: { shadowColor: '#1B3E63', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 2 },
+    web: { boxShadow: '0px 1px 2px rgba(27, 62, 99, 0.08)' },
+    default: { elevation: 1, shadowColor: 'rgba(27, 62, 99, 0.45)' },
   }) as object,
   soft: Platform.select({
     ios: { shadowColor: '#1B3E63', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
-    web: { boxShadow: '0px 2px 6px rgba(27, 62, 99, 0.06)' },
-    default: { elevation: 1, shadowColor: '#1B3E63' },
+    web: { boxShadow: '0px 2px 6px rgba(27, 62, 99, 0.07)' },
+    default: { elevation: 2, shadowColor: 'rgba(27, 62, 99, 0.4)' },
+  }) as object,
+  card: Platform.select({
+    ios: { shadowColor: '#1B3E63', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 14 },
+    web: { boxShadow: '0px 6px 14px rgba(27, 62, 99, 0.08)' },
+    default: { elevation: 3, shadowColor: 'rgba(27, 62, 99, 0.45)' },
   }) as object,
   float: Platform.select({
-    ios: { shadowColor: '#0F2338', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.16, shadowRadius: 22 },
-    web: { boxShadow: '0px 10px 22px rgba(15, 35, 56, 0.16)' },
-    default: { elevation: 10, shadowColor: '#0F2338' },
+    ios: { shadowColor: '#0F2338', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.14, shadowRadius: 22 },
+    web: { boxShadow: '0px 10px 22px rgba(15, 35, 56, 0.14)' },
+    default: { elevation: 10, shadowColor: 'rgba(15, 35, 56, 0.55)' },
   }) as object,
+  /** Ko'k tugma ostidagi rangli, yumshoq soya. */
   button: Platform.select({
-    ios: { shadowColor: '#1D68A6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.28, shadowRadius: 12 },
-    web: { boxShadow: '0px 6px 12px rgba(29, 104, 166, 0.28)' },
-    default: { elevation: 4, shadowColor: '#1D68A6' },
+    ios: { shadowColor: '#1D68A6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.24, shadowRadius: 8 },
+    web: { boxShadow: '0px 4px 10px rgba(29, 104, 166, 0.26)' },
+    default: { elevation: 3, shadowColor: 'rgba(29, 104, 166, 0.75)' },
+  }) as object,
+  /** Kichik ko'k tugmalar (kartadagi «Savatga», tanlangan chip). */
+  buttonSm: Platform.select({
+    ios: { shadowColor: '#1D68A6', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 5 },
+    web: { boxShadow: '0px 2px 6px rgba(29, 104, 166, 0.22)' },
+    default: { elevation: 2, shadowColor: 'rgba(29, 104, 166, 0.7)' },
+  }) as object,
+  danger: Platform.select({
+    ios: { shadowColor: '#C62F32', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 8 },
+    web: { boxShadow: '0px 4px 10px rgba(229, 56, 59, 0.24)' },
+    default: { elevation: 3, shadowColor: 'rgba(229, 56, 59, 0.7)' },
   }) as object,
 });
 

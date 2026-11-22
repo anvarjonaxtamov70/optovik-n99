@@ -1,7 +1,7 @@
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import { useT, type TKey } from '../i18n';
 import { haptic } from '../lib/haptics';
@@ -29,7 +29,7 @@ export function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarPr
   const itemW = width / count;
   const x = useSharedValue(0);
   useEffect(() => {
-    if (itemW) x.value = withSpring(state.index * itemW + (itemW - PILL_W) / 2, spring.snappy);
+    if (itemW) x.set(withSpring(state.index * itemW + (itemW - PILL_W) / 2, spring.snappy));
   }, [state.index, itemW, x]);
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   return (
@@ -63,7 +63,8 @@ function TabItem({ label, icon, focused, onPress, onLongPress, badge, position }
 }) {
   const scale = useSharedValue(1);
   useEffect(() => {
-    if (focused) scale.value = withSequence(withSpring(1.18, { damping: 9, stiffness: 380 }), withSpring(1, spring.bouncy));
+    // Tanlanganda ikonka bir marta yengil "kattalashib" qaytadi.
+    if (focused) scale.set(withSequence(withTiming(1.1, { duration: 110, easing: Easing.out(Easing.quad) }), withSpring(1, spring.snappy)));
   }, [focused, scale]);
   const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
@@ -85,7 +86,7 @@ function CartBadge() {
   const prev = useRef(n);
   const s = useSharedValue(1);
   useEffect(() => {
-    if (n > prev.current) s.value = withSequence(withSpring(1.45, { damping: 7, stiffness: 420 }), withSpring(1, spring.bouncy));
+    if (n > prev.current) s.set(withSequence(withTiming(1.25, { duration: 120, easing: Easing.out(Easing.quad) }), withSpring(1, spring.snappy)));
     prev.current = n;
   }, [n, s]);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }));
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: { shadowColor: colors.ink, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.06, shadowRadius: 12 },
       web: { boxShadow: '0px -4px 12px rgba(15, 35, 56, 0.06)' },
-      default: { elevation: 12 },
+      default: { elevation: 8, shadowColor: 'rgba(15, 35, 56, 0.5)' },
     }),
   },
   row: { flexDirection: 'row', width: '100%', maxWidth: 760, alignSelf: 'center' },

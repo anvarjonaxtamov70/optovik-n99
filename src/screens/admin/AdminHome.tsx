@@ -2,7 +2,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ADMIN_WIDE, useAdminShell } from '../../components/admin/AdminShell';
@@ -78,34 +77,34 @@ export default function AdminHome() {
       <Header title={t('admin.title')} subtitle={account.email ?? undefined} back={!IS_WEB} onBack={() => router.dismissTo('/profile')} />
       <ScrollView contentContainerStyle={[styles.body, wide && styles.bodyWide, { paddingBottom: insets.bottom + 30 }]}>
         {wide ? (
-          <Animated.View entering={FadeInDown.duration(320)} style={styles.statsWide}>
+          <View style={styles.statsWide}>
             <Stat big icon="flash" label={t('admin.newOrders')} value={String(stats.fresh)} onPress={() => openOrders('yangi')} />
             <Stat icon="sync" label={t('admin.activeOrders')} value={String(stats.active)} onPress={() => openOrders()} />
             <Stat icon="today" label={t('admin.todayOrders')} value={String(stats.todayCount)} onPress={() => openOrders()} />
             {revenue}
-          </Animated.View>
+          </View>
         ) : (
           <>
-            <Animated.View entering={FadeInDown.duration(320)} style={styles.statsRow}>
+            <View style={styles.statsRow}>
               <Stat big icon="flash" label={t('admin.newOrders')} value={String(stats.fresh)} onPress={() => openOrders('yangi')} />
               <View style={styles.statsCol}>
                 <Stat icon="sync" label={t('admin.activeOrders')} value={String(stats.active)} onPress={() => openOrders()} />
                 <Stat icon="today" label={t('admin.todayOrders')} value={String(stats.todayCount)} onPress={() => openOrders()} />
               </View>
-            </Animated.View>
-            <Animated.View entering={FadeInDown.delay(60).duration(320)}>{revenue}</Animated.View>
+            </View>
+            {revenue}
           </>
         )}
 
         {!sidebar ? (
-          <Animated.View entering={FadeInDown.delay(100).duration(320)}>
+          <View>
             <Card padded={false} style={styles.menu}>
               <ListRow icon="receipt-outline" title={t('admin.orders')} value={String(orders.length)} onPress={() => openOrders()} />
               <ListRow icon="cube-outline" title={t('admin.products')} value={String(products.length)} onPress={() => router.push('/admin/products')} />
               <ListRow icon="images-outline" title={t('admin.banners')} onPress={() => router.push('/admin/banners')} />
               <ListRow icon="settings-outline" title={t('admin.settings')} onPress={() => router.push('/admin/settings')} last />
             </Card>
-          </Animated.View>
+          </View>
         ) : null}
 
         {wide ? (

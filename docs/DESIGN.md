@@ -48,19 +48,29 @@ Barcha qiymatlar: `src/theme/tokens.ts`. Ekranlarda rang kodi yozilmaydi — faq
 
 | Joy | Animatsiya |
 | --- | --- |
-| Ochilish | g‘ildirak ustidan yorug‘lik aylanadi, gupchaklar «yonadi», yo‘l chizig‘i yoyiladi, ekran yumshoq ochiladi |
-| Har bir tugma | bosilganda 0.96 ga kichrayib, prujina bilan qaytadi; muhim amallarda tebranish (haptics) |
-| Pastki menyu | tanlangan bo‘lim ostida kapsula suriladi, ikonka sakraydi, savat soni o‘sganda «pop» |
-| Bosh sahifa | logotip qatori yig‘iladi, qidiruv tepada qoladi; bannerlar parallaks va cho‘ziladigan nuqtalar |
-| Kartalar | ro‘yxatda navbat bilan pastdan chiqadi; «Savatga» → miqdor tanlagichga aylanadi; raqam yuqoriga «sakraydi» |
-| Yurakcha | sakraydi va atrofga uchqunlar sochiladi |
+| Ochilish (~1,2 s) | g‘ildirak ustidan yorug‘lik aylanib o‘tadi, yo‘l chizig‘i yoyiladi, yozuv chiqadi, ekran yumshoq ochiladi |
+| Har bir tugma | barmoq tekkanda 80 ms da 3% kichrayib 1,5 px pastga botadi va biroz qorayadi; qo‘yib yuborilganda prujinadek qaytadi (0,5% ga sakrab); muhim amallarda tebranish (haptics) |
+| Chip, ikonka tugma | 5–8% kichrayadi; ro‘yxat qatorlari kichraymaydi, orqasi yumshoq tus oladi |
+| Pastki menyu | bo‘limlar darhol almashadi (yarim shaffof o‘tish yo‘q); kapsula suriladi, ikonka biroz sakraydi, savat soni o‘sganda «pop» |
+| Bosh sahifa | logotip qatori yig‘iladi, qidiruv tepada qoladi; bannerlar o‘zi aylanadi (ekran ko‘rinmasa to‘xtaydi), parallaks va cho‘ziladigan nuqtalar |
+| Kartalar | ekranda tayyor turadi (aylantirganda «chiqib kelmaydi»); bosilganda karta soyasi bilan birga siqiladi; «Savatga» → miqdor tanlagichga aylanadi; raqam yuqoriga «sakraydi» |
+| Yurakcha | biroz kattalashib qaytadi va atrofga uchqunlar sochiladi |
 | Tovar sahifasi | galereya tortilganda kattalashadi, pastga surilganda tepada sarlavha chiqadi |
 | Savat | o‘chirilgan qator yo‘qoladi, qolganlari silliq joylashadi; bepul yetkazish chizig‘i to‘ladi |
-| Muvaffaqiyat | yashil doira va belgi chiziladi, konfetti |
-| Buyurtma holati | chiziq bosqichma-bosqich bo‘yaladi, joriy bosqich «nafas oladi» |
-| Yuklanish / bo‘sh holat | skeletlar ustidan yorug‘lik o‘tadi; bo‘sh holat ikonkasi sekin suzadi |
+| Muvaffaqiyat | yashil doira va belgi chiziladi, bir marta konfetti |
+| Buyurtma holati | chiziq bir marta bo‘yaladi, joriy bosqich tinch halqa bilan belgilanadi |
+| Yuklanish / bo‘sh holat | skeletlar tinch kulrang bloklar; bo‘sh holat bir marta yumshoq paydo bo‘ladi |
 
-Uzun ro‘yxatlarda faqat birinchi 6–8 element animatsiya bilan chiqadi — tezlik uchun.
+### Harakat va soya qoidalari
+
+Maqsad: ilova «tirik» sezilsin, lekin likillamasin va arzon Android telefonda ham silliq ishlasin.
+
+- **Tinimsiz animatsiya yo‘q.** `withRepeat` ishlatilmaydi: na skeletonda, na bo‘sh holatda, na belgilarda.
+- **Ekran ochilganda va aylantirilganda elementlar animatsiya bilan chiqmaydi.** `entering`/`exiting` faqat foydalanuvchi amalidan keyin: savatga qo‘shish, o‘chirish, tanlash, xabar (toast).
+- **Bosilish faqat `transform` (scale, translateY) va ustki qatlam shaffofligi bilan.** Soya, rang, o‘lcham animatsiya qilinmaydi. Har bir bosiladigan joy `PressableScale` orqali, qiymatlar `theme/motion.ts` (`press`). Aylantirish boshlanganda kartalar silkinmasligi uchun effekt 70 ms kutadi.
+- **Soyalar faqat `tokens.ts` dagi `shadow.*` dan.** Soyali ko‘rinishning foni shaffof bo‘lmasin va unda `overflow: 'hidden'` bo‘lmasin: iOS soyani shunda tez chizadi, Android `elevation` ishlatadi, web — CSS `boxShadow`. Burchakni kesish kerak bo‘lsa — ichki qatlamda.
+- **Ko‘rinmay turgan ekranda taymer ishlamaydi** (banner `useIsFocused` bilan to‘xtaydi).
+- Animatsiyalar Reanimated orqali UI-oqimda ishlaydi; telefonda «Harakatni kamaytirish» yoqilsa, ular o‘chadi.
 
 ## Qoidalar
 

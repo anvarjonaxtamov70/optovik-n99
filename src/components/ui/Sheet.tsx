@@ -22,11 +22,11 @@ export function Sheet({ visible, onClose, title, children, footer, closeLabel }:
 
   useEffect(() => {
     if (visible) {
-      progress.value = withSpring(1, { damping: 22, stiffness: 240, mass: 0.8 });
+      progress.set(withSpring(1, { damping: 22, stiffness: 240, mass: 0.8 }));
     } else if (mounted) {
-      progress.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.quad) }, (done) => {
+      progress.set(withTiming(0, { duration: 200, easing: Easing.in(Easing.quad) }, (done) => {
         if (done) scheduleOnRN(setMounted, false);
-      });
+      }));
     }
   }, [visible, mounted, progress]);
 

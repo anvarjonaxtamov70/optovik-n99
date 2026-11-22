@@ -3,7 +3,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Logo } from '../components/brand/Logo';
@@ -64,7 +63,7 @@ export default function ProfileScreen() {
         </LinearGradient>
 
         <View style={styles.body}>
-          <Animated.View entering={FadeInDown.duration(320)}>
+          <View>
             <PressableScale onPress={() => router.push('/garage')} scaleTo={0.98} style={[styles.car, shadow.soft]} accessibilityLabel={t('profile.myCar')}>
               <View style={styles.carIcon}><PartIcon name={carModel ? bodyIcon(carModel) : 'car-cog'} size={30} color={colors.primary} /></View>
               <View style={styles.flex}>
@@ -73,19 +72,19 @@ export default function ProfileScreen() {
               </View>
               <Icon name="chevron-forward" size={18} color={colors.faint} />
             </PressableScale>
-          </Animated.View>
+          </View>
 
-          <Group title={t('profile.sectionShop')} delay={60}>
+          <Group title={t('profile.sectionShop')}>
             <ListRow icon="receipt-outline" title={t('profile.orders')} value={active ? String(active) : undefined} onPress={() => router.push('/orders')} />
             <ListRow icon="heart-outline" title={t('profile.favorites')} onPress={() => router.navigate('/favorites')} last />
           </Group>
 
-          <Group title={t('profile.sectionSettings')} delay={120}>
+          <Group title={t('profile.sectionSettings')}>
             <ListRow icon="person-outline" title={t('profile.personal')} onPress={() => router.push('/profile-edit')} />
             <ListRow icon="language-outline" title={t('profile.language')} value={lang === 'ru' ? t('lang.ru') : t('lang.uz')} onPress={() => setLangOpen(true)} last />
           </Group>
 
-          <Group title={t('profile.sectionInfo')} delay={180}>
+          <Group title={t('profile.sectionInfo')}>
             <ListRow icon="call-outline" title={t('profile.contact')} onPress={() => router.push('/contact')} />
             <ListRow icon="bicycle-outline" title={t('profile.delivery')} onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'delivery' } })} />
             <ListRow icon="help-circle-outline" title={t('profile.faq')} onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'faq' } })} />
@@ -128,12 +127,12 @@ function Stat({ icon, value, label, onPress, badge }: { icon: IconName; value: n
   );
 }
 
-function Group({ title, children, delay }: { title: string; children: React.ReactNode; delay: number }) {
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Animated.View entering={FadeInDown.delay(delay).duration(320)} style={styles.group}>
+    <View style={styles.group}>
       <Txt variant="label" style={styles.groupTitle}>{title.toUpperCase()}</Txt>
       <Card padded={false} style={styles.groupCard}>{children}</Card>
-    </Animated.View>
+    </View>
   );
 }
 

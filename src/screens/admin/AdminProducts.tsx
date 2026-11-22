@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   barInner: { gap: 10, width: '100%', alignSelf: 'center' },
   wideInner: { maxWidth: 1240, width: '100%', alignSelf: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chipsScroll: { gap: 8 },
+  chipsScroll: { gap: 8, paddingVertical: 4 },
   list: { padding: 16, gap: 10 },
   row: { flexDirection: 'row', gap: 12, padding: 10, borderRadius: radius.lg, backgroundColor: colors.white, alignItems: 'center' },
   thumb: { width: 64, height: 64, borderRadius: radius.md },

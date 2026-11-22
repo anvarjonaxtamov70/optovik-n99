@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { modelsText } from '../components/shop/ProductCard';
@@ -88,7 +88,7 @@ export default function CartScreen() {
         {!live ? <Notice icon="cloud-offline-outline" text={t('cart.offline')} tone="warning" /> : null}
         {settings.freeDeliveryFrom > 0 && settings.courierEnabled ? <FreeDelivery left={summary.freeLeft} total={settings.freeDeliveryFrom} /> : null}
         <View style={styles.lines}>
-          {lines.map((l, i) => <CartRow key={l.id} line={l} index={i} onRemove={() => removeWithUndo([l.id])} />)}
+          {lines.map((l) => <CartRow key={l.id} line={l} onRemove={() => removeWithUndo([l.id])} />)}
         </View>
         <Card style={styles.summary}>
           <Txt variant="h3">{t('cart.summary')}</Txt>
@@ -111,18 +111,19 @@ export default function CartScreen() {
   );
 }
 
-function CartRow({ line: l, index, onRemove }: { line: CartLine; index: number; onRemove: () => void }) {
+function CartRow({ line: l, onRemove }: { line: CartLine; onRemove: () => void }) {
   const { t, money, lang } = useT();
   const favs = useFavorites();
   const p = l.product;
   const fav = favs.includes(l.id);
   return (
-    <Animated.View entering={FadeInDown.delay(Math.min(index, 6) * 50).duration(320)} exiting={FadeOut.duration(180)} layout={LinearTransition.springify().damping(18)}
+    // Kirish animatsiyasi yo'q; o'chirilganda yumshoq yo'qoladi va qolganlari silliq yuqoriga suriladi.
+    <Animated.View exiting={FadeOut.duration(160)} layout={LinearTransition.duration(220)}
       style={[styles.row, shadow.soft, !l.selected && styles.rowOff]}>
       <View style={styles.rowTop}>
         <Checkbox checked={l.selected} onPress={() => cart.toggle(l.id)} label={p?.nomi ?? l.id} />
-        <PressableScale onPress={() => p && openProduct(p.id)} disabled={!p} scaleTo={0.97} accessibilityLabel={p?.nomi ?? l.id}>
-          <ProductImage uri={p?.rasmlar[0]} kategoriya={p?.kategoriya ?? l.id.split('/')[0]} seed={l.id} style={styles.thumb} iconScale={0.42} />
+        <PressableScale onPress={() => p && openProduct(p.id)} disabled={!p} scaleTo={0.94} accessibilityLabel={p?.nomi ?? l.id}>
+          <ProductImage uri={p?.rasmlar[0]} kategoriya={p?.kategoriya ?? l.id.split('/')[0]} seed={l.id} style={styles.thumb} iconScale={0.42} size={78} />
         </PressableScale>
         <View style={styles.flex}>
           <Txt variant="smallStrong" numberOfLines={2}>{p?.nomi ?? l.id}</Txt>
@@ -162,7 +163,7 @@ function FreeDelivery({ left, total }: { left: number; total: number }) {
   const { t, money } = useT();
   const progress = useSharedValue(0);
   const ratio = Math.max(0, Math.min(1, 1 - left / total));
-  useEffect(() => { progress.value = withTiming(ratio, { duration: 700, easing: ease.out }); }, [ratio, progress]);
+  useEffect(() => { progress.set(withTiming(ratio, { duration: 700, easing: ease.out })); }, [ratio, progress]);
   const bar = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
   return (
     <View style={styles.free}>

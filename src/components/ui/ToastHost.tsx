@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeOutDown, SlideInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { hideToast, useToast } from '../../state/toast';
@@ -17,7 +17,7 @@ export function ToastHost({ bottomOffset = 76 }: { bottomOffset?: number }) {
   const iconColor = toast.kind === 'error' ? colors.toastError : toast.kind === 'success' ? colors.toastSuccess : colors.sky;
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: insets.bottom + bottomOffset }]}>
-      <Animated.View key={toast.id} entering={SlideInDown.springify().damping(18).stiffness(220)} exiting={FadeOutDown.duration(160)} style={[styles.toast, shadow.float]}>
+      <Animated.View key={toast.id} entering={FadeInDown.duration(220)} exiting={FadeOutDown.duration(160)} style={[styles.toast, shadow.float]}>
         <Icon name={icon} size={22} color={iconColor} />
         <Txt variant="smallStrong" color={colors.white} style={styles.msg} numberOfLines={2} accessibilityLiveRegion="polite">{toast.message}</Txt>
         {toast.action ? (

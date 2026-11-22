@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import type { Product } from '../../domain/products';
 import { CAR_MODELS, CATEGORIES, categoryFor, categoryIcon, categoryLabel, type CarModel } from '../../domain/taxonomy';
@@ -38,15 +38,17 @@ export function useCategories(products: Product[], group?: 'parts' | 'accessorie
 export function CategoryGrid({ items, columns = 4 }: { items: CategoryEntry[]; columns?: number }) {
   return (
     <View style={styles.grid}>
-      {items.map((c, i) => (
-        <Animated.View key={c.key} entering={FadeInDown.delay(i * 35).duration(320)} style={{ width: `${100 / columns}%` }}>
-          <PressableScale onPress={() => openList({ category: c.key, title: c.label })} feedback="tap" accessibilityLabel={c.label} style={styles.cat}>
-            <LinearGradient colors={gradients.sky} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.catIcon}>
-              <PartIcon name={c.icon} size={28} color={colors.primary} />
-            </LinearGradient>
+      {items.map((c) => (
+        <View key={c.key} style={{ width: `${100 / columns}%` }}>
+          <PressableScale onPress={() => openList({ category: c.key, title: c.label })} feedback="tap" scaleTo={0.94} accessibilityLabel={c.label} style={styles.cat}>
+            <View style={[styles.catIconWrap, shadow.xs]}>
+              <LinearGradient colors={gradients.sky} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.catIcon}>
+                <PartIcon name={c.icon} size={28} color={colors.primary} />
+              </LinearGradient>
+            </View>
             <Txt variant="tiny" color={colors.ink} center numberOfLines={2} style={styles.catLabel}>{c.label}</Txt>
           </PressableScale>
-        </Animated.View>
+        </View>
       ))}
     </View>
   );
@@ -62,7 +64,7 @@ export function ModelRail({ selected, onSelect }: { selected?: string | null; on
       {CAR_MODELS.slice(0, 12).map((m) => {
         const on = selected === m.slug;
         return (
-          <PressableScale key={m.slug} feedback="tap" accessibilityLabel={m.name} accessibilityState={{ selected: on }}
+          <PressableScale key={m.slug} feedback="tap" scaleTo={0.95} accessibilityLabel={m.name} accessibilityState={{ selected: on }}
             onPress={() => (onSelect ? onSelect(m) : openList({ model: m.slug, title: m.name }))}
             style={[styles.model, on ? styles.modelOn : null, shadow.soft]}>
             <PartIcon name={bodyIcon(m)} size={30} color={on ? colors.white : colors.primary} />
@@ -98,7 +100,7 @@ export function CatalogNotice() {
 
 export function Notice({ icon, text, action, onAction, tone = 'info' }: { icon: IconName; text: string; action?: string; onAction?: () => void; tone?: 'info' | 'warning' }) {
   return (
-    <Animated.View entering={FadeInDown.duration(260)} style={[styles.notice, tone === 'warning' && styles.noticeWarn]}>
+    <Animated.View entering={FadeIn.duration(200)} style={[styles.notice, tone === 'warning' && styles.noticeWarn]}>
       <Icon name={icon} size={20} color={tone === 'warning' ? colors.warning : colors.primary} />
       <Txt variant="small" color={colors.text} style={styles.flex}>{text}</Txt>
       {action && onAction ? (
@@ -112,6 +114,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, rowGap: 6 },
   cat: { alignItems: 'center', gap: 6, paddingHorizontal: 4, paddingVertical: 4 },
+  // Soya uchun shaffof bo'lmagan qobiq (gradient ichida).
+  catIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: colors.tint },
   catIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   catLabel: { lineHeight: 14, minHeight: 28 },
   models: { paddingHorizontal: 16, gap: 10, paddingVertical: 4 },
