@@ -2,7 +2,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, shadow } from '../../theme/tokens';
 import { Icon, type IconName } from './Icon';
-import { PressableScale } from './PressableScale';
+import { PressableScale, PressOverlay } from './PressableScale';
 import { Txt } from './Txt';
 
 export function IconButton({
@@ -15,11 +15,12 @@ export function IconButton({
     <PressableScale
       onPress={onPress}
       feedback="tap"
-      scaleTo={0.9}
+      scaleTo={0.92}
       accessibilityLabel={label}
       hitSlop={6}
       style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg }, styles.center, elevated && shadow.soft, style]}
     >
+      {bg !== 'transparent' ? <PressOverlay color={colors.ink} max={0.07} radius={size / 2} /> : null}
       <Icon name={icon} size={iconSize ?? Math.round(size * 0.5)} color={color} />
       {!!badge && badge > 0 && (
         <View style={styles.badge}><Txt variant="tiny" color={colors.white} style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Txt></View>

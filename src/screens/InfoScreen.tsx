@@ -1,6 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '../components/ui/Controls';
@@ -24,13 +23,11 @@ export default function InfoScreen() {
     <>
       <Header title={t(`info.${page}.title` as TKey)} />
       <ScrollView style={styles.root} contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
-        {sections.map((s, i) => (
-          <Animated.View key={s.title} entering={FadeInDown.delay(i * 60).duration(320)}>
-            <Card style={styles.card}>
-              <Txt variant="h3">{s.title}</Txt>
-              <Txt variant="body">{s.text}</Txt>
-            </Card>
-          </Animated.View>
+        {sections.map((s) => (
+          <Card key={s.title} style={styles.card}>
+            <Txt variant="h3">{s.title}</Txt>
+            <Txt variant="body">{s.text}</Txt>
+          </Card>
         ))}
       </ScrollView>
     </>

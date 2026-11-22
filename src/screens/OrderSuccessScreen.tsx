@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
-  Easing, FadeInDown, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue,
+  Easing, FadeIn, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -33,10 +33,10 @@ export default function OrderSuccessScreen() {
   const burst = useSharedValue(0);
 
   useEffect(() => {
-    ring.value = withTiming(1, { duration: 650, easing: Easing.bezier(0.65, 0, 0.35, 1) });
-    check.value = withDelay(520, withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) }));
-    pop.value = withDelay(480, withSpring(1, { damping: 9, stiffness: 220 }));
-    burst.value = withDelay(620, withTiming(1, { duration: 1300, easing: Easing.out(Easing.quad) }));
+    ring.set(withTiming(1, { duration: 650, easing: Easing.bezier(0.65, 0, 0.35, 1) }));
+    check.set(withDelay(520, withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) })));
+    pop.set(withDelay(480, withSpring(1, { damping: 14, stiffness: 240 })));
+    burst.set(withDelay(620, withTiming(1, { duration: 1300, easing: Easing.out(Easing.quad) })));
   }, [ring, check, pop, burst]);
 
   const ringProps = useAnimatedProps(() => ({ strokeDashoffset: C * (1 - ring.value) }));
@@ -60,7 +60,7 @@ export default function OrderSuccessScreen() {
           </Svg>
         </Animated.View>
       </View>
-      <Animated.View entering={FadeInDown.delay(700).duration(420)} style={styles.copy}>
+      <Animated.View entering={FadeIn.delay(650).duration(320)} style={styles.copy}>
         <Txt variant="hero" center>{t('success.title')}</Txt>
         <Txt variant="body" color={colors.muted} center>{t('success.text', { phone: phone ? displayPhone(phone) : '' })}</Txt>
         {raqam ? (
@@ -71,7 +71,7 @@ export default function OrderSuccessScreen() {
         ) : null}
       </Animated.View>
       </View>
-      <Animated.View entering={FadeInDown.delay(900).duration(420)} style={styles.actions}>
+      <Animated.View entering={FadeIn.delay(800).duration(320)} style={styles.actions}>
         <Button title={t('success.track')} icon="navigate-outline" size="lg" onPress={() => router.replace({ pathname: '/orders/[id]', params: { id } })} />
         <Button title={t('success.continue')} variant="secondary" size="lg" onPress={() => router.dismissTo('/')} />
       </Animated.View>

@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatDate, OrderTimeline, StatusPill } from '../components/shop/OrderBits';
@@ -75,7 +74,7 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
   };
 
   const status = (
-    <Animated.View entering={FadeInDown.duration(320)}>
+    <View>
       <Card style={styles.gap}>
         <View style={styles.row}>
           <Txt variant="h3" style={styles.flex}>{t('orders.status')}</Txt>
@@ -83,10 +82,10 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
         </View>
         <OrderTimeline order={o} />
       </Card>
-    </Animated.View>
+    </View>
   );
   const contents = (
-    <Animated.View entering={FadeInDown.delay(80).duration(320)}>
+    <View>
       <Card style={styles.gap}>
         <Txt variant="h3">{t('orders.contents')}</Txt>
         {o.items.map((it) => {
@@ -107,10 +106,10 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
         <Line label={t('checkout.deliveryFee')} value={o.yetkazish.turi === 'olib' || !o.yetkazishNarxi ? (o.yetkazish.turi === 'olib' ? t('checkout.free') : t('checkout.byAgreement')) : money(o.yetkazishNarxi)} />
         <Line label={t('cart.total')} value={money(totals.jami)} strong />
       </Card>
-    </Animated.View>
+    </View>
   );
   const details = (
-    <Animated.View entering={FadeInDown.delay(140).duration(320)}>
+    <View>
       <Card style={styles.gap}>
         <Info icon={o.yetkazish.turi === 'kuryer' ? 'bicycle-outline' : 'storefront-outline'} title={t('orders.delivery')}
           text={o.yetkazish.turi === 'kuryer' ? `${t('checkout.courier')}: ${o.yetkazish.manzil ?? ''}${o.yetkazish.moljal ? ` (${o.yetkazish.moljal})` : ''}` : `${t('checkout.pickup')}: ${settings.address}`} />
@@ -118,7 +117,7 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
         <Info icon="person-outline" title={t('checkout.contact')} text={`${o.mijoz.ism}, ${displayPhone(o.mijoz.telefon)}`} />
         {o.izoh ? <Info icon="chatbubble-ellipses-outline" title={t('checkout.comment')} text={o.izoh} /> : null}
       </Card>
-    </Animated.View>
+    </View>
   );
 
   return (

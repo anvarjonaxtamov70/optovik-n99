@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { bodyIcon } from '../components/shop/CatalogBits';
@@ -26,6 +26,8 @@ export default function GarageScreen() {
   const car = useMyCar();
   const [model, setModel] = useState(car?.model ?? null);
   const [year, setYear] = useState<number | undefined>(car?.year);
+  // Belgi va yillar faqat tanlanganda yumshoq paydo bo'ladi (ekran ochilganda hammasi tinch).
+  const [picked, setPicked] = useState(false);
   const save = () => {
     if (!model) return;
     prefs.setCar({ model, year });
@@ -39,22 +41,23 @@ export default function GarageScreen() {
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 110 }]}>
         <Txt variant="body" color={colors.muted}>{t('garage.subtitle')}</Txt>
         <View style={styles.grid}>
-          {CAR_MODELS.map((m, i) => {
+          {CAR_MODELS.map((m) => {
             const on = model === m.slug;
             return (
-              <Animated.View key={m.slug} entering={FadeInDown.delay(i * 30).duration(280)} style={styles.cell}>
-                <PressableScale onPress={() => { haptic.tap(); setModel(m.slug); }} style={[styles.card, on ? styles.cardOn : shadow.soft]} accessibilityLabel={m.name} accessibilityState={{ selected: on }}>
-                  {on ? <Animated.View entering={ZoomIn} style={styles.check}><Icon name="checkmark" size={14} color={colors.primary} /></Animated.View> : null}
+              <View key={m.slug} style={styles.cell}>
+                <PressableScale onPress={() => { haptic.tap(); setPicked(true); setModel(m.slug); }} scaleTo={0.95}
+                  style={[styles.card, on ? [styles.cardOn, shadow.button] : shadow.soft]} accessibilityLabel={m.name} accessibilityState={{ selected: on }}>
+                  {on ? <Animated.View entering={picked ? ZoomIn.duration(160) : undefined} style={styles.check}><Icon name="checkmark" size={14} color={colors.primary} /></Animated.View> : null}
                   <PartIcon name={bodyIcon(m)} size={38} color={on ? colors.white : colors.primary} />
                   <Txt variant="bodyStrong" color={on ? colors.white : colors.ink} numberOfLines={1}>{m.name}</Txt>
                   {m.years ? <Txt variant="tiny" color={on ? colors.sky : colors.muted}>{m.years}</Txt> : null}
                 </PressableScale>
-              </Animated.View>
+              </View>
             );
           })}
         </View>
         {model ? (
-          <Animated.View entering={FadeInDown} style={styles.years}>
+          <Animated.View entering={picked ? FadeIn.duration(200) : undefined} style={styles.years}>
             <Txt variant="label">{t('garage.year')} ({t('common.optional')})</Txt>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.yearRow}>
               {YEARS.map((y) => <Chip key={y} label={String(y)} selected={year === y} onPress={() => setYear(year === y ? undefined : y)} />)}
@@ -79,6 +82,6 @@ const styles = StyleSheet.create({
   cardOn: { backgroundColor: colors.primary },
   check: { position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: 11, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   years: { gap: 10 },
-  yearRow: { gap: 8 },
+  yearRow: { gap: 8, paddingVertical: 4 },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 12, backgroundColor: colors.white },
 });

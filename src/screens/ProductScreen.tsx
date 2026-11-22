@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Share, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
-  Extrapolation, FadeIn, FadeInDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, type SharedValue,
+  Extrapolation, FadeIn, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -106,7 +106,7 @@ function ProductView({ product: p }: { product: Product }) {
           <Gallery product={p} height={galleryH} width={Math.min(width, 760)} />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.duration(380)} style={styles.sheet}>
+        <View style={styles.sheet}>
           <View style={styles.priceRow}>
             <Txt style={styles.price} color={percent ? colors.sale : colors.ink}>{money(p.narxi)}</Txt>
             {percent ? <Pill text={`−${percent}%`} tone="sale" /> : null}
@@ -120,7 +120,7 @@ function ProductView({ product: p }: { product: Product }) {
           <Txt variant="h2" style={styles.name} accessibilityRole="header">{p.nomi}</Txt>
           <View style={styles.metaRow}>
             {p.artikul ? (
-              <PressableScale onPress={copy} style={styles.meta} accessibilityLabel={`${t('product.article')} ${p.artikul}. ${t('common.copy')}`}>
+              <PressableScale onPress={copy} scaleTo={0.95} style={styles.meta} accessibilityLabel={`${t('product.article')} ${p.artikul}. ${t('common.copy')}`}>
                 <Icon name="barcode-outline" size={15} color={colors.primary} />
                 <Txt variant="smallStrong">{p.artikul}</Txt>
                 <Icon name="copy-outline" size={14} color={colors.faint} />
@@ -147,7 +147,7 @@ function ProductView({ product: p }: { product: Product }) {
                     const m = modelBySlug(slug);
                     const mine = car?.model === slug;
                     return (
-                      <PressableScale key={slug} onPress={() => openList({ model: slug, title: m?.name })} style={[styles.modelChip, mine && styles.modelChipMine]} accessibilityLabel={m?.name ?? slug}>
+                      <PressableScale key={slug} onPress={() => openList({ model: slug, title: m?.name })} scaleTo={0.95} hitSlop={4} style={[styles.modelChip, mine ? [styles.modelChipMine, shadow.buttonSm] : null]} accessibilityLabel={m?.name ?? slug}>
                         <PartIcon name="car-side" size={16} color={mine ? colors.white : colors.primary} />
                         <Txt variant="smallStrong" color={mine ? colors.white : colors.ink}>{m?.name ?? slug}</Txt>
                       </PressableScale>
@@ -168,7 +168,7 @@ function ProductView({ product: p }: { product: Product }) {
             <Block title={t('product.description')}>
               <Txt variant="body" numberOfLines={expanded ? undefined : 5}>{p.tavsif}</Txt>
               {p.tavsif.length > 220 ? (
-                <PressableScale onPress={() => setExpanded((v) => !v)} style={styles.moreBtn} accessibilityLabel={expanded ? t('product.less') : t('product.more')}>
+                <PressableScale onPress={() => setExpanded((v) => !v)} scaleTo={0.96} style={styles.moreBtn} accessibilityLabel={expanded ? t('product.less') : t('product.more')}>
                   <Txt variant="smallStrong" color={colors.primary}>{expanded ? t('product.less') : t('product.more')}</Txt>
                   <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={15} color={colors.primary} />
                 </PressableScale>
@@ -182,7 +182,7 @@ function ProductView({ product: p }: { product: Product }) {
             {p.brend ? <Spec label={t('product.brand')} value={p.brend} /> : null}
             {p.model ? <Spec label={t('product.fits')} value={p.model} /> : null}
           </Block>
-        </Animated.View>
+        </View>
 
         <View style={styles.similar}>
           <ProductRail title={t('product.similar')} products={similar} />
@@ -215,9 +215,9 @@ function Gallery({ product: p, height, width }: { product: Product; height: numb
     <View style={{ height, backgroundColor: colors.white }}>
       <Animated.ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
         {(images.length ? images : [undefined]).map((uri, i) => (
-          <PressableScale key={uri ?? i} disabled={!uri} scaleTo={0.99} onPress={() => setViewer(i)}
+          <PressableScale key={uri ?? i} disabled={!uri} scaleTo={0.985} unstable_pressDelay={110} onPress={() => setViewer(i)}
             accessibilityLabel={uri ? `${t('product.zoom')}. ${t('product.imageOf', { n: i + 1, total: images.length })}` : p.nomi}>
-            <ProductImage uri={uri} kategoriya={p.kategoriya} seed={p.id} style={{ width, height }} iconScale={0.3} />
+            <ProductImage uri={uri} kategoriya={p.kategoriya} seed={p.id} style={{ width, height }} iconScale={0.3} size={width} />
           </PressableScale>
         ))}
       </Animated.ScrollView>

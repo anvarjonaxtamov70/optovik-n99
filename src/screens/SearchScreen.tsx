@@ -1,7 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { FlatList, Keyboard, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCategories } from '../components/shop/CatalogBits';
@@ -12,7 +11,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { goBack } from '../components/ui/Header';
 import { Icon } from '../components/ui/Icon';
 import { IconButton } from '../components/ui/IconButton';
-import { PressableScale } from '../components/ui/PressableScale';
+import { PressableScale, PressOverlay } from '../components/ui/PressableScale';
 import { Txt } from '../components/ui/Txt';
 import { applyFilters, type Product } from '../domain/products';
 import { CAR_MODELS } from '../domain/taxonomy';
@@ -21,6 +20,9 @@ import { openList } from '../lib/nav';
 import { useCatalogStatus, useProducts } from '../state/catalog';
 import { prefs, useRecent } from '../state/prefs';
 import { colors, fonts, radius } from '../theme/tokens';
+
+/** Oxirgi qidiruv qatori bosilganda orqasidagi tus qator chetidan biroz chiqadi. */
+const RECENT_HIGHLIGHT = { left: -8, right: -8 };
 
 export default function SearchScreen() {
   const params = useLocalSearchParams<{ q?: string }>();
@@ -58,21 +60,22 @@ export default function SearchScreen() {
       {!active ? (
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.idle}>
           {recent.length ? (
-            <Animated.View entering={FadeIn} style={styles.group}>
+            <View style={styles.group}>
               <View style={styles.groupHead}>
                 <Txt variant="h3" style={styles.flex}>{t('search.recent')}</Txt>
-                <PressableScale onPress={prefs.clearRecent} hitSlop={8} accessibilityLabel={t('search.clearRecent')}><Txt variant="smallStrong" color={colors.primary}>{t('search.clearRecent')}</Txt></PressableScale>
+                <PressableScale onPress={prefs.clearRecent} hitSlop={12} scaleTo={0.94} accessibilityLabel={t('search.clearRecent')}><Txt variant="smallStrong" color={colors.primary}>{t('search.clearRecent')}</Txt></PressableScale>
               </View>
               {recent.map((r) => (
-                <PressableScale key={r} onPress={() => pick(r)} style={styles.recent} accessibilityLabel={r}>
+                <PressableScale key={r} onPress={() => pick(r)} scaleTo={1} style={styles.recent} accessibilityLabel={r}>
+                  <PressOverlay color={colors.primary} max={0.07} radius={radius.sm} inset={RECENT_HIGHLIGHT} />
                   <Icon name="time-outline" size={18} color={colors.faint} />
                   <Txt variant="body" style={styles.flex} numberOfLines={1}>{r}</Txt>
                   <Icon name="arrow-up-outline" size={16} color={colors.faint} />
                 </PressableScale>
               ))}
-            </Animated.View>
+            </View>
           ) : null}
-          <Animated.View entering={FadeInDown.delay(60)} style={styles.group}>
+          <View style={styles.group}>
             <Txt variant="h3">{t('search.popular')}</Txt>
             <View style={styles.chips}>
               {CAR_MODELS.slice(0, 8).map((m) => <Chip key={m.slug} label={m.name} partIcon="car-side" onPress={() => openList({ model: m.slug, title: m.name })} />)}
@@ -80,7 +83,7 @@ export default function SearchScreen() {
             <View style={styles.chips}>
               {categories.slice(0, 10).map((c) => <Chip key={c.key} label={c.label} partIcon={c.icon} onPress={() => openList({ category: c.key, title: c.label })} />)}
             </View>
-          </Animated.View>
+          </View>
           <View style={styles.hint}>
             <Icon name="barcode-outline" size={20} color={colors.primary} />
             <Txt variant="small" style={styles.flex}>{t('search.hint')}</Txt>
@@ -100,11 +103,7 @@ export default function SearchScreen() {
           ListEmptyComponent={loading
             ? <View style={[styles.skeletons, { gap }]}>{[0, 1].map((i) => <ProductCardSkeleton key={i} width={cardWidth} />)}</View>
             : <EmptyState icon="search-outline" title={t('search.noResults')} text={t('search.noResultsText')} compact />}
-          renderItem={({ item, index }) => (
-            <Animated.View entering={index < 6 ? FadeInDown.delay(index * 40).duration(280) : undefined}>
-              <ProductCard product={item} width={cardWidth} />
-            </Animated.View>
-          )}
+          renderItem={({ item }) => <ProductCard product={item} width={cardWidth} />}
         />
       )}
     </View>

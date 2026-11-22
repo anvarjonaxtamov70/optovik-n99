@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ADMIN_WIDE } from '../../components/admin/AdminShell';
@@ -223,7 +222,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-      <Animated.View entering={FadeIn} style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <View style={[styles.barInner, wide && styles.barWide, stacked && styles.barStacked]}>
           {IS_WEB && wide ? <Txt variant="tiny" style={styles.flex}>{t('admin.product.shortcut')}</Txt> : null}
           {!existing ? (
@@ -232,7 +231,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
           ) : null}
           <Button title={t('common.save')} size="lg" loading={busy} full={!wide} onPress={() => void save('close')} style={wide ? styles.barBtn : undefined} />
         </View>
-      </Animated.View>
+      </View>
     </View>
   );
 }
@@ -251,7 +250,7 @@ const styles = StyleSheet.create({
   column: { flex: 1, gap: 16, minWidth: 0 },
   gap: { gap: 12 },
   gapSm: { gap: 4 },
-  chips: { gap: 8 },
+  chips: { gap: 8, paddingVertical: 4 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   two: { flexDirection: 'row', gap: 10 },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 12, backgroundColor: colors.white, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },

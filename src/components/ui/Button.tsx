@@ -4,12 +4,21 @@ import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } f
 
 import { colors, gradients, radius, shadow } from '../../theme/tokens';
 import { Icon, type IconName } from './Icon';
-import { PressableScale } from './PressableScale';
+import { PressableScale, PressOverlay } from './PressableScale';
 import { Txt } from './Txt';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'white' | 'outline';
 type Size = 'sm' | 'md' | 'lg';
 
+/** Soya chiziladigan tashqi qobiqning foni: shaffof bo'lmasa, soya tez va to'g'ri chiziladi. */
+const FACE: Record<Variant, string> = {
+  primary: colors.primary, danger: colors.sale, secondary: colors.tint, white: colors.white, outline: colors.white, ghost: 'transparent',
+};
+
+/**
+ * Tugma: nozik soya, bosilganda 3% kichrayib 1–1.5 px pastga botadi va biroz qorayadi,
+ * qo'yib yuborilganda yumshoq qaytadi.
+ */
 export function Button({
   title, onPress, variant = 'primary', size = 'md', icon, iconRight, loading, disabled, style, full = true, children, accessibilityLabel,
 }: {
@@ -18,7 +27,11 @@ export function Button({
 }) {
   // Eng kichik tugma ham barmoq uchun 44 px dan kam bo'lmaydi (Apple/Google tavsiyasi).
   const height = size === 'lg' ? 56 : size === 'md' ? 48 : 44;
-  const fg = variant === 'primary' || variant === 'danger' ? colors.white : variant === 'white' ? colors.primary : variant === 'outline' ? colors.primary : colors.primary;
+  const r = size === 'sm' ? radius.sm : radius.md;
+  const filled = variant === 'primary' || variant === 'danger';
+  const fg = filled ? colors.white : colors.primary;
+  const isOff = disabled || loading;
+  const lift = isOff || variant === 'ghost' ? null : filled ? (variant === 'danger' ? shadow.danger : shadow.button) : shadow.xs;
   const content = (
     <View style={[styles.row, { minHeight: height, paddingHorizontal: size === 'sm' ? 14 : 20 }]}>
       {loading ? <ActivityIndicator color={fg} /> : <>
@@ -29,23 +42,27 @@ export function Button({
       </>}
     </View>
   );
-  const isOff = disabled || loading;
   return (
     <PressableScale
       onPress={onPress}
       disabled={isOff}
       feedback="light"
+      scaleTo={0.97}
+      depth={size === 'lg' ? 1.5 : 1}
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityState={{ disabled: !!isOff, busy: !!loading }}
-      style={[full && styles.full, styles.base, { borderRadius: size === 'sm' ? radius.sm : radius.md }, variant === 'primary' && !isOff && shadow.button, style]}
+      style={[full && styles.full, { borderRadius: r, backgroundColor: FACE[variant] }, lift, style]}
     >
-      {variant === 'primary' || variant === 'danger' ? (
-        <LinearGradient colors={variant === 'danger' ? [colors.saleBright, colors.sale] : gradients.button} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.fill, { borderRadius: size === 'sm' ? radius.sm : radius.md }]}>
+      {filled ? (
+        <LinearGradient colors={variant === 'danger' ? [colors.saleBright, colors.sale] : gradients.button} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={[styles.fill, { borderRadius: r }]}>
+          <PressOverlay color={colors.ink} max={0.14} radius={r} />
           {content}
         </LinearGradient>
       ) : (
-        <View style={[styles.fill, { borderRadius: size === 'sm' ? radius.sm : radius.md }, variant === 'secondary' && styles.secondary, variant === 'white' && styles.white,
+        <View style={[styles.fill, { borderRadius: r }, variant === 'secondary' && styles.secondary, variant === 'white' && styles.white,
           variant === 'outline' && styles.outline]}>
+          <PressOverlay color={colors.primary} max={0.09} radius={r} />
           {content}
         </View>
       )}
@@ -55,7 +72,6 @@ export function Button({
 
 const styles = StyleSheet.create({
   full: { alignSelf: 'stretch' },
-  base: { overflow: 'visible' },
   fill: { overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   label: { flexShrink: 1 },

@@ -13,12 +13,17 @@ function hash(s: string) {
   return Math.abs(h);
 }
 
-/** Rasmi yo'q tovar uchun chiroyli o'rinbosar: kategoriya ikonkasi, yumshoq fon va g'ildirak naqshi. */
-export const ProductArt = memo(function ProductArt({ kategoriya, seed, iconScale = 0.36 }: { kategoriya: string; seed: string; iconScale?: number }) {
-  const [size, setSize] = useState(0);
+/**
+ * Rasmi yo'q tovar uchun chiroyli o'rinbosar: kategoriya ikonkasi, yumshoq fon va g'ildirak naqshi.
+ * O'lcham (`size`) oldindan berilsa, ikonka birinchi kadrdayoq chiziladi — o'lchab, qayta chizib "pop" qilmaydi.
+ */
+export const ProductArt = memo(function ProductArt({ kategoriya, seed, iconScale = 0.36, size: fixed }: { kategoriya: string; seed: string; iconScale?: number; size?: number }) {
+  const [measured, setMeasured] = useState(0);
+  const size = fixed ?? measured;
   const tone = artTones[hash(seed) % artTones.length];
   return (
-    <LinearGradient colors={tone} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} onLayout={(e) => setSize(e.nativeEvent.layout.width)}>
+    <LinearGradient colors={tone} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill}
+      onLayout={fixed ? undefined : (e) => setMeasured(e.nativeEvent.layout.width)}>
       <View style={[styles.ring, { width: size * 0.9, height: size * 0.9, borderRadius: size, right: -size * 0.3, top: -size * 0.28 }]} />
       <View style={[styles.ring, styles.ring2, { width: size * 0.5, height: size * 0.5, borderRadius: size, left: -size * 0.16, bottom: -size * 0.12 }]} />
       <View style={styles.center}>
@@ -28,16 +33,18 @@ export const ProductArt = memo(function ProductArt({ kategoriya, seed, iconScale
   );
 });
 
-export const ProductImage = memo(function ProductImage({ uri, kategoriya, seed, style, iconScale, contentFit = 'contain' }: {
-  uri?: string; kategoriya: string; seed: string; style?: StyleProp<ViewStyle>; iconScale?: number; contentFit?: 'contain' | 'cover';
+/** `size` — rasm kengligi (ma'lum bo'lsa bering: rasmsiz tovar ikonkasi birdaniga to'g'ri chiziladi). */
+export const ProductImage = memo(function ProductImage({ uri, kategoriya, seed, style, iconScale, contentFit = 'contain', size }: {
+  uri?: string; kategoriya: string; seed: string; style?: StyleProp<ViewStyle>; iconScale?: number; contentFit?: 'contain' | 'cover'; size?: number;
 }) {
   const [failed, setFailed] = useState(false);
   return (
     <View style={[styles.box, style]}>
       {!uri || failed ? (
-        <ProductArt kategoriya={kategoriya} seed={seed} iconScale={iconScale} />
+        <ProductArt kategoriya={kategoriya} seed={seed} iconScale={iconScale} size={size} />
       ) : (
-        <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit={contentFit} transition={220} recyclingKey={uri}
+        // Qisqa, yumshoq paydo bo'lish. Telefon xotirasidagi (keshdagi) rasm qayta "o'chib-yonmaydi".
+        <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit={contentFit} transition={160} recyclingKey={uri}
           cachePolicy="memory-disk" onError={() => setFailed(true)} accessibilityIgnoresInvertColors />
       )}
     </View>

@@ -1,6 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LogoMark } from '../components/brand/Logo';
@@ -22,7 +21,7 @@ export default function ContactScreen() {
     <View style={styles.root}>
       <Header title={t('contact.title')} />
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
-        <Animated.View entering={FadeInDown.duration(320)}>
+        <View>
           <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
             <LogoMark size={64} />
             <View style={styles.flex}>
@@ -30,9 +29,9 @@ export default function ContactScreen() {
               <Txt variant="small" color={colors.onBrandMuted}>{t('app.tagline')}</Txt>
             </View>
           </LinearGradient>
-        </Animated.View>
+        </View>
 
-        <Animated.View entering={FadeInDown.delay(60).duration(320)}>
+        <View>
           <Card padded={false} style={styles.card}>
             <ListRow icon="location-outline" title={t('contact.address')} subtitle={`${s.address}${s.landmark ? ` · ${s.landmark}` : ''}`} />
             {s.workHours ? <ListRow icon="time-outline" title={t('contact.hours')} subtitle={s.workHours} /> : null}
@@ -41,16 +40,16 @@ export default function ContactScreen() {
             {s.telegram ? <ListRow icon="paper-plane-outline" title={t('contact.telegram')} subtitle={`@${s.telegram.replace(/^@/, '')}`} onPress={() => openTelegram(s.telegram)} /> : null}
             {s.instagram ? <ListRow icon="logo-instagram" title={t('contact.instagram')} subtitle={`@${s.instagram.replace(/^@/, '')}`} onPress={() => openInstagram(s.instagram)} last /> : null}
           </Card>
-        </Animated.View>
+        </View>
 
-        <Animated.View entering={FadeInDown.delay(120).duration(320)} style={styles.gap}>
+        <View style={styles.gap}>
           <Txt variant="h3">{t('contact.route')}</Txt>
           <View style={styles.row}>
             <Button title={t('contact.yandex')} icon="navigate-outline" variant="secondary" full={false} style={styles.flex} onPress={() => openMap(s, 'yandex')} />
             <Button title={t('contact.google')} icon="map-outline" variant="secondary" full={false} style={styles.flex} onPress={() => openMap(s, 'google')} />
           </View>
           {s.phone ? <Button title={t('common.call')} icon="call" size="lg" onPress={() => callPhone(s.phone)} /> : null}
-        </Animated.View>
+        </View>
 
         {s.legalName || s.inn ? (
           <Card style={styles.gap}>

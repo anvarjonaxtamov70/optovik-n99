@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { CatalogNotice } from '../components/shop/CatalogBits';
 import { ProductCard, ProductCardSkeleton } from '../components/shop/ProductCard';
@@ -13,7 +12,7 @@ import { Field } from '../components/ui/Field';
 import { Header } from '../components/ui/Header';
 import { Icon } from '../components/ui/Icon';
 import { IconButton } from '../components/ui/IconButton';
-import { PressableScale } from '../components/ui/PressableScale';
+import { PressableScale, PressOverlay } from '../components/ui/PressableScale';
 import { Sheet } from '../components/ui/Sheet';
 import { Txt } from '../components/ui/Txt';
 import { applyFilters, type Filters, type Product, type SortKey } from '../domain/products';
@@ -21,9 +20,11 @@ import { CAR_MODELS, categoryLabel, modelBySlug } from '../domain/taxonomy';
 import { useT, type TKey } from '../i18n';
 import { useCatalogStatus, useProducts } from '../state/catalog';
 import { useMyCar } from '../state/prefs';
-import { colors, radius } from '../theme/tokens';
+import { colors, radius, shadow } from '../theme/tokens';
 
 const SORTS: SortKey[] = ['popular', 'cheap', 'expensive', 'new', 'discount'];
+/** 38 px tugmaning bosiladigan maydoni 46 px gacha kengayadi. */
+const TOOL_SLOP = { top: 4, bottom: 4 };
 
 export default function ProductListScreen() {
   const params = useLocalSearchParams<{ title?: string; category?: string; group?: string; model?: string; q?: string; sale?: string; new?: string; popular?: string }>();
@@ -52,11 +53,13 @@ export default function ProductListScreen() {
         right={<IconButton icon="search" label={t('search.placeholder')} onPress={() => router.push('/search')} size={40} bg={colors.surfaceAlt} />} />
       <View style={styles.bar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          <PressableScale onPress={() => setSheet('sort')} style={styles.tool} accessibilityLabel={t('list.sort')}>
+          <PressableScale onPress={() => setSheet('sort')} scaleTo={0.95} hitSlop={TOOL_SLOP} style={styles.tool} accessibilityLabel={t('list.sort')}>
+            <PressOverlay color={colors.primary} max={0.1} radius={radius.pill} />
             <Icon name="swap-vertical" size={16} color={colors.primary} />
             <Txt variant="smallStrong">{t(`sort.${extra.sort ?? 'popular'}` as TKey)}</Txt>
           </PressableScale>
-          <PressableScale onPress={() => setSheet('filter')} style={[styles.tool, activeCount > 0 && styles.toolOn]} accessibilityLabel={t('list.filter')}>
+          <PressableScale onPress={() => setSheet('filter')} scaleTo={0.95} hitSlop={TOOL_SLOP} style={[styles.tool, activeCount > 0 && [styles.toolOn, shadow.buttonSm]]} accessibilityLabel={t('list.filter')}>
+            <PressOverlay color={activeCount ? colors.ink : colors.primary} max={0.1} radius={radius.pill} />
             <Icon name="options-outline" size={16} color={activeCount ? colors.white : colors.primary} />
             <Txt variant="smallStrong" color={activeCount ? colors.white : colors.ink}>{t('list.filter')}{activeCount ? ` · ${activeCount}` : ''}</Txt>
           </PressableScale>
@@ -82,11 +85,7 @@ export default function ProductListScreen() {
         ) : (
           <EmptyState icon="search-outline" title={t('list.emptyTitle')} text={t('list.emptyText')} action={activeCount ? { label: t('list.clear'), onPress: reset } : undefined} />
         )}
-        renderItem={({ item, index }) => (
-          <Animated.View entering={index < 6 ? FadeInDown.delay(index * 50).duration(340) : undefined}>
-            <ProductCard product={item} width={cardWidth} />
-          </Animated.View>
-        )}
+        renderItem={({ item }) => <ProductCard product={item} width={cardWidth} />}
       />
 
       <Sheet visible={sheet === 'sort'} onClose={() => setSheet(null)} title={t('list.sort')} closeLabel={t('common.close')}>
@@ -146,8 +145,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   flex2: { flex: 2 },
-  bar: { backgroundColor: colors.white, paddingTop: 10, paddingBottom: 10 },
-  chips: { paddingHorizontal: 16, gap: 8 },
+  bar: { backgroundColor: colors.white, paddingTop: 6, paddingBottom: 6 },
+  // Vertikal joy — chiplarning soyasi aylantiriladigan qator chetida kesilmasligi uchun.
+  chips: { paddingHorizontal: 16, paddingVertical: 4, gap: 8 },
   tool: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.tint },
   toolOn: { backgroundColor: colors.primary },
   list: { paddingTop: 12, paddingBottom: 32, gap: 10 },

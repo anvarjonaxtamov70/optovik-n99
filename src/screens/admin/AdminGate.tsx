@@ -2,7 +2,6 @@ import * as Clipboard from 'expo-clipboard';
 import { Stack } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ADMIN_WIDE, AdminShellProvider, AdminSidebar } from '../../components/admin/AdminShell';
 import { LogoMark } from '../../components/brand/Logo';
@@ -89,7 +88,7 @@ function AdminLogin() {
       <Header title={t('admin.title')} back={!IS_WEB} />
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          <Animated.View entering={FadeInDown} style={styles.center}><LogoMark size={76} /></Animated.View>
+          <View style={styles.center}><LogoMark size={76} /></View>
           <Txt variant="h2" center>{t('admin.login')}</Txt>
           <Txt variant="small" center>{t('admin.loginText')}</Txt>
           <Card style={styles.gap}>

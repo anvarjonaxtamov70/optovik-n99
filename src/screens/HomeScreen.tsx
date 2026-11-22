@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
-  Extrapolation, FadeInDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue,
+  Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,7 +17,7 @@ import { SectionTitle } from '../components/ui/Controls';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Icon, PartIcon, type IconName } from '../components/ui/Icon';
 import { IconButton } from '../components/ui/IconButton';
-import { PressableScale } from '../components/ui/PressableScale';
+import { PressableScale, PressOverlay } from '../components/ui/PressableScale';
 import { Txt } from '../components/ui/Txt';
 import { DEFAULT_BANNERS } from '../domain/content';
 import { discountPercent, type Product } from '../domain/products';
@@ -84,11 +84,7 @@ export default function HomeScreen() {
         ) : (
           <EmptyState partIcon="car-cog" title={t('home.emptyTitle')} text={t('home.emptyText')} action={status === 'error' ? { label: t('common.retry'), onPress: retryCatalog } : undefined} />
         )}
-        renderItem={({ item, index }: { item: Product; index: number }) => (
-          <Animated.View entering={index < 8 ? FadeInDown.delay((index % 8) * 50).duration(380) : undefined}>
-            <ProductCard product={item} width={cardWidth} />
-          </Animated.View>
-        )}
+        renderItem={({ item }: { item: Product }) => <ProductCard product={item} width={cardWidth} />}
       />
 
       <Animated.View style={[styles.header, { paddingTop: insets.top }, header]}>
@@ -163,13 +159,11 @@ function Perks() {
   ];
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.perks}>
-      {items.map((p, i) => (
-        <Animated.View key={p.icon} entering={FadeInDown.delay(80 + i * 60).duration(320)}>
-          <PressableScale onPress={p.onPress} style={[styles.perk, shadow.soft]} accessibilityLabel={p.label}>
-            <View style={styles.perkIcon}><Icon name={p.icon} size={17} color={colors.primary} /></View>
-            <Txt variant="tiny" color={colors.ink} numberOfLines={2} style={styles.perkText}>{p.label}</Txt>
-          </PressableScale>
-        </Animated.View>
+      {items.map((p) => (
+        <PressableScale key={p.icon} onPress={p.onPress} scaleTo={0.96} style={[styles.perk, shadow.soft]} accessibilityLabel={p.label}>
+          <View style={styles.perkIcon}><Icon name={p.icon} size={17} color={colors.primary} /></View>
+          <Txt variant="tiny" color={colors.ink} numberOfLines={2} style={styles.perkText}>{p.label}</Txt>
+        </PressableScale>
       ))}
     </ScrollView>
   );
@@ -178,9 +172,10 @@ function Perks() {
 function CarCta() {
   const { t } = useT();
   return (
-    <Animated.View entering={FadeInDown.duration(380)} style={styles.ctaWrap}>
-      <PressableScale onPress={() => router.push('/garage')} scaleTo={0.98} feedback="tap" accessibilityLabel={t('home.carBannerTitle')} style={styles.cta}>
-        <LinearGradient colors={gradients.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+    <View style={styles.ctaWrap}>
+      <PressableScale onPress={() => router.push('/garage')} scaleTo={0.975} feedback="tap" accessibilityLabel={t('home.carBannerTitle')} style={[styles.cta, shadow.card]}>
+        <LinearGradient colors={gradients.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaFill} />
+        <PressOverlay color={colors.black} max={0.12} radius={radius.lg} />
         <View style={styles.ctaIcon}><PartIcon name="car-cog" size={30} color={colors.white} /></View>
         <View style={styles.flex}>
           <Txt variant="bodyStrong" color={colors.white}>{t('home.carBannerTitle')}</Txt>
@@ -188,7 +183,7 @@ function CarCta() {
         </View>
         <Icon name="chevron-forward" size={20} color={colors.white} />
       </PressableScale>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -208,12 +203,14 @@ const styles = StyleSheet.create({
   carText: { maxWidth: 64 },
   sections: { gap: 22, paddingBottom: 4 },
   block: { gap: 12 },
-  perks: { paddingHorizontal: 16, gap: 8 },
+  perks: { paddingHorizontal: 16, paddingVertical: 4, gap: 8 },
   perk: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingLeft: 8, paddingRight: 12, backgroundColor: colors.white, borderRadius: radius.md, width: 150 },
   perkIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.tint, alignItems: 'center', justifyContent: 'center' },
   perkText: { flex: 1, lineHeight: 14 },
   ctaWrap: { paddingHorizontal: 16 },
-  cta: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: radius.lg, overflow: 'hidden' },
+  // `overflow: hidden` yo'q (iOS soyani kesadi): gradient o'zi yumaloq burchakli, fon esa soya uchun.
+  cta: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: radius.lg, backgroundColor: colors.primaryDeep },
+  ctaFill: { ...fill, borderRadius: radius.lg },
   ctaIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: colors.onBrandGlass, alignItems: 'center', justifyContent: 'center' },
   allTitle: { marginTop: 2 },
 });

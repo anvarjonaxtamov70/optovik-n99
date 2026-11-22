@@ -1,10 +1,10 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useIsFocused } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
-  cancelAnimation, Easing, Extrapolation, interpolate, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle,
-  useSharedValue, withRepeat, withTiming, type SharedValue,
+  Extrapolation, interpolate, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, type SharedValue,
 } from 'react-native-reanimated';
 
 import type { Banner, BannerTheme } from '../../domain/content';
@@ -31,7 +31,11 @@ const ART = {
 const GAP = 10;
 const AUTO_MS = 4800;
 
-/** Bosh sahifa bannerlari: o'zi aylanadi, surilganda to'xtaydi, rasm parallaks bilan siljiydi. */
+/**
+ * Bosh sahifa bannerlari: o'zi aylanadi, surilganda to'xtaydi, rasm parallaks bilan siljiydi.
+ * Boshqa bo'lim yoki tovar sahifasi ochilganda (ekran ko'rinmay qolganda) aylanish to'xtaydi —
+ * aks holda yashirin banner har 4,8 soniyada telefonni ishlatib, ko'rinib turgan ro'yxatni sekinlashtirardi.
+ */
 export function BannerCarousel({ banners }: { banners: Banner[] }) {
   const { width } = useWindowDimensions();
   const cardW = Math.min(width, 760) - 32;
@@ -41,11 +45,12 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
   const x = useSharedValue(0);
   const touching = useRef(false);
   const indexRef = useRef(0);
+  const focused = useIsFocused();
 
   const onScroll = useAnimatedScrollHandler({ onScroll: (e) => { x.value = e.contentOffset.x; } });
 
   useEffect(() => {
-    if (banners.length < 2) return;
+    if (banners.length < 2 || !focused) return;
     const id = setInterval(() => {
       if (touching.current) return;
       const next = (indexRef.current + 1) % banners.length;
@@ -53,7 +58,7 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
       ref.current?.scrollTo({ x: next * interval, animated: true });
     }, AUTO_MS);
     return () => clearInterval(id);
-  }, [banners.length, interval, ref]);
+  }, [banners.length, focused, interval, ref]);
 
   if (!banners.length) return null;
   return (
@@ -102,10 +107,11 @@ function BannerCard({ banner: b, i, x, interval, width, height }: {
   const fg = theme.dark ? colors.white : colors.ink;
   const art = useAnimatedStyle(() => {
     const d = x.value - i * interval;
-    return { transform: [{ translateX: d * -0.22 }, { scale: interpolate(Math.abs(d), [0, interval], [1, 0.9], Extrapolation.CLAMP) }] };
+    // Yengil parallaks: rasm kartadan sekinroq suriladi (faqat surish paytida, tinch turganda harakat yo'q).
+    return { transform: [{ translateX: d * -0.16 }, { scale: interpolate(Math.abs(d), [0, interval], [1, 0.94], Extrapolation.CLAMP) }] };
   });
   return (
-    <PressableScale onPress={() => openLink(b.link, b.title[lang].replace(/\n/g, ' '))} scaleTo={0.98} feedback="tap"
+    <PressableScale onPress={() => openLink(b.link, b.title[lang].replace(/\n/g, ' '))} scaleTo={0.98} feedback="tap" unstable_pressDelay={110}
       accessibilityLabel={`${b.title[lang].replace(/\n/g, ' ')}. ${b.cta[lang]}`}
       style={[styles.card, { width, height }]}>
       <LinearGradient colors={theme.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
@@ -126,14 +132,8 @@ function BannerCard({ banner: b, i, x, interval, width, height }: {
   );
 }
 
+/** Banner rasmi: tinch turadi (avvalgi tinimsiz tebranayotgan "%" olib tashlandi), faqat surilganda biroz siljiydi. */
 function BannerArt({ banner: b, height, dark }: { banner: Banner; height: number; dark: boolean }) {
-  const spin = useSharedValue(0);
-  useEffect(() => {
-    if (b.art !== 'sale') return;
-    spin.value = withRepeat(withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.sin) }), -1, true);
-    return () => cancelAnimation(spin);
-  }, [b.art, spin]);
-  const wobble = useAnimatedStyle(() => ({ transform: [{ rotate: `${-8 + spin.value * 16}deg` }, { scale: 1 + spin.value * 0.05 }] }));
   if (b.image) return <Image source={{ uri: b.image }} style={{ width: height * 1.05, height: height * 0.9 }} contentFit="contain" />;
   if (b.art === 'gm' || b.art === 'accessories') {
     return <Image source={ART[b.art]} style={{ width: height * 1.25, height: height * 0.84 }} contentFit="contain" />;
@@ -142,9 +142,9 @@ function BannerArt({ banner: b, height, dark }: { banner: Banner; height: number
   const bubble = dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.8)';
   if (b.art === 'sale') {
     return (
-      <Animated.View style={[styles.bubble, { width: height * 0.72, height: height * 0.72, backgroundColor: bubble }, wobble]}>
+      <View style={[styles.bubble, styles.tilt, { width: height * 0.72, height: height * 0.72, backgroundColor: bubble }]}>
         <Txt style={[styles.percent, { fontSize: height * 0.36, lineHeight: height * 0.42, color: iconColor }]}>%</Txt>
-      </Animated.View>
+      </View>
     );
   }
   return (
@@ -165,5 +165,6 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
   dot: { height: 7, borderRadius: 4, backgroundColor: colors.primary },
   bubble: { borderRadius: 999, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  tilt: { transform: [{ rotate: '-8deg' }] },
   percent: { fontFamily: fonts.displayHeavy },
 });
