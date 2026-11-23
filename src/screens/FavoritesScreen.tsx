@@ -4,6 +4,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProductCard, ProductCardSkeleton } from '../components/shop/ProductCard';
+import { useTabBarSpace } from '../components/TabBar';
 import { useGrid } from '../components/shop/ProductGrid';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Txt } from '../components/ui/Txt';
@@ -22,6 +23,7 @@ export default function FavoritesScreen() {
   const status = useCatalogStatus();
   const list = useMemo(() => [...ids].reverse().map((id) => byId.get(id)).filter((p): p is Product => !!p), [ids, byId]);
   const { columns, cardWidth, gap } = useGrid();
+  const tabSpace = useTabBarSpace();
   // Katalog yuklanmaguncha saralanganlar bo'sh ko'rinadi — shuning uchun skeleton.
   const loading = status === 'loading' && !byId.size && ids.length > 0;
   return (
@@ -36,7 +38,7 @@ export default function FavoritesScreen() {
         numColumns={columns}
         keyExtractor={(p) => p.id}
         columnWrapperStyle={columns > 1 ? { gap, paddingHorizontal: 16 } : undefined}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: tabSpace }]}
         ListEmptyComponent={loading
           ? <View style={[styles.skeletons, { gap }]}>{[0, 1].map((i) => <ProductCardSkeleton key={i} width={cardWidth} />)}</View>
           : <EmptyState icon="heart-outline" title={t('fav.emptyTitle')} text={t('fav.emptyText')} action={{ label: t('cart.toCatalog'), onPress: () => router.navigate('/') }} />}

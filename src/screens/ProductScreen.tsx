@@ -13,6 +13,8 @@ import { ImageViewer } from '../components/shop/ImageViewer';
 import { ProductImage } from '../components/shop/ProductImage';
 import { ProductRail } from '../components/shop/ProductRail';
 import { Button } from '../components/ui/Button';
+import { FloatingBar, useFloatingBarSpace } from '../components/ui/FloatingBar';
+import { GlassFill } from '../components/ui/Glass';
 import { Pill } from '../components/ui/Controls';
 import { EmptyState } from '../components/ui/EmptyState';
 import { goBack } from '../components/ui/Header';
@@ -87,6 +89,7 @@ function ProductView({ product: p }: { product: Product }) {
   const carModel = modelBySlug(car?.model);
   const fits = carModel ? p.universal || p.modellar.includes(carModel.slug) : null;
   const [expanded, setExpanded] = useState(false);
+  const barSpace = useFloatingBarSpace(24);
 
   const topBar = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [galleryH - 140, galleryH - 70], [0, 1], Extrapolation.CLAMP) }));
   const galleryStyle = useAnimatedStyle(() => ({
@@ -101,15 +104,15 @@ function ProductView({ product: p }: { product: Product }) {
 
   return (
     <View style={styles.root}>
-      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}>
+      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: barSpace }}>
         <Animated.View style={[{ height: galleryH }, galleryStyle]}>
           <Gallery product={p} height={galleryH} width={Math.min(width, 760)} />
         </Animated.View>
 
         <View style={styles.sheet}>
           <View style={styles.priceRow}>
-            <Txt style={styles.price} color={percent ? colors.sale : colors.ink}>{money(p.narxi)}</Txt>
-            {percent ? <Pill text={`−${percent}%`} tone="sale" /> : null}
+            <Txt style={styles.price}>{money(p.narxi)}</Txt>
+            {percent ? <Pill text={`−${percent}%`} tone="saleSoft" /> : null}
           </View>
           {p.eskiNarx ? (
             <View style={styles.oldRow}>
@@ -120,7 +123,8 @@ function ProductView({ product: p }: { product: Product }) {
           <Txt variant="h2" style={styles.name} accessibilityRole="header">{p.nomi}</Txt>
           <View style={styles.metaRow}>
             {p.artikul ? (
-              <PressableScale onPress={copy} scaleTo={0.95} style={styles.meta} accessibilityLabel={`${t('product.article')} ${p.artikul}. ${t('common.copy')}`}>
+              <PressableScale onPress={copy} scaleTo={0.95} style={[styles.meta, shadow.xs]} accessibilityLabel={`${t('product.article')} ${p.artikul}. ${t('common.copy')}`}>
+                <GlassFill tone="light" radius={radius.pill} />
                 <Icon name="barcode-outline" size={15} color={colors.primary} />
                 <Txt variant="smallStrong">{p.artikul}</Txt>
                 <Icon name="copy-outline" size={14} color={colors.faint} />
@@ -147,7 +151,8 @@ function ProductView({ product: p }: { product: Product }) {
                     const m = modelBySlug(slug);
                     const mine = car?.model === slug;
                     return (
-                      <PressableScale key={slug} onPress={() => openList({ model: slug, title: m?.name })} scaleTo={0.95} hitSlop={4} style={[styles.modelChip, mine ? [styles.modelChipMine, shadow.buttonSm] : null]} accessibilityLabel={m?.name ?? slug}>
+                      <PressableScale key={slug} onPress={() => openList({ model: slug, title: m?.name })} scaleTo={0.95} hitSlop={4} style={[styles.modelChip, mine ? [styles.modelChipMine, shadow.buttonSm] : shadow.xs]} accessibilityLabel={m?.name ?? slug}>
+                        <GlassFill tone={mine ? 'primary' : 'tint'} radius={radius.pill} />
                         <PartIcon name="car-side" size={16} color={mine ? colors.white : colors.primary} />
                         <Txt variant="smallStrong" color={mine ? colors.white : colors.ink}>{m?.name ?? slug}</Txt>
                       </PressableScale>
@@ -176,11 +181,11 @@ function ProductView({ product: p }: { product: Product }) {
             </Block>
           ) : null}
 
+          {/* Artikul va mos mashinalar yuqorida chip bo'lib turibdi — jadvalda takrorlanmaydi. */}
           <Block title={t('product.specs')}>
             <Spec label={t('product.category')} value={categoryLabel(p.kategoriya, lang)} />
-            {p.artikul ? <Spec label={t('product.article')} value={p.artikul} /> : null}
             {p.brend ? <Spec label={t('product.brand')} value={p.brend} /> : null}
-            {p.model ? <Spec label={t('product.fits')} value={p.model} /> : null}
+            {p.birlik ? <Spec label={t('product.unit')} value={p.birlik} /> : null}
           </Block>
         </View>
 
@@ -196,10 +201,10 @@ function ProductView({ product: p }: { product: Product }) {
         <IconButton icon="chevron-back" label={t('common.back')} onPress={() => goBack()} size={44} elevated />
         <View style={styles.floatRight}>
           <IconButton icon="share-outline" label={t('common.share')} onPress={share} size={44} elevated />
-          <FavButton id={p.id} name={p.nomi} size={44} />
+          <FavButton id={p.id} name={p.nomi} size={44} real />
         </View>
       </View>
-      <BuyBar product={p} bottom={insets.bottom} />
+      <BuyBar product={p} />
     </View>
   );
 }
@@ -222,9 +227,7 @@ function Gallery({ product: p, height, width }: { product: Product; height: numb
         ))}
       </Animated.ScrollView>
       {images.length ? (
-        <PressableScale onPress={() => setViewer(page())} style={styles.zoom} accessibilityLabel={t('product.zoom')} scaleTo={0.9}>
-          <Icon name="scan-outline" size={18} color={colors.ink} />
-        </PressableScale>
+        <IconButton icon="scan-outline" iconSize={18} label={t('product.zoom')} onPress={() => setViewer(page())} size={40} elevated style={styles.zoom} />
       ) : null}
       {images.length > 1 ? (
         <View style={styles.dots}>{images.map((uri, i) => <GalleryDot key={uri} i={i} x={x} width={width} />)}</View>
@@ -286,7 +289,7 @@ function Spec({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BuyBar({ product: p, bottom }: { product: Product; bottom: number }) {
+function BuyBar({ product: p }: { product: Product }) {
   const qty = useQty(p.id);
   const live = useCatalogLive();
   const { t, money } = useT();
@@ -297,7 +300,7 @@ function BuyBar({ product: p, bottom }: { product: Product; bottom: number }) {
     showToast(t('product.added'), { kind: 'success', icon: 'cart', action: { label: t('product.goToCart'), onPress: () => router.navigate('/cart') } });
   };
   return (
-    <View style={[styles.buyBar, { paddingBottom: Math.max(bottom, 12) }]}>
+    <FloatingBar>
       <View style={styles.buyPrice}>
         <Txt variant="tiny">{qty > 0 ? `${qty} × ${money(p.narxi)}` : t('cart.total')}</Txt>
         <Txt variant="h3" numberOfLines={1} adjustsFontSizeToFit>{money(p.narxi * Math.max(qty, 1))}</Txt>
@@ -310,13 +313,13 @@ function BuyBar({ product: p, bottom }: { product: Product; bottom: number }) {
                 onInc={() => { if (qty >= p.qoldiq) { haptic.warning(); showToast(t('product.limit'), { kind: 'error' }); } else cart.inc(p); }}
                 onDec={() => cart.dec(p)} />
             </View>
-            <IconButton icon="cart" label={t('product.goToCart')} onPress={() => router.navigate('/cart')} size={52} bg={colors.primary} color={colors.white} />
+            <IconButton icon="cart" label={t('product.goToCart')} onPress={() => router.navigate('/cart')} size={52} tone="primary" bg={colors.primary} color={colors.white} />
           </Animated.View>
         ) : (
           <Button title={t('product.add')} icon="cart-outline" size="lg" onPress={add} disabled={!live} />
         )}
       </View>
-    </View>
+    </FloatingBar>
   );
 }
 
@@ -354,10 +357,9 @@ const styles = StyleSheet.create({
   floatRight: { flexDirection: 'row', gap: 8 },
   dots: { position: 'absolute', bottom: 34, alignSelf: 'center', flexDirection: 'row', gap: 5 },
   dot: { height: 6, borderRadius: 3, backgroundColor: colors.primary },
-  zoom: { position: 'absolute', right: 14, bottom: 46, width: 40, height: 40, borderRadius: 20, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', ...shadow.soft },
+  zoom: { position: 'absolute', right: 14, bottom: 46 },
   fade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 40 },
-  buyBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 12, backgroundColor: colors.white, ...shadow.float },
-  buyPrice: { width: '34%' },
+  buyPrice: { width: '32%' },
   buyAction: { flex: 1 },
   buyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

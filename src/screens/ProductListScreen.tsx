@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { Chip, Radio, SwitchRow } from '../components/ui/Controls';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Field } from '../components/ui/Field';
+import { GlassFill } from '../components/ui/Glass';
 import { Header } from '../components/ui/Header';
 import { Icon } from '../components/ui/Icon';
 import { IconButton } from '../components/ui/IconButton';
@@ -53,12 +54,14 @@ export default function ProductListScreen() {
         right={<IconButton icon="search" label={t('search.placeholder')} onPress={() => router.push('/search')} size={40} bg={colors.surfaceAlt} />} />
       <View style={styles.bar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          <PressableScale onPress={() => setSheet('sort')} scaleTo={0.95} hitSlop={TOOL_SLOP} style={styles.tool} accessibilityLabel={t('list.sort')}>
+          <PressableScale onPress={() => setSheet('sort')} scaleTo={0.95} hitSlop={TOOL_SLOP} style={[styles.tool, shadow.xs]} accessibilityLabel={t('list.sort')}>
+            <GlassFill tone="tint" radius={radius.pill} />
             <PressOverlay color={colors.primary} max={0.1} radius={radius.pill} />
             <Icon name="swap-vertical" size={16} color={colors.primary} />
             <Txt variant="smallStrong">{t(`sort.${extra.sort ?? 'popular'}` as TKey)}</Txt>
           </PressableScale>
-          <PressableScale onPress={() => setSheet('filter')} scaleTo={0.95} hitSlop={TOOL_SLOP} style={[styles.tool, activeCount > 0 && [styles.toolOn, shadow.buttonSm]]} accessibilityLabel={t('list.filter')}>
+          <PressableScale onPress={() => setSheet('filter')} scaleTo={0.95} hitSlop={TOOL_SLOP} style={[styles.tool, activeCount > 0 ? [styles.toolOn, shadow.buttonSm] : shadow.xs]} accessibilityLabel={t('list.filter')}>
+            <GlassFill tone={activeCount > 0 ? 'primary' : 'tint'} radius={radius.pill} />
             <PressOverlay color={activeCount ? colors.ink : colors.primary} max={0.1} radius={radius.pill} />
             <Icon name="options-outline" size={16} color={activeCount ? colors.white : colors.primary} />
             <Txt variant="smallStrong" color={activeCount ? colors.white : colors.ink}>{t('list.filter')}{activeCount ? ` · ${activeCount}` : ''}</Txt>

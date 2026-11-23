@@ -6,8 +6,10 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Logo } from '../components/brand/Logo';
+import { useTabBarSpace } from '../components/TabBar';
 import { bodyIcon } from '../components/shop/CatalogBits';
 import { Card, ListRow, Radio } from '../components/ui/Controls';
+import { GlassFill } from '../components/ui/Glass';
 import { Icon, PartIcon, type IconName } from '../components/ui/Icon';
 import { PressableScale } from '../components/ui/PressableScale';
 import { Sheet } from '../components/ui/Sheet';
@@ -33,6 +35,7 @@ export default function ProfileScreen() {
   const car = useMyCar();
   const carModel = modelBySlug(car?.model);
   const [langOpen, setLangOpen] = useState(false);
+  const tabSpace = useTabBarSpace();
   const p = account.profile;
   const initials = p.name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   const active = orders.filter((o) => isActive(o.holat)).length;
@@ -40,7 +43,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: tabSpace }} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: insets.top + 18 }]}>
           <View style={styles.heroGlow} />
           <View style={styles.heroRow}>
@@ -52,6 +55,7 @@ export default function ProfileScreen() {
               <Txt variant="small" color={colors.onBrandMuted}>{p.phone ? displayPhone(p.phone) : t('profile.fillProfile')}</Txt>
             </View>
             <PressableScale onPress={() => router.push('/profile-edit')} style={styles.edit} accessibilityLabel={t('profile.personal')}>
+              <GlassFill tone="onDark" radius={14} />
               <Icon name="create-outline" size={20} color={colors.white} />
             </PressableScale>
           </View>
@@ -117,6 +121,7 @@ export default function ProfileScreen() {
 function Stat({ icon, value, label, onPress, badge }: { icon: IconName; value: number; label: string; onPress: () => void; badge?: number }) {
   return (
     <PressableScale onPress={onPress} style={styles.stat} accessibilityLabel={`${label}: ${value}`}>
+      <GlassFill tone="onDark" radius={radius.md} />
       <View>
         <Icon name={icon} size={20} color={colors.white} />
         {badge ? <View style={styles.statBadge} /> : null}
@@ -144,9 +149,9 @@ const styles = StyleSheet.create({
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatar: { width: 62, height: 62, borderRadius: 22, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   initials: { fontFamily: fonts.display, fontSize: 22, color: colors.primary },
-  edit: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.onBrandGlass, alignItems: 'center', justifyContent: 'center' },
+  edit: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', gap: 10 },
-  stat: { flex: 1, borderRadius: radius.md, backgroundColor: colors.onBrandGlass, padding: 12, gap: 2 },
+  stat: { flex: 1, borderRadius: radius.md, padding: 12, gap: 2 },
   statBadge: { position: 'absolute', top: -2, left: 16, width: 9, height: 9, borderRadius: 5, backgroundColor: colors.gold },
   body: { padding: 16, gap: 18, width: '100%', maxWidth: 760, alignSelf: 'center' },
   car: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: radius.lg, backgroundColor: colors.white },

@@ -56,7 +56,6 @@ export const uz = {
   'home.perks.original': 'Sifatli detallar',
   'home.perks.cash': 'Naqd to‘lov',
   'home.perks.delivery': 'Yetkazib berish',
-  'home.perks.pickup': 'Do‘kondan olish',
   'home.emptyTitle': 'Katalog hali to‘ldirilmagan',
   'home.emptyText': 'Tovarlar qo‘shilishi bilan shu yerda paydo bo‘ladi.',
   'home.placeholderCatalog': 'Bazada faqat namuna yozuvlar bor. Do‘kon tovarlari qo‘shilgach katalog to‘ladi.',
@@ -66,7 +65,6 @@ export const uz = {
   'search.placeholder': 'Nomi, artikul yoki model',
   'search.recent': 'Oxirgi qidiruvlar',
   'search.clearRecent': 'Tozalash',
-  'search.popular': 'Ko‘p qidiriladi',
   'search.results': '{n} ta natija',
   'search.noResults': 'Hech narsa topilmadi',
   'search.noResultsText': 'So‘zni qisqartirib yoki artikul bilan qidirib ko‘ring.',
@@ -110,6 +108,7 @@ export const uz = {
   'product.outOfStock': 'Hozircha mavjud emas',
   'product.article': 'Artikul',
   'product.brand': 'Brend',
+  'product.unit': 'O‘lchov birligi',
   'product.category': 'Kategoriya',
   'product.fits': 'Mos mashinalar',
   'product.universal': 'Universal — barcha mashinalarga',
@@ -250,7 +249,7 @@ export const uz = {
 
   'fav.title': 'Saralangan',
   'fav.emptyTitle': 'Saralanganlar bo‘sh',
-  'fav.emptyText': 'Yoqqan tovarlarni ♥ belgisi bilan saqlang.',
+  'fav.emptyText': 'Yoqqan tovar rasmidagi yurakchani bosing — u shu yerda saqlanadi.',
   'fav.count': '{n} ta tovar',
 
   'profile.guest': 'Mehmon',

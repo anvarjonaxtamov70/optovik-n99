@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -10,7 +9,8 @@ import { haptic } from '../../lib/haptics';
 import { cart, useQty } from '../../state/cart';
 import { useCatalogLive } from '../../state/catalog';
 import { showToast } from '../../state/toast';
-import { colors, gradients, radius, shadow } from '../../theme/tokens';
+import { colors, radius, shadow } from '../../theme/tokens';
+import { GlassFill } from '../ui/Glass';
 import { Icon } from '../ui/Icon';
 import { PressableScale, PressOverlay } from '../ui/PressableScale';
 import { Stepper } from '../ui/Stepper';
@@ -31,6 +31,7 @@ export function AddToCart({ product, size = 'sm' }: { product: Product; size?: '
   if (soldOut) {
     return (
       <View style={[styles.off, { height: h }]}>
+        <GlassFill tone="muted" radius={R} />
         <Txt variant="smallStrong" color={colors.faint}>{t('product.soldOut')}</Txt>
       </View>
     );
@@ -53,24 +54,27 @@ export function AddToCart({ product, size = 'sm' }: { product: Product; size?: '
       <PressableScale
         onPress={() => { setTouched(true); haptic.light(); cart.add(product); }}
         disabled={!live}
+        dimWhenDisabled={false}
         scaleTo={0.96}
         depth={1}
         accessibilityLabel={`${product.nomi}: ${t('product.add')}`}
-        style={[styles.addWrap, live && shadow.buttonSm]}
+        style={[styles.addWrap, { height: h, backgroundColor: live ? colors.primary : '#ECEFF3' }, live && shadow.buttonSm]}
       >
-        <LinearGradient colors={gradients.button} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.add, { height: h }]}>
-          <PressOverlay color={colors.ink} max={0.14} radius={radius.sm} />
-          <Icon name="cart-outline" size={size === 'md' ? 19 : 17} color={colors.white} />
-          <Txt variant="smallStrong" color={colors.white}>{t('product.add')}</Txt>
-        </LinearGradient>
+        {/* Ro'yxatdagi tugma — doim arzon shisha taqlidi (o'nlab haqiqiy shisha aylantirishni og'irlashtiradi). */}
+        <GlassFill tone={live ? 'primary' : 'muted'} radius={R} />
+        <PressOverlay color={colors.ink} max={0.14} radius={R} />
+        <Icon name="cart-outline" size={size === 'md' ? 19 : 17} color={live ? colors.white : colors.faint} />
+        <Txt variant="smallStrong" color={live ? colors.white : colors.faint}>{t('product.add')}</Txt>
       </PressableScale>
     </Animated.View>
   );
 }
 
+/** Stepper bilan bir xil burchak — «Savatga» miqdor tanlagichga aylanganda shakl sakramaydi. */
+const R = radius.sm + 2;
+
 const styles = StyleSheet.create({
   // Soya uchun fon shaffof bo'lmasin (iOS tez chizadi, Android to'g'ri shaklda chizadi).
-  addWrap: { borderRadius: radius.sm, backgroundColor: colors.primary },
-  add: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: radius.sm },
-  off: { borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  addWrap: { borderRadius: R, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  off: { borderRadius: R, alignItems: 'center', justifyContent: 'center' },
 });

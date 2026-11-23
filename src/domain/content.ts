@@ -1,4 +1,5 @@
-import type { Localized } from './taxonomy.ts';
+import { discountPercent, fitsModel, type Product } from './products.ts';
+import { categoryFor, type Localized } from './taxonomy.ts';
 
 export type BannerTheme = 'brand' | 'night' | 'sky' | 'sunrise' | 'mint';
 export const BANNER_THEMES: BannerTheme[] = ['brand', 'night', 'sky', 'sunrise', 'mint'];
@@ -62,6 +63,26 @@ export function readBanners(value: unknown): Banner[] {
     });
   }
   return out.filter((b) => b.active).sort((a, b) => a.order - b.order);
+}
+
+/**
+ * Banner bosilganda ochiladigan ro'yxatda tovar bormi. Bo'sh javonni reklama qilmaymiz: masalan, aksessuar
+ * yo'q bo'lsa «Avto aksessuarlar» banneri ko'rinmaydi (bosilsa bo'sh sahifa ochilardi).
+ * Ro'yxat bilan bog'liq bo'lmagan havolalar (aloqa, yetkazish, sayt) har doim ko'rinadi.
+ */
+export function bannerHasContent(link: string, products: Product[]): boolean {
+  if (link === 'sale') return products.some((p) => discountPercent(p) > 0);
+  if (link === 'new') return products.some((p) => p.yangi);
+  if (link === 'popular') return products.some((p) => p.ommabop);
+  const i = link.indexOf(':');
+  if (i < 0 || link.startsWith('https:')) return true;
+  const kind = link.slice(0, i);
+  const value = link.slice(i + 1);
+  if (kind === 'group') return products.some((p) => (categoryFor(p.kategoriya)?.group ?? 'parts') === value);
+  if (kind === 'cat') return products.some((p) => p.kategoriya === value);
+  if (kind === 'model') return products.some((p) => fitsModel(p, value));
+  if (kind === 'product') return products.some((p) => p.id === value);
+  return true;
 }
 
 /** Admin hali banner qo'shmagan bo'lsa ko'rsatiladigan tayyor bannerlar. */

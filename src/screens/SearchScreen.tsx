@@ -75,13 +75,18 @@ export default function SearchScreen() {
               ))}
             </View>
           ) : null}
+          {/* Ikki tartibli guruh: avval mashina, keyin bo'lim. Har chipda ikonka yo'q — ko'z "chiplar to'dasi"dan charchamaydi. */}
           <View style={styles.group}>
-            <Txt variant="h3">{t('search.popular')}</Txt>
+            <Txt variant="h3">{t('catalog.byModel')}</Txt>
             <View style={styles.chips}>
-              {CAR_MODELS.slice(0, 8).map((m) => <Chip key={m.slug} label={m.name} partIcon="car-side" onPress={() => openList({ model: m.slug, title: m.name })} />)}
+              {CAR_MODELS.slice(0, 8).map((m) => <Chip key={m.slug} label={m.name} onPress={() => openList({ model: m.slug, title: m.name })} />)}
             </View>
+          </View>
+          <View style={styles.group}>
+            <Txt variant="h3">{t('home.categories')}</Txt>
             <View style={styles.chips}>
-              {categories.slice(0, 10).map((c) => <Chip key={c.key} label={c.label} partIcon={c.icon} onPress={() => openList({ category: c.key, title: c.label })} />)}
+              {(categories.some((c) => c.count > 0) ? categories.filter((c) => c.count > 0) : categories).slice(0, 10)
+                .map((c) => <Chip key={c.key} label={c.label} partIcon={c.icon} onPress={() => openList({ category: c.key, title: c.label })} />)}
             </View>
           </View>
           <View style={styles.hint}>

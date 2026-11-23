@@ -57,7 +57,6 @@ export const ru: Dict = {
   'home.perks.original': 'Качественные детали',
   'home.perks.cash': 'Оплата наличными',
   'home.perks.delivery': 'Доставка',
-  'home.perks.pickup': 'Самовывоз',
   'home.emptyTitle': 'Каталог ещё не заполнен',
   'home.emptyText': 'Товары появятся здесь, как только их добавят.',
   'home.placeholderCatalog': 'В базе только тестовые записи. Каталог заполнится, когда магазин добавит товары.',
@@ -67,7 +66,6 @@ export const ru: Dict = {
   'search.placeholder': 'Название, артикул или модель',
   'search.recent': 'Недавние запросы',
   'search.clearRecent': 'Очистить',
-  'search.popular': 'Часто ищут',
   'search.results': '{n} результат|{n} результата|{n} результатов',
   'search.noResults': 'Ничего не найдено',
   'search.noResultsText': 'Сократите запрос или поищите по артикулу.',
@@ -111,6 +109,7 @@ export const ru: Dict = {
   'product.outOfStock': 'Временно нет в наличии',
   'product.article': 'Артикул',
   'product.brand': 'Бренд',
+  'product.unit': 'Единица',
   'product.category': 'Категория',
   'product.fits': 'Подходит для',
   'product.universal': 'Универсальный — для всех авто',
@@ -251,7 +250,7 @@ export const ru: Dict = {
 
   'fav.title': 'Избранное',
   'fav.emptyTitle': 'В избранном пусто',
-  'fav.emptyText': 'Сохраняйте понравившиеся товары значком ♥.',
+  'fav.emptyText': 'Нажмите на сердечко на фото товара — он сохранится здесь.',
   'fav.count': '{n} товар|{n} товара|{n} товаров',
 
   'profile.guest': 'Гость',
