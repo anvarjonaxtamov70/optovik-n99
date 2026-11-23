@@ -2,13 +2,15 @@ import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useT, type TKey } from '../i18n';
 import { haptic } from '../lib/haptics';
 import { useCartCount } from '../state/cart';
 import { useFavorites } from '../state/prefs';
 import { spring } from '../theme/motion';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, shadow } from '../theme/tokens';
+import { GlassFill, LIQUID_GLASS } from './ui/Glass';
 import { Icon, type IconName } from './ui/Icon';
 
 const TABS: Record<string, { label: TKey; icon: IconName; active: IconName }> = {
@@ -19,9 +21,34 @@ const TABS: Record<string, { label: TKey; icon: IconName; active: IconName }> = 
   profile: { label: 'tab.profile', icon: 'person-outline', active: 'person' },
 };
 
-const PILL_W = 58;
+/** Suzuvchi menyu kapsulasining balandligi. */
+export const TAB_BAR_HEIGHT = 62;
+const PILL_INSET = 5;
 
-/** Pastki menyu: tanlangan bo'lim ostida ko'k "kapsula" suriladi, savat soni sakrab yangilanadi. */
+/** Kapsulaning ekran pastidan masofasi (uy tugmasi chizig'i / Android tugmalari ustida). */
+function barBottom(insetBottom: number) {
+  return Math.max(insetBottom - 6, 10);
+}
+
+/**
+ * Bo'lim ekranlarining pastki bo'shlig'i: kontent suzuvchi menyu ostida qolib ketmasin.
+ * `extra` — menyu ustida yana nimadir tursa (masalan, savatdagi «Rasmiylashtirish» paneli).
+ */
+export function useTabBarSpace(extra = 0) {
+  const insets = useSafeAreaInsets();
+  return TAB_BAR_HEIGHT + barBottom(insets.bottom) + 12 + extra;
+}
+
+/** Suzuvchi panel (masalan, savat jami) menyu ustida turishi uchun pastdan masofa. */
+export function useAboveTabBar() {
+  const insets = useSafeAreaInsets();
+  return TAB_BAR_HEIGHT + barBottom(insets.bottom) + 8;
+}
+
+/**
+ * Pastki menyu — iOS 26 dagidek suzib turadigan «shisha» kapsula: ostidan ro'yxat o'tib ko'rinadi
+ * (iOS 26 da haqiqiy shisha, boshqa telefonlarda arzon taqlid). Tanlangan bo'lim ostida ko'k kapsula suriladi.
+ */
 export function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarProps) {
   const { t } = useT();
   const [width, setWidth] = useState(0);
@@ -29,13 +56,19 @@ export function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarPr
   const itemW = width / count;
   const x = useSharedValue(0);
   useEffect(() => {
-    if (itemW) x.set(withSpring(state.index * itemW + (itemW - PILL_W) / 2, spring.snappy));
+    if (itemW) x.set(withSpring(state.index * itemW + PILL_INSET, spring.snappy));
   }, [state.index, itemW, x]);
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-      <View style={styles.row} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist">
-        {width > 0 ? <Animated.View style={[styles.pill, pill]} /> : null}
+    <View pointerEvents="box-none" style={[styles.wrap, { bottom: barBottom(insets.bottom) }]}>
+      <View style={[styles.bar, !LIQUID_GLASS && styles.barFace, !LIQUID_GLASS && shadow.glass]}>
+        <GlassFill tone="light" radius={TAB_BAR_HEIGHT / 2} real />
+        <View style={styles.row} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist">
+          {width > 0 ? (
+            <Animated.View style={[styles.pill, { width: itemW - PILL_INSET * 2 }, pill]}>
+              <GlassFill tone="tint" radius={(TAB_BAR_HEIGHT - PILL_INSET * 2) / 2} />
+            </Animated.View>
+          ) : null}
         {state.routes.map((route, index) => {
           const meta = TABS[route.name];
           if (!meta) return null;
@@ -53,6 +86,7 @@ export function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarPr
               badge={route.name === 'cart' ? 'cart' : route.name === 'favorites' ? 'fav' : undefined} position={`${index + 1}/${count}`} />
           );
         })}
+        </View>
       </View>
     </View>
   );
@@ -105,20 +139,16 @@ function FavDot() {
 }
 
 const styles = StyleSheet.create({
-  bar: {
-    backgroundColor: colors.white, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: 6,
-    ...Platform.select({
-      ios: { shadowColor: colors.ink, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.06, shadowRadius: 12 },
-      web: { boxShadow: '0px -4px 12px rgba(15, 35, 56, 0.06)' },
-      default: { elevation: 8, shadowColor: 'rgba(15, 35, 56, 0.5)' },
-    }),
-  },
-  row: { flexDirection: 'row', width: '100%', maxWidth: 760, alignSelf: 'center' },
-  pill: { position: 'absolute', top: 0, left: 0, width: PILL_W, height: 32, borderRadius: 16, backgroundColor: colors.tint },
-  item: { flex: 1, alignItems: 'center', gap: 3, minHeight: 50 },
-  iconBox: { width: PILL_W, height: 32, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 11, lineHeight: 14 },
-  badge: { position: 'absolute', top: 0, right: 10, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.sale, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.white },
+  wrap: { position: 'absolute', left: 12, right: 12, alignItems: 'center' },
+  bar: { width: '100%', maxWidth: 560, height: TAB_BAR_HEIGHT, borderRadius: TAB_BAR_HEIGHT / 2 },
+  // Shisha taqlidida soya tez chizilishi uchun shaffof bo'lmagan yuz (iOS 26 shishasida yuz yo'q — orqadagi kontent ko'rinadi).
+  barFace: { backgroundColor: colors.white },
+  row: { flex: 1, flexDirection: 'row' },
+  pill: { position: 'absolute', top: PILL_INSET, bottom: PILL_INSET, left: 0, borderRadius: (TAB_BAR_HEIGHT - PILL_INSET * 2) / 2 },
+  item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  iconBox: { width: 44, height: 28, alignItems: 'center', justifyContent: 'center' },
+  label: { fontSize: 10.5, lineHeight: 13 },
+  badge: { position: 'absolute', top: -3, right: 0, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.sale, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.white },
   badgeText: { color: colors.white, fontSize: 10, fontFamily: fonts.heavy, lineHeight: 12 },
-  dot: { position: 'absolute', top: 4, right: 16, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.sale, borderWidth: 1.5, borderColor: colors.white },
+  dot: { position: 'absolute', top: 1, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.sale, borderWidth: 1.5, borderColor: colors.white },
 });

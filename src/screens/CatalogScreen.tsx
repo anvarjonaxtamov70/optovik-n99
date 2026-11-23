@@ -4,6 +4,8 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTabBarSpace } from '../components/TabBar';
+
 import { bodyIcon, CatalogNotice, SearchPill, useCategories } from '../components/shop/CatalogBits';
 import { Segmented } from '../components/ui/Controls';
 import { Icon, PartIcon } from '../components/ui/Icon';
@@ -25,6 +27,7 @@ export default function CatalogScreen() {
   // Guruh almashtirilgandagina kategoriyalar yumshoq almashadi (ekran ochilganda emas).
   const [switched, setSwitched] = useState(false);
   const categories = useCategories(products, group);
+  const tabSpace = useTabBarSpace();
   return (
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -35,7 +38,7 @@ export default function CatalogScreen() {
           { value: 'accessories', label: t('catalog.accessories'), icon: 'sparkles-outline' },
         ]} />
       </View>
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: tabSpace }]} showsVerticalScrollIndicator={false}>
         <CatalogNotice />
         <PressableScale onPress={() => openList({ group, title: group === 'parts' ? t('catalog.parts') : t('catalog.accessories') })} scaleTo={0.98} style={[styles.allRow, shadow.soft]} accessibilityLabel={t('common.all')}>
           <View style={styles.allIcon}><Icon name="apps" size={20} color={colors.white} /></View>

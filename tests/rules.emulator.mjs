@@ -20,6 +20,7 @@ function token(uid, provider = 'anonymous', email) {
 }
 const ALICE = token('alice');
 const BOB = token('bob');
+const CAROL = token('carol');
 const OWNER = token('owner', 'password', 'owner@n99.uz');
 
 async function req(path, { method = 'GET', body, auth, admin } = {}) {
@@ -103,6 +104,17 @@ test('buyurtma: to‘g‘ri buyurtma o‘tadi, 30 soniya ichida ikkinchisi rad e
   denied(await req('orders/alice/o1', { method: 'PUT', auth: ALICE, body: null }), 'mijoz o‘chira olmaydi');
 });
 
+test('buyurtma: xaritadagi nuqta (lat/lng) saqlanadi, noto‘g‘ri yoki yarim nuqta rad etiladi', async () => {
+  const kuryer = (yetkazish) => ({ items: { dvigatel: { belt: { nomi: 'GRM tasmasi', narxi: 180000, soni: 1 } } }, summa: 180000, yetkazishNarxi: 20000,
+    order: { yetkazish: { turi: 'kuryer', manzil: 'Registon ko‘chasi, 12', ...yetkazish }, soni: 1 }, index: { turi: 'kuryer', soni: 1 } });
+  denied(await place(CAROL, 'carol', 'g1', kuryer({ lat: 120, lng: 66.95 })), 'kenglik 90 dan katta');
+  denied(await place(CAROL, 'carol', 'g2', kuryer({ lat: 39.65 })), 'faqat kenglik (uzunliksiz)');
+  denied(await place(CAROL, 'carol', 'g3', kuryer({ lat: '39.65', lng: '66.95' })), 'matn ko‘rinishidagi koordinata');
+  ok(await place(CAROL, 'carol', 'g4', kuryer({ lat: 39.654321, lng: 66.959712 })), 'to‘g‘ri nuqta');
+  const saved = (await req('orders/carol/g4/yetkazish', { admin: true })).body;
+  assert.deepEqual(saved, { turi: 'kuryer', manzil: 'Registon ko‘chasi, 12', lat: 39.654321, lng: 66.959712 });
+});
+
 test('mijoz faqat "yangi" buyurtmani bekor qila oladi, boshqa narsani o‘zgartira olmaydi', async () => {
   denied(await req('orders/alice/o1/holat', { method: 'PUT', auth: ALICE, body: 'yetkazildi' }), 'yetkazildi qila olmaydi');
   denied(await req('orders/alice/o1/items/dvigatel/oil/soni', { method: 'PUT', auth: ALICE, body: 1 }), 'tarkibni o‘zgartira olmaydi');
@@ -173,6 +185,8 @@ test('admin: ro‘yxatdan narx va qoldiqni tez o‘zgartirish revision bilan', a
 
 test('profil: faqat egasi, to‘g‘ri telefon bilan', async () => {
   ok(await req('customers/alice/profile', { method: 'PUT', auth: ALICE, body: { name: 'Ali', phone: '+998901234567', address: '', landmark: '', updatedAt: 1 } }), 'profil');
+  ok(await req('customers/alice/profile', { method: 'PUT', auth: ALICE, body: { name: 'Ali', phone: '+998901234567', address: 'Registon 12', apartment: '5-xonadon', landmark: '', lat: 39.65, lng: 66.95, updatedAt: 1 } }), 'profil: xonadon va xaritadagi nuqta');
+  denied(await req('customers/alice/profile', { method: 'PUT', auth: ALICE, body: { name: 'Ali', phone: '+998901234567', lat: 91, lng: 66.95 } }), 'profil: noto‘g‘ri kenglik');
   denied(await req('customers/alice/profile', { method: 'PUT', auth: ALICE, body: { name: 'Ali', phone: '12345' } }), 'telefon');
   denied(await req('customers/alice/profile', { method: 'PUT', auth: BOB, body: { name: 'Ali', phone: '+998901234567' } }), 'begona profil');
   ok(await req('customers/alice', { auth: OWNER }), 'admin mijozni ko‘radi');

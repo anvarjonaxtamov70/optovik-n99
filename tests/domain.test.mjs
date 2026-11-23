@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { cartLines, clampToStock, emptyCart, MAX_LINES, restoreCart, setQty, summarize, toggleLine } from '../src/domain/cart.ts';
-import { DEFAULT_SETTINGS, isSafeLink, LEGACY_PUBLIC_MEDIA_FIELDS, readBanners, readMediaKey, readSettings } from '../src/domain/content.ts';
+import { cartLines, cartSuggestions, clampToStock, emptyCart, MAX_LINES, pruneMissing, restoreCart, setQty, summarize, toggleLine } from '../src/domain/cart.ts';
+import { bannerHasContent, DEFAULT_SETTINGS, isSafeLink, LEGACY_PUBLIC_MEDIA_FIELDS, readBanners, readMediaKey, readSettings } from '../src/domain/content.ts';
+import { composeAddress, distanceKm, formatKm, isValidLatLng, mapUrl, roundCoord, SAMARQAND } from '../src/domain/geo.ts';
 import { formatSom, groupDigits } from '../src/domain/money.ts';
-import { buildOrderWrite, nextStatus, orderNumber, readOrder, recomputeTotals, statusFlow, validateCheckout } from '../src/domain/order.ts';
+import { buildOrderWrite, fullAddress, nextStatus, orderNumber, readOrder, recomputeTotals, statusFlow, validateCheckout } from '../src/domain/order.ts';
 import { displayPhone, formatLocal, isValidUzPhone, localDigits, toE164 } from '../src/domain/phone.ts';
 import { addImages, applyFilters, discountPercent, isPlaceholderCatalog, MAX_IMAGES, moveImage, parseWhole, readCachedProducts, readProducts, searchScore, similarProducts, toCache } from '../src/domain/products.ts';
 import { categoryFor, categoryLabel, parseModels } from '../src/domain/taxonomy.ts';
@@ -123,6 +124,34 @@ test('savat: qoldiq kamaysa moslanadi, tugagani "tugagan" bo‘lib qoladi', () =
   assert.equal(cart.items['dvigatel/belt'], 2);
 });
 
+test('savat: tugagan tovar har yangilanishda «qoldiq yangilandi» demaydi; sotuvdan olinganlari o‘chiriladi', () => {
+  const soldOnly = { items: { 'dvigatel/belt': 2 }, off: {} };
+  assert.equal(clampToStock(soldOnly, byId).changed, false, 'tugagan qator xabar chiqarmaydi');
+  const withGone = { items: { 'dvigatel/oil': 1, 'eski/yoq': 3 }, off: { 'eski/yoq': true } };
+  const pruned = pruneMissing(withGone, byId);
+  assert.equal(pruned.removed, 1);
+  assert.deepEqual(pruned.cart, { items: { 'dvigatel/oil': 1 }, off: {} });
+  assert.equal(pruneMissing(withGone, new Map()).removed, 0, 'katalog bo‘sh bo‘lsa hech narsa o‘chirilmaydi');
+});
+
+test('savat takliflari: mos mashina va bo‘lim birinchi, savatdagi va tugagan tovar yo‘q', () => {
+  const lines = cartLines({ items: { 'dvigatel/oil': 1 }, off: {} }, byId);
+  const ids = cartSuggestions(products, lines).map((p) => p.id);
+  assert.ok(!ids.includes('dvigatel/oil'), 'savatdagi tovar taklif qilinmaydi');
+  assert.ok(!ids.includes('dvigatel/belt'), 'tugagan tovar taklif qilinmaydi');
+  assert.ok(cartSuggestions(products, []).every((p) => p.qoldiq > 0 && (p.ommabop || p.eskiNarx)), 'bog‘liq tovar bo‘lmasa — faqat ommabop va aksiyadagilar');
+});
+
+test('bannerlar: bo‘sh ro‘yxatga olib boradigan banner yashiriladi', () => {
+  assert.equal(bannerHasContent('sale', products), true);
+  assert.equal(bannerHasContent('group:accessories', products), true);
+  assert.equal(bannerHasContent('group:accessories', products.filter((p) => p.kategoriya !== 'aksessuarlar')), false);
+  assert.equal(bannerHasContent('cat:tormoz', products), false);
+  assert.equal(bannerHasContent('model:cobalt', products), true);
+  assert.equal(bannerHasContent('delivery', []), true, 'ro‘yxatga bog‘liq bo‘lmagan havola doim ko‘rinadi');
+  assert.equal(bannerHasContent('https://t.me/n99', []), true);
+});
+
 test('buyurtma: atomar yozuv tuzilmasi, holatlar ketma-ketligi, summa qayta hisobi', () => {
   const c = setQty(setQty(emptyCart, 'dvigatel/oil', 2, 12), 'aksessuarlar/holder', 1, 4);
   const lines = cartLines(c, byId);
@@ -145,6 +174,41 @@ test('buyurtma: atomar yozuv tuzilmasi, holatlar ketma-ketligi, summa qayta hiso
   assert.equal(nextStatus({ holat: 'tasdiqlandi', yetkazish: { turi: 'kuryer' } }), 'yolda');
   assert.equal(nextStatus({ holat: 'bekor', yetkazish: { turi: 'kuryer' } }), null);
   assert.equal(orderNumber(4521), 'N004521');
+});
+
+test('xarita: nuqta tekshiruvi, masofa, manzil matni va havolalar', () => {
+  assert.equal(isValidLatLng(SAMARQAND), true);
+  assert.equal(isValidLatLng({ lat: 0, lng: 0 }), false, '0,0 — GPS xatosi');
+  assert.equal(isValidLatLng({ lat: 91, lng: 10 }), false);
+  assert.equal(isValidLatLng({ lat: '39', lng: 66 }), false);
+  assert.equal(roundCoord(39.65421234), 39.654212);
+  const km = distanceKm(SAMARQAND, { lat: 39.6542, lng: 67.0597 });
+  assert.ok(km > 8.4 && km < 8.7, `~8.6 km, keldi ${km}`);
+  assert.equal(formatKm(0.84), '0,8 km');
+  assert.equal(formatKm(12.6), '13 km');
+  assert.equal(composeAddress({ street: 'Registon ko‘chasi', streetNumber: '12', city: 'Samarqand', name: 'Registon ko‘chasi' }), 'Registon ko‘chasi, 12, Samarqand');
+  assert.equal(composeAddress({ name: '7', district: 'Bog‘ishamol', city: 'Samarqand' }), '7, Bog‘ishamol, Samarqand');
+  assert.equal(composeAddress({ city: 'Samarqand', region: 'Samarqand viloyati' }), 'Samarqand');
+  assert.equal(composeAddress({}), '');
+  assert.match(mapUrl({ lat: 39.654321, lng: 66.959712 }), /pt=66\.959712,39\.654321/);
+  assert.match(mapUrl({ lat: 39.65, lng: 66.95 }, 'google'), /query=39\.65,66\.95/);
+});
+
+test('rasmiylashtirish: xonadon manzilga qo‘shiladi, xaritadagi nuqta buyurtmaga yoziladi', () => {
+  assert.equal(fullAddress({ manzil: ' Registon 12 ', xonadon: ' 5-xonadon, 2-podyezd ' }), 'Registon 12, 5-xonadon, 2-podyezd');
+  assert.equal(fullAddress({ manzil: 'Registon 12' }), 'Registon 12');
+  const c = setQty(emptyCart, 'dvigatel/oil', 1, 12);
+  const lines = cartLines(c, byId);
+  const summary = summarize(lines, { courierEnabled: true, courierFee: 20000, freeDeliveryFrom: 0 }, 'kuryer');
+  const form = { ism: 'Ali', telefon: '+998901234567', turi: 'kuryer', manzil: 'Registon 12', xonadon: '5-xonadon', moljal: '', izoh: '', lat: 39.65432109, lng: 66.95971234 };
+  const w = buildOrderWrite({ uid: 'u', orderId: 'o', raqam: 123456, lines, summary, form, lang: 'uz', platform: 'ios', ts: {} });
+  assert.deepEqual(w['orders/u/o'].yetkazish, { turi: 'kuryer', manzil: 'Registon 12, 5-xonadon', lat: 39.654321, lng: 66.959712 });
+  const noPoint = buildOrderWrite({ uid: 'u', orderId: 'o', raqam: 123456, lines, summary, form: { ...form, lat: null, lng: null }, lang: 'uz', platform: 'ios', ts: {} });
+  assert.equal('lat' in noPoint['orders/u/o'].yetkazish, false, 'nuqtasiz buyurtma ham qabul qilinadi');
+  const read = readOrder('u', 'o', { ...w['orders/u/o'], holat: 'yangi', createdAt: 1, updatedAt: 1 });
+  assert.equal(read.yetkazish.lat, 39.654321);
+  assert.equal(readOrder('u', 'o', { ...noPoint['orders/u/o'], holat: 'yangi' }).yetkazish.lat, undefined);
+  assert.equal(validateCheckout({ ...form, manzil: '', xonadon: '' }).manzil, 'required');
 });
 
 test('telefon: +998 niqobi va tekshiruv', () => {

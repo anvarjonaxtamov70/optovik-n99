@@ -37,6 +37,11 @@ export type PressableScaleProps = Omit<PressableProps, 'style' | 'children'> & {
   /** Tashqi bosilish qiymati: siqilish boshqa elementga (masalan, butun kartaga) beriladi, o'zi siqilmaydi. */
   progress?: SharedValue<number>;
   feedback?: 'tap' | 'light' | 'medium' | false;
+  /**
+   * O'chirilgan holatda yarim shaffof qilish. Shisha tugmalar o'zini o'zi kulrang qiladi: iOS 26 shishasi
+   * ota-qatlam shaffof bo'lsa chizilmaydi (Apple tavsiyasi), shuning uchun ularda `false`.
+   */
+  dimWhenDisabled?: boolean;
 };
 
 /**
@@ -45,7 +50,7 @@ export type PressableScaleProps = Omit<PressableProps, 'style' | 'children'> & {
  */
 export function PressableScale({
   scaleTo = 0.97, depth = 0, progress, style, onPressIn, onPressOut, onPress, onHoverIn, onHoverOut,
-  feedback = false, disabled, children, unstable_pressDelay = press.delay, ...rest
+  feedback = false, disabled, children, unstable_pressDelay = press.delay, dimWhenDisabled = true, ...rest
 }: PressableScaleProps) {
   const own = useSharedValue(0);
   const hovered = useSharedValue(0);
@@ -63,7 +68,7 @@ export function PressableScale({
       onHoverIn={(e) => { hovered.set(withTiming(1, press.hover)); onHoverIn?.(e); }}
       onHoverOut={(e) => { hovered.set(withTiming(0, press.hover)); onHoverOut?.(e); }}
       onPress={(e) => { if (feedback) haptic[feedback](); onPress?.(e); }}
-      style={[style, animated, disabled ? styles.disabled : null]}
+      style={[style, animated, disabled && dimWhenDisabled ? styles.disabled : null]}
     >
       <PressContext.Provider value={state}>{children}</PressContext.Provider>
     </AnimatedPressable>

@@ -24,10 +24,10 @@ Asosiy ko‘k Avto A1 Sky Glass `#2F8FD8` dan **20% to‘qroq**: `#2173B1`. Matn
 | `primary` | `#2173B1` | tugmalar, faol belgilar, logotip |
 | `primaryDark` | `#185A8E` | gradient oxiri, bosilgan holat |
 | `sky` | `#8ED1FF` | gupchaklar, ko‘k fondagi urg‘u |
-| `tint` | `#EAF3FB` | yumshoq fon: chip, ikonka qutisi, miqdor tanlagich |
-| `bg` | `#F3F7FB` | ekran foni |
-| `ink` / `muted` | `#0F2338` / `#5D7186` | asosiy va ikkinchi darajali matn |
-| `sale` | `#E5383B` | aksiya narxi va «−N%» |
+| `tint` | `#EAF2FA` | yumshoq fon: chip, ikonka qutisi, miqdor tanlagich |
+| `bg` | `#F2F4F7` | ekran foni — neytral kulrang (ko‘k faqat amallar va tanlangan holatda) |
+| `ink` / `muted` | `#0F2338` / `#5A6B7D` | asosiy va ikkinchi darajali matn; narx ham `ink` |
+| `sale` | `#E5383B` | faqat chegirma belgisi (yumshoq fon ustida) va xato |
 | `success` / `warning` | `#17945A` / `#D9822B` | mavjud, tejov / kam qoldi |
 
 Barcha qiymatlar: `src/theme/tokens.ts`. Ekranlarda rang kodi yozilmaydi — faqat tokenlar.
@@ -60,6 +60,19 @@ Barcha qiymatlar: `src/theme/tokens.ts`. Ekranlarda rang kodi yozilmaydi — faq
 | Muvaffaqiyat | yashil doira va belgi chiziladi, bir marta konfetti |
 | Buyurtma holati | chiziq bir marta bo‘yaladi, joriy bosqich tinch halqa bilan belgilanadi |
 | Yuklanish / bo‘sh holat | skeletlar tinch kulrang bloklar; bo‘sh holat bir marta yumshoq paydo bo‘ladi |
+
+### Shisha (iOS 26 uslubi)
+
+- Tugmalar, chiplar, miqdor tanlagich, pastki menyu va suzuvchi panellar `GlassFill` qatlami bilan (`src/components/ui/Glass.tsx`, ranglar `tokens.ts` → `glass`).
+- **Haqiqiy shisha** (`expo-glass-effect`, iOS 26+) faqat kontent ustida suzib turadigan joylarda: pastki menyu, narx paneli, rasm ustidagi tugmalar, oddiy `Button`. Ro‘yxatda takrorlanadigan tugmalarda (kartadagi «Savatga», yurakcha, miqdor) — doim arzon taqlid (`lite`).
+- **Taqlid**: gradient + yuqori cheti yorug‘, pastki cheti biroz to‘q hoshiya; xiralashtirish (blur) yo‘q — Android va eski iPhone’da qo‘shimcha yuk yo‘q.
+- Shisha ostidagi ota-qatlam shaffof qilinmaydi (Apple tavsiyasi): o‘chirilgan tugma kulrang tus bilan ko‘rsatiladi.
+
+### Klaviatura
+
+- Matn maydoni bor sahifa `FormScroll` ichida: `KeyboardAvoidingView` ikkala platformada `padding`, yozilayotgan maydon klaviatura va «Yopish» tugmasi ustiga suriladi.
+- Klaviatura ustidagi «Yopish» tugmasi ilova ildizida (`KeyboardDismiss`), hamma sahifada ishlaydi.
+- Pastdan chiqadigan oyna (`Sheet`) `Modal` emas — ildizdagi qatlam (`Portal`), aks holda Android’da klaviatura hisoblanmaydi.
 
 ### Harakat va soya qoidalari
 

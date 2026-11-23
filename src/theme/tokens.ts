@@ -11,20 +11,21 @@ export const colors = {
   primaryBright: '#3B8FD6',
   sky: '#8ED1FF',
   skyStrong: '#5DB2F0',
-  tint: '#EAF3FB',
-  tintStrong: '#D5E7F7',
+  tint: '#EAF2FA',
+  tintStrong: '#D3E4F5',
 
-  bg: '#F3F7FB',
+  // Fon neytral kulrang: ko'k rang faqat tugma, tanlangan holat va havolalarda — ko'z "ko'k tuman"dan charchamaydi.
+  bg: '#F2F4F7',
   surface: '#FFFFFF',
-  surfaceAlt: '#F6F9FC',
-  photo: '#EEF4FA',
+  surfaceAlt: '#F4F6F9',
+  photo: '#F3F5F8',
 
   ink: '#0F2338',
   text: '#1C3148',
-  muted: '#5D7186',
-  faint: '#93A4B5',
-  line: '#E2EAF2',
-  lineStrong: '#CCD9E6',
+  muted: '#5A6B7D',
+  faint: '#8A97A6',
+  line: '#E3E8EE',
+  lineStrong: '#CCD5DF',
 
   sale: '#E5383B',
   saleBright: '#EF5350',
@@ -55,18 +56,38 @@ export const colors = {
   onBrandGlass: 'rgba(255, 255, 255, 0.14)',
 } as const;
 
-/** Rasmi yo'q tovar uchun yumshoq fon ohanglari. */
+/** Rasmi yo'q tovar uchun neytral, sokin fon ohanglari (avvalgi ko'k fonlar kartani "shablon"ga o'xshatardi). */
 export const artTones: readonly (readonly [string, string])[] = [
-  ['#EEF6FD', '#DCEBF8'], ['#F1F5FB', '#E1E9F4'], ['#EDF7F7', '#D9EDF0'], ['#F3F2FB', '#E3E2F4'],
+  ['#F5F7FA', '#EBEFF4'], ['#F6F7F9', '#ECEFF3'], ['#F4F7F9', '#E9EEF2'], ['#F6F6F9', '#ECEDF3'],
 ];
 
 export const gradients = {
   brand: ['#3B8FD6', '#2173B1', '#164F84'] as const,
-  button: ['#2B80C4', '#1D68A6'] as const,
+  button: ['#3A8DD0', '#1D68A6'] as const,
   sky: ['#EAF5FF', '#D3E9FB'] as const,
   night: ['#16507F', '#0E355A'] as const,
-  sunrise: ['#FF8A5B', '#E5383B'] as const,
+  /** Aksiya bannerlari: yumshoq iliq tus (avvalgi to'q qizil-to'q sariq ko'zni charchatardi). */
+  sunrise: ['#FFF1EA', '#FFD9CB'] as const,
   mint: ['#E8F8F0', '#CDEFDD'] as const,
+};
+
+/**
+ * «Shisha» (iOS 26 Liquid Glass uslubi). iOS 26 da haqiqiy shisha (`expo-glass-effect`) ishlatiladi,
+ * boshqa joyda — arzon taqlid: ozgina shaffof gradient + yuqori cheti yorug', pastki cheti biroz to'q hoshiya.
+ * Taqlidda xiralashtirish (blur) yo'q — arzon Android telefonda ham hech narsani sekinlashtirmaydi.
+ */
+export type GlassTone = 'light' | 'clear' | 'tint' | 'primary' | 'danger' | 'dangerSoft' | 'onDark' | 'muted';
+export const glass: Record<GlassTone, {
+  colors: readonly [string, string]; rimTop: string; rim: string; rimBottom: string; sheen?: boolean; tint?: string; text: string;
+}> = {
+  light: { colors: ['#FFFFFF', '#F6F8FB'], rimTop: 'rgba(255,255,255,1)', rim: 'rgba(15,35,56,0.08)', rimBottom: 'rgba(15,35,56,0.13)', text: '#0F2338' },
+  clear: { colors: ['rgba(255,255,255,0.86)', 'rgba(255,255,255,0.7)'], rimTop: 'rgba(255,255,255,0.95)', rim: 'rgba(255,255,255,0.6)', rimBottom: 'rgba(15,35,56,0.12)', text: '#0F2338' },
+  tint: { colors: ['#F2F8FD', '#E2EDF8'], rimTop: 'rgba(255,255,255,0.95)', rim: 'rgba(33,115,177,0.1)', rimBottom: 'rgba(33,115,177,0.18)', tint: 'rgba(33,115,177,0.14)', text: '#2173B1' },
+  primary: { colors: ['#3A8DD0', '#1D68A6'], rimTop: 'rgba(255,255,255,0.45)', rim: 'rgba(255,255,255,0.14)', rimBottom: 'rgba(6,36,64,0.28)', sheen: true, tint: '#2173B1', text: '#FFFFFF' },
+  danger: { colors: ['#F25D5F', '#D3353A'], rimTop: 'rgba(255,255,255,0.45)', rim: 'rgba(255,255,255,0.14)', rimBottom: 'rgba(80,10,14,0.26)', sheen: true, tint: '#E5383B', text: '#FFFFFF' },
+  dangerSoft: { colors: ['#FFF5F5', '#FDE7E7'], rimTop: 'rgba(255,255,255,1)', rim: 'rgba(229,56,59,0.1)', rimBottom: 'rgba(229,56,59,0.18)', text: '#E5383B' },
+  onDark: { colors: ['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.1)'], rimTop: 'rgba(255,255,255,0.5)', rim: 'rgba(255,255,255,0.2)', rimBottom: 'rgba(255,255,255,0.08)', text: '#FFFFFF' },
+  muted: { colors: ['#F1F3F6', '#E8ECF1'], rimTop: 'rgba(255,255,255,1)', rim: 'rgba(15,35,56,0.05)', rimBottom: 'rgba(15,35,56,0.08)', text: '#8A97A6' },
 };
 
 export const radius = { xs: 8, sm: 10, md: 14, lg: 18, xl: 24, pill: 999 } as const;
@@ -127,6 +148,12 @@ export const shadow = StyleSheet.create({
     ios: { shadowColor: '#C62F32', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 8 },
     web: { boxShadow: '0px 4px 10px rgba(229, 56, 59, 0.24)' },
     default: { elevation: 3, shadowColor: 'rgba(229, 56, 59, 0.7)' },
+  }) as object,
+  /** Kontent ustida suzib turadigan shisha panel (pastki menyu, savat jami). */
+  glass: Platform.select({
+    ios: { shadowColor: '#0F2338', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 20 },
+    web: { boxShadow: '0px 8px 24px rgba(15, 35, 56, 0.12), 0px 1px 3px rgba(15, 35, 56, 0.06)' },
+    default: { elevation: 8, shadowColor: 'rgba(15, 35, 56, 0.45)' },
   }) as object,
 });
 

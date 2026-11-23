@@ -8,12 +8,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { IntroSplash } from '../components/brand/IntroSplash';
+import { KeyboardDismiss } from '../components/ui/KeyboardDismiss';
+import { PortalHost } from '../components/ui/Portal';
 import { ToastHost } from '../components/ui/ToastHost';
 import { isWebAllowedPath } from '../domain/webAccess';
 import { IS_WEB, WEB_ADMIN_ONLY } from '../lib/platform';
 import { startAccount } from '../state/account';
 import { hydrateCart } from '../state/cart';
 import { startCatalog } from '../state/catalog';
+import { startKeyboard } from '../state/keyboard';
 import { hydratePrefs } from '../state/prefs';
 import { colors } from '../theme/tokens';
 
@@ -34,6 +37,7 @@ export default function RootLayout() {
     void Promise.allSettled([hydratePrefs(), hydrateCart()]).then(() => setBooted(true));
     void startCatalog();
     void startAccount();
+    startKeyboard();
   }, []);
 
   const ready = (fontsLoaded || !!fontError) && booted;
@@ -54,10 +58,15 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
         <Stack.Screen name="checkout" />
+        {/* Xarita surilganda ekran chetidan "orqaga" imosi bilan adashmasin. */}
+        <Stack.Screen name="address" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="order-success" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="admin" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
+      {/* Pastdan chiqadigan oynalar, xabarlar va klaviatura ustidagi «Yopish» tugmasi — hammasidan ustda. */}
+      <PortalHost />
       <ToastHost />
+      <KeyboardDismiss />
       {blocked ? <View style={styles.cover} /> : null}
       {intro ? <IntroSplash onDone={endIntro} /> : null}
     </View>

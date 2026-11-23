@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { colors, radius } from '../../theme/tokens';
+import { GlassFill } from './Glass';
 import { Icon } from './Icon';
 import { PressableScale, PressOverlay } from './PressableScale';
 import { Txt } from './Txt';
@@ -21,7 +22,8 @@ export function Stepper({ value, onInc, onDec, max, size = 'md', tone = 'tint', 
   const inc = () => { setTouched(true); onInc(); };
   const dec = () => { setTouched(true); onDec(); };
   return (
-    <View style={[styles.wrap, { height: h, borderRadius: size === 'lg' ? radius.md : radius.sm, backgroundColor: tone === 'primary' ? colors.primary : colors.tint }]}>
+    <View style={[styles.wrap, { height: h, borderRadius: size === 'lg' ? radius.md : radius.sm + 2, backgroundColor: tone === 'primary' ? colors.primary : colors.tint }]}>
+      <GlassFill tone={tone === 'primary' ? 'primary' : 'tint'} radius={size === 'lg' ? radius.md : radius.sm + 2} lite={size === 'sm'} />
       <PressableScale onPress={dec} disabled={!trashAtOne && value <= 1} feedback="tap" scaleTo={0.9} accessibilityLabel={labelDec} hitSlop={4} style={[styles.btn, { width: h }]}>
         <PressOverlay color={colors.ink} max={0.1} />
         <Icon name={trashAtOne && value <= 1 ? 'trash-outline' : 'remove'} size={size === 'sm' ? 17 : 20} color={fg} />

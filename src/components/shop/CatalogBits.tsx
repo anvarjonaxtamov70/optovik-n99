@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -9,7 +8,8 @@ import { CAR_MODELS, CATEGORIES, categoryFor, categoryIcon, categoryLabel, type 
 import { useT } from '../../i18n';
 import { openList } from '../../lib/nav';
 import { retryCatalog, useCatalogStatus, usePlaceholderCatalog } from '../../state/catalog';
-import { colors, gradients, radius, shadow } from '../../theme/tokens';
+import { colors, radius, shadow } from '../../theme/tokens';
+import { GlassFill } from '../ui/Glass';
 import { Icon, PartIcon, type IconName } from '../ui/Icon';
 import { PressableScale } from '../ui/PressableScale';
 import { Txt } from '../ui/Txt';
@@ -42,9 +42,8 @@ export function CategoryGrid({ items, columns = 4 }: { items: CategoryEntry[]; c
         <View key={c.key} style={{ width: `${100 / columns}%` }}>
           <PressableScale onPress={() => openList({ category: c.key, title: c.label })} feedback="tap" scaleTo={0.94} accessibilityLabel={c.label} style={styles.cat}>
             <View style={[styles.catIconWrap, shadow.xs]}>
-              <LinearGradient colors={gradients.sky} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.catIcon}>
-                <PartIcon name={c.icon} size={28} color={colors.primary} />
-              </LinearGradient>
+              <GlassFill tone="light" radius={20} />
+              <PartIcon name={c.icon} size={28} color={colors.primary} />
             </View>
             <Txt variant="tiny" color={colors.ink} center numberOfLines={2} style={styles.catLabel}>{c.label}</Txt>
           </PressableScale>
@@ -66,7 +65,8 @@ export function ModelRail({ selected, onSelect }: { selected?: string | null; on
         return (
           <PressableScale key={m.slug} feedback="tap" scaleTo={0.95} accessibilityLabel={m.name} accessibilityState={{ selected: on }}
             onPress={() => (onSelect ? onSelect(m) : openList({ model: m.slug, title: m.name }))}
-            style={[styles.model, on ? styles.modelOn : null, shadow.soft]}>
+            style={[styles.model, on ? styles.modelOn : null, on ? shadow.buttonSm : shadow.soft]}>
+            <GlassFill tone={on ? 'primary' : 'light'} radius={radius.lg} />
             <PartIcon name={bodyIcon(m)} size={30} color={on ? colors.white : colors.primary} />
             <Txt variant="smallStrong" color={on ? colors.white : colors.ink} numberOfLines={1}>{m.name}</Txt>
           </PressableScale>
@@ -78,7 +78,8 @@ export function ModelRail({ selected, onSelect }: { selected?: string | null; on
 
 export function SearchPill({ placeholder, onPress }: { placeholder: string; onPress?: () => void }) {
   return (
-    <PressableScale onPress={onPress ?? (() => router.push('/search'))} scaleTo={0.985} accessibilityRole="search" accessibilityLabel={placeholder} style={styles.search}>
+    <PressableScale onPress={onPress ?? (() => router.push('/search'))} scaleTo={0.985} accessibilityRole="search" accessibilityLabel={placeholder} style={[styles.search, shadow.xs]}>
+      <GlassFill tone="light" radius={radius.md} />
       <Icon name="search" size={20} color={colors.primary} />
       <Txt variant="body" color={colors.faint} numberOfLines={1} style={styles.flex}>{placeholder}</Txt>
       <View style={styles.searchCode}><Icon name="barcode-outline" size={18} color={colors.muted} /></View>
@@ -114,14 +115,13 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, rowGap: 6 },
   cat: { alignItems: 'center', gap: 6, paddingHorizontal: 4, paddingVertical: 4 },
-  // Soya uchun shaffof bo'lmagan qobiq (gradient ichida).
-  catIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: colors.tint },
-  catIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  // Soya uchun shaffof bo'lmagan oq qobiq, ustida shisha qatlami.
+  catIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   catLabel: { lineHeight: 14, minHeight: 28 },
   models: { paddingHorizontal: 16, gap: 10, paddingVertical: 4 },
   model: { width: 92, height: 82, borderRadius: radius.lg, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', gap: 4 },
   modelOn: { backgroundColor: colors.primary },
-  search: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 48, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, paddingLeft: 14, paddingRight: 6, borderWidth: 1, borderColor: colors.line },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 48, borderRadius: radius.md, backgroundColor: colors.white, paddingLeft: 14, paddingRight: 6 },
   searchCode: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   notice: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, padding: 12, borderRadius: radius.md, backgroundColor: colors.tint },
   noticeWarn: { backgroundColor: colors.warningSoft },

@@ -41,13 +41,13 @@ export const ProductCard = memo(function ProductCard({ product: p, width }: { pr
         <View style={styles.photoClip}>
           <ProductImage uri={p.rasmlar[0]} kategoriya={p.kategoriya} seed={p.id} style={styles.photo} size={width} />
           <View style={styles.badges}>
-            {percent > 0 ? <Pill text={`−${percent}%`} tone="sale" /> : p.yangi ? <Pill text={t('product.newBadge')} tone="dark" /> : null}
+            {percent > 0 ? <Pill text={`−${percent}%`} tone="saleSoft" /> : p.yangi ? <Pill text={t('product.newBadge')} tone="tint" /> : null}
           </View>
           {soldOut ? <View style={styles.soldOut}><Txt variant="tiny" color={colors.white}>{t('product.soldOut')}</Txt></View> : null}
         </View>
         <View style={styles.info}>
           <View style={styles.priceRow}>
-            <Txt variant="price" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} color={percent ? colors.sale : colors.ink}>{money(p.narxi)}</Txt>
+            <Txt variant="price" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{money(p.narxi)}</Txt>
           </View>
           {p.eskiNarx ? <Txt variant="tiny" color={colors.faint} style={styles.old} numberOfLines={1}>{money(p.eskiNarx)}</Txt> : <View style={styles.oldSpacer} />}
           <Txt variant="small" color={colors.ink} numberOfLines={2} style={styles.name}>{p.nomi}</Txt>

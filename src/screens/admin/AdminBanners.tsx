@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAdminShell } from '../../components/admin/AdminShell';
@@ -105,7 +105,7 @@ function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
           onPress={() => void confirmAsync(t('common.delete'), '', { ok: t('common.delete'), cancel: t('common.cancel'), destructive: true }).then((ok) => {
             if (ok) void deleteBanner(id).then(() => goBack('/admin/banners')).catch(() => showToast(t('common.error'), { kind: 'error' }));
           })} /> : undefined} />
-      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.root} behavior="padding">
         <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 110 }]} keyboardShouldPersistTaps="handled">
           <Txt variant="label">{t('admin.banner.preview')}</Txt>
           <View style={styles.preview}><BannerCarousel banners={[{ ...d, id: 'preview', title: { uz: d.title.uz || '…', ru: d.title.ru || d.title.uz || '…' } }]} /></View>

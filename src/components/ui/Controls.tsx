@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, ZoomIn } from '
 
 import { spring } from '../../theme/motion';
 import { colors, radius, shadow } from '../../theme/tokens';
+import { GlassFill } from './Glass';
 import { Icon, PartIcon, type IconName } from './Icon';
 import { PressableScale, PressOverlay } from './PressableScale';
 import { Txt } from './Txt';
@@ -31,12 +32,14 @@ const CHIP_SLOP = { top: 4, bottom: 4 };
 /** Qator orqasidagi bosilish tusi karta chetiga biroz chiqadi va ajratuvchi chiziqqa tegmaydi. */
 const ROW_HIGHLIGHT = { left: -8, right: -8, top: 3, bottom: 3 };
 
+/** Chip — kichik «shisha» kapsula: tanlanganda ko'k shishaga aylanadi. */
 export function Chip({ label, selected, onPress, icon, partIcon, count }: {
   label: string; selected?: boolean; onPress?: () => void; icon?: IconName; partIcon?: string; count?: number;
 }) {
   return (
     <PressableScale onPress={onPress} feedback="tap" scaleTo={0.95} hitSlop={CHIP_SLOP} accessibilityState={{ selected: !!selected }} accessibilityLabel={label}
       style={[styles.chip, selected ? [styles.chipOn, shadow.buttonSm] : [styles.chipOff, shadow.xs]]}>
+      <GlassFill tone={selected ? 'primary' : 'light'} radius={radius.pill} />
       <PressOverlay color={selected ? colors.ink : colors.primary} max={selected ? 0.12 : 0.08} radius={radius.pill} />
       {icon ? <Icon name={icon} size={16} color={selected ? colors.white : colors.primary} /> : null}
       {partIcon ? <PartIcon name={partIcon} size={17} color={selected ? colors.white : colors.primary} /> : null}
@@ -75,7 +78,11 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
   const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   return (
     <View style={styles.seg} onLayout={(e) => setW(e.nativeEvent.layout.width - 8)} accessibilityRole="tablist">
-      {w > 0 ? <Animated.View style={[styles.segThumb, shadow.soft, { width: segW }, thumb]} /> : null}
+      {w > 0 ? (
+        <Animated.View style={[styles.segThumb, shadow.soft, { width: segW }, thumb]}>
+          <GlassFill tone="light" radius={radius.sm} />
+        </Animated.View>
+      ) : null}
       {options.map((o) => (
         <PressableScale key={o.value} onPress={() => onChange(o.value)} feedback="tap" scaleTo={0.96} accessibilityRole="tab" accessibilityState={{ selected: o.value === value }}
           accessibilityLabel={o.label} style={styles.segItem}>
@@ -122,9 +129,9 @@ export function SwitchRow({ title, subtitle, value, onChange }: { title: string;
   );
 }
 
-export function Pill({ text, tone = 'tint', style }: { text: string; tone?: 'tint' | 'sale' | 'success' | 'warning' | 'dark' | 'muted'; style?: StyleProp<ViewStyle> }) {
+export function Pill({ text, tone = 'tint', style }: { text: string; tone?: 'tint' | 'sale' | 'saleSoft' | 'success' | 'warning' | 'dark' | 'muted'; style?: StyleProp<ViewStyle> }) {
   const map = {
-    tint: [colors.tint, colors.primary], sale: [colors.sale, colors.white], success: [colors.successSoft, colors.success],
+    tint: [colors.tint, colors.primary], sale: [colors.sale, colors.white], saleSoft: [colors.saleSoft, colors.sale], success: [colors.successSoft, colors.success],
     warning: [colors.warningSoft, colors.warning], dark: [colors.ink, colors.white], muted: [colors.surfaceAlt, colors.muted],
   } as const;
   const [bg, fg] = map[tone];
@@ -139,14 +146,14 @@ const styles = StyleSheet.create({
   sectionAction: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingVertical: 6 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 38, borderRadius: radius.pill },
   chipOn: { backgroundColor: colors.primary },
-  chipOff: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  chipOff: { backgroundColor: colors.white },
   check: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   checkOn: { backgroundColor: colors.primary },
   checkOff: { backgroundColor: colors.white, borderWidth: 2, borderColor: colors.lineStrong },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.lineStrong, alignItems: 'center', justifyContent: 'center' },
   radioOn: { borderColor: colors.primary },
   radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: colors.primary },
-  seg: { flexDirection: 'row', backgroundColor: colors.tint, borderRadius: radius.md, padding: 4 },
+  seg: { flexDirection: 'row', backgroundColor: '#ECF0F4', borderRadius: radius.md, padding: 4 },
   segThumb: { position: 'absolute', top: 4, bottom: 4, left: 4, borderRadius: radius.sm, backgroundColor: colors.white },
   segItem: { flex: 1, flexDirection: 'row', gap: 6, minHeight: 42, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, minHeight: 56 },

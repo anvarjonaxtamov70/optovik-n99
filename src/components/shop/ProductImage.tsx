@@ -14,10 +14,10 @@ function hash(s: string) {
 }
 
 /**
- * Rasmi yo'q tovar uchun chiroyli o'rinbosar: kategoriya ikonkasi, yumshoq fon va g'ildirak naqshi.
+ * Rasmi yo'q tovar uchun sokin o'rinbosar: kulrang kategoriya belgisi va neytral fon.
  * O'lcham (`size`) oldindan berilsa, ikonka birinchi kadrdayoq chiziladi — o'lchab, qayta chizib "pop" qilmaydi.
  */
-export const ProductArt = memo(function ProductArt({ kategoriya, seed, iconScale = 0.36, size: fixed }: { kategoriya: string; seed: string; iconScale?: number; size?: number }) {
+export const ProductArt = memo(function ProductArt({ kategoriya, seed, iconScale = 0.3, size: fixed }: { kategoriya: string; seed: string; iconScale?: number; size?: number }) {
   const [measured, setMeasured] = useState(0);
   const size = fixed ?? measured;
   const tone = artTones[hash(seed) % artTones.length];
@@ -27,7 +27,7 @@ export const ProductArt = memo(function ProductArt({ kategoriya, seed, iconScale
       <View style={[styles.ring, { width: size * 0.9, height: size * 0.9, borderRadius: size, right: -size * 0.3, top: -size * 0.28 }]} />
       <View style={[styles.ring, styles.ring2, { width: size * 0.5, height: size * 0.5, borderRadius: size, left: -size * 0.16, bottom: -size * 0.12 }]} />
       <View style={styles.center}>
-        {size > 0 ? <PartIcon name={categoryIcon(kategoriya)} size={size * iconScale} color={colors.primary} /> : null}
+        {size > 0 ? <PartIcon name={categoryIcon(kategoriya)} size={size * iconScale} color={ART_ICON} /> : null}
       </View>
     </LinearGradient>
   );
@@ -51,9 +51,12 @@ export const ProductImage = memo(function ProductImage({ uri, kategoriya, seed, 
   );
 });
 
+/** Rasmsiz tovar belgisi — sokin kulrang (katta ko'k ikonka kartani arzon "shablon"ga o'xshatardi). */
+const ART_ICON = '#A9B4C0';
+
 const styles = StyleSheet.create({
   box: { backgroundColor: colors.white, overflow: 'hidden' },
-  ring: { position: 'absolute', borderWidth: 14, borderColor: 'rgba(33,115,177,0.06)' },
-  ring2: { borderWidth: 10, borderColor: 'rgba(33,115,177,0.05)' },
+  ring: { position: 'absolute', borderWidth: 14, borderColor: 'rgba(15,35,56,0.03)' },
+  ring2: { borderWidth: 10, borderColor: 'rgba(15,35,56,0.025)' },
   center: { ...fill, alignItems: 'center', justifyContent: 'center' },
 });

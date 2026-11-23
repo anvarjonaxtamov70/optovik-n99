@@ -27,7 +27,7 @@ Ilova **Firebase** (ma’lumotlar) va **GitHub** (sozlash va yangilash) bilan is
 ## 3. «Firebase sozlash» amali (2 daqiqa)
 
 GitHub → **Actions → Firebase sozlash → Run workflow**:
-- `seed`: **auto** (katalog bo‘sh bo‘lsa 36 ta namuna GM tovari yuklanadi).
+- `seed`: **auto** (katalog bo‘sh bo‘lsa 5 ta old fara — Cobalt, Gentra, Lacetti, Nexia 2, Damas — rasmlari bilan yuklanadi). Eski sinov tovarlarini shu 5 ta bilan **almashtirish** uchun — **force** (eskilari bazada `backup_tovarlar_namuna` ga saqlanadi).
 - `admin_email`: 1-qadamda yaratgan emailingiz.
 
 **Run workflow** bosing. 1 daqiqadan keyin natija sahifasida ✅ belgilar chiqadi: qoidalar joylandi, kirish usullari yoqildi, namuna katalog yuklandi, siz admin bo‘ldingiz.
@@ -82,7 +82,7 @@ Kalit kiritilmagan bo‘lsa ham tovarga rasm **havolasini** (`https://…`) qo�
 ## Keyingi qadamlar
 
 1. **Haqiqiy tovarlar va rasmlar.** Bu eng muhimi: chiroyli rasm sotuvni oshiradi. Rasmi yo‘q tovarda kategoriya belgisi ko‘rinadi.
-2. **Payme, Click, Uzum Bank.** MCHJ bilan har biriga merchant shartnoma tuziladi (payme.uz/business, click.uz → «Biznesga»). Ular `merchant_id` va maxfiy kalit beradi. Onlayn to‘lov uchun kichik server kerak — Avto A1 Optom’dagi kabi bepul **Cloudflare Worker**: to‘lov tizimi pul tushganini shu serverga xabar qiladi, server buyurtmani «to‘landi» qiladi. Kalitlarni olgach menga yozing — shu ilovaga ulab beraman. Ilovada to‘lov joyi tayyor («Tez orada»).
+2. **Payme, Click, Uzum Bank.** MCHJ bilan har biriga merchant shartnoma tuziladi (payme.uz/business, click.uz → «Biznesga»). Ular `merchant_id` va maxfiy kalit beradi. Onlayn to‘lov uchun kichik server kerak — Avto A1 Optom’dagi kabi bepul **Cloudflare Worker**: to‘lov tizimi pul tushganini shu serverga xabar qiladi, server buyurtmani «to‘landi» qiladi. Kalitlarni olgach menga yozing — shu ilovaga ulab beraman. Ilovada Payme va Click hozir «Tez kunda» bo‘lib turibdi (tanlab bo‘lmaydi). App Store’ga yuborishdan oldin to‘lov ulanmagan bo‘lsa, bu qatorlar yashiriladi (`src/domain/order.ts` → `SHOW_SOON_PAYMENTS`): Apple tugallanmagan funksiyani rad etishi mumkin.
 3. **SMS orqali kirish** (Eskiz.uz, MCHJ bilan shartnoma). Hozir mijoz hisobi telefonga bog‘langan (anonim). SMS qo‘shilsa, ilovani qayta o‘rnatgan mijoz ham buyurtmalar tarixini ko‘radi.
 4. **Push-xabarlar.** Sizga — yangi buyurtma, mijozga — holat o‘zgarganda. Bu ham Worker orqali qilinadi.
 5. **Play Market va App Store.**

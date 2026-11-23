@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAdminShell } from '../../components/admin/AdminShell';
@@ -107,7 +107,7 @@ function Form({ initial, initialKey, secure }: { initial: ShopSettings; initialK
   return (
     <View style={styles.root}>
       <Header title={t('admin.settings')} back={!sidebar} />
-      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.root} behavior="padding">
         <ScrollView contentContainerStyle={[styles.body, wide && styles.bodyWide, { paddingBottom: insets.bottom + 110 }]} keyboardShouldPersistTaps="handled">
           {wide ? <View style={styles.columns}>{shop}{rest}</View> : <>{shop}{rest}</>}
         </ScrollView>

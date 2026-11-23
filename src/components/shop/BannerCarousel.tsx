@@ -19,7 +19,8 @@ const THEMES: Record<BannerTheme, { colors: readonly [string, string, ...string[
   brand: { colors: gradients.brand, dark: true },
   night: { colors: gradients.night, dark: true },
   sky: { colors: gradients.sky, dark: false },
-  sunrise: { colors: gradients.sunrise, dark: true },
+  // Aksiya: yumshoq iliq fon, to'q matn (avvalgi to'q qizil fon ko'zni charchatardi).
+  sunrise: { colors: gradients.sunrise, dark: false },
   mint: { colors: gradients.mint, dark: false },
 };
 
@@ -118,7 +119,7 @@ function BannerCard({ banner: b, i, x, interval, width, height }: {
       <View style={[styles.circle, { width: height * 1.3, height: height * 1.3, right: -height * 0.45, top: -height * 0.5, borderColor: theme.dark ? 'rgba(255,255,255,0.10)' : 'rgba(33,115,177,0.08)' }]} />
       <View style={[styles.circle, { width: height * 0.7, height: height * 0.7, right: width * 0.32, bottom: -height * 0.42, borderColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(33,115,177,0.07)' }]} />
       <Animated.View style={[styles.art, art]} pointerEvents="none">
-        <BannerArt banner={b} height={height} dark={theme.dark} />
+        <BannerArt banner={b} height={height} width={width} dark={theme.dark} warm={b.theme === 'sunrise'} />
       </Animated.View>
       <View style={styles.copy}>
         <Txt style={[styles.title, { color: fg, fontSize: height > 190 ? 24 : 20, lineHeight: height > 190 ? 29 : 25 }]} numberOfLines={3}>{b.title[lang]}</Txt>
@@ -133,12 +134,14 @@ function BannerCard({ banner: b, i, x, interval, width, height }: {
 }
 
 /** Banner rasmi: tinch turadi (avvalgi tinimsiz tebranayotgan "%" olib tashlandi), faqat surilganda biroz siljiydi. */
-function BannerArt({ banner: b, height, dark }: { banner: Banner; height: number; dark: boolean }) {
-  if (b.image) return <Image source={{ uri: b.image }} style={{ width: height * 1.05, height: height * 0.9 }} contentFit="contain" />;
+function BannerArt({ banner: b, height, width, dark, warm }: { banner: Banner; height: number; width: number; dark: boolean; warm: boolean }) {
+  // Rasm kartaning o'ng yarmidan chiqmaydi — chapdagi matn ustiga tushmaydi.
+  const maxW = width * 0.46;
+  if (b.image) return <Image source={{ uri: b.image }} style={{ width: Math.min(height * 1.05, maxW), height: height * 0.9 }} contentFit="contain" />;
   if (b.art === 'gm' || b.art === 'accessories') {
-    return <Image source={ART[b.art]} style={{ width: height * 1.25, height: height * 0.84 }} contentFit="contain" />;
+    return <Image source={ART[b.art]} style={{ width: Math.min(height * 1.25, maxW), height: height * 0.84 }} contentFit="contain" />;
   }
-  const iconColor = dark ? colors.white : colors.primary;
+  const iconColor = dark ? colors.white : warm ? colors.sale : colors.primary;
   const bubble = dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.8)';
   if (b.art === 'sale') {
     return (
@@ -158,7 +161,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: radius.xl, overflow: 'hidden' },
   circle: { position: 'absolute', borderRadius: 999, borderWidth: 18 },
   art: { position: 'absolute', right: 6, bottom: 4, top: 4, justifyContent: 'center', alignItems: 'flex-end' },
-  copy: { flex: 1, width: '58%', padding: 18, justifyContent: 'center', gap: 6 },
+  copy: { flex: 1, width: '54%', padding: 18, paddingRight: 6, justifyContent: 'center', gap: 6 },
   title: { fontFamily: fonts.display, letterSpacing: -0.5 },
   text: { marginTop: -2 },
   cta: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 34, borderRadius: radius.pill, marginTop: 4 },

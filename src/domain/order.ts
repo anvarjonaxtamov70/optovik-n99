@@ -1,4 +1,5 @@
 import type { CartLine, CartSummary, DeliveryKind } from './cart.ts';
+import { isValidLatLng, roundCoord } from './geo.ts';
 
 export type OrderStatus = 'yangi' | 'tasdiqlandi' | 'yolda' | 'tayyor' | 'yetkazildi' | 'bekor';
 export const ORDER_STATUSES: OrderStatus[] = ['yangi', 'tasdiqlandi', 'yolda', 'tayyor', 'yetkazildi', 'bekor'];
@@ -14,7 +15,8 @@ export type Order = {
   holat: OrderStatus;
   tarix: Partial<Record<OrderStatus, number>>;
   mijoz: { ism: string; telefon: string };
-  yetkazish: { turi: DeliveryKind; manzil?: string; moljal?: string };
+  /** `lat`/`lng` — mijoz xaritada belgilagan nuqta (bo'lmasligi ham mumkin: eski buyurtmalar, xaritasiz telefon). */
+  yetkazish: { turi: DeliveryKind; manzil?: string; moljal?: string; lat?: number; lng?: number };
   tolov: 'naqd';
   izoh?: string;
   items: OrderItem[];
@@ -78,7 +80,10 @@ export function readOrder(uid: string, id: string, v: unknown): Order | null {
   return {
     id, uid, raqam: num(v.raqam), createdAt: num(v.createdAt), updatedAt: num(v.updatedAt) || num(v.createdAt), holat, tarix,
     mijoz: { ism: text(m.ism), telefon: text(m.telefon) },
-    yetkazish: { turi: y.turi === 'kuryer' ? 'kuryer' : 'olib', manzil: text(y.manzil) || undefined, moljal: text(y.moljal) || undefined },
+    yetkazish: {
+      turi: y.turi === 'kuryer' ? 'kuryer' : 'olib', manzil: text(y.manzil) || undefined, moljal: text(y.moljal) || undefined,
+      ...(isValidLatLng(y) ? { lat: y.lat as number, lng: y.lng as number } : {}),
+    },
     tolov: 'naqd', izoh: text(v.izoh) || undefined, items,
     summa: num(v.summa), yetkazishNarxi: num(v.yetkazishNarxi), jami: num(v.jami), soni: num(v.soni),
     zaxira: v.zaxira === true, adminIzoh: text(v.adminIzoh) || undefined,
@@ -105,16 +110,35 @@ export type CheckoutForm = {
   ism: string;
   telefon: string; // +998XXXXXXXXX
   turi: DeliveryKind;
+  /** Ko'cha va uy (xaritadan avtomatik yoki qo'lda). */
   manzil: string;
+  /** Xonadon, podyezd, qavat — ixtiyoriy, buyurtmada manzil oxiriga qo'shiladi. */
+  xonadon?: string;
   moljal: string;
   izoh: string;
+  /** Xaritada belgilangan nuqta. */
+  lat?: number | null;
+  lng?: number | null;
 };
+
+/** Onlayn to'lovlar: MCHJ ulangach yoqiladi. Hozircha «Tez kunda» bo'lib ko'rinadi (tanlab bo'lmaydi). */
+export const PAYMENTS_SOON = ['payme', 'click'] as const;
+/**
+ * App Store tekshiruvi «tugallanmagan funksiya»ni rad etishi mumkin (2.1-qoida). Onlayn to'lov
+ * do'konga chiqishdan oldin ulanmasa — shu yerda `false` qilinadi va qatorlar yashiriladi.
+ */
+export const SHOW_SOON_PAYMENTS = true;
+
+/** Buyurtmaga yoziladigan to'liq manzil: ko'cha, uy + xonadon/podyezd. */
+export function fullAddress(form: Pick<CheckoutForm, 'manzil' | 'xonadon'>): string {
+  return [form.manzil.trim(), (form.xonadon ?? '').trim()].filter(Boolean).join(', ').slice(0, 300);
+}
 
 export function validateCheckout(form: CheckoutForm): Partial<Record<keyof CheckoutForm, 'required' | 'short' | 'phone'>> {
   const errors: Partial<Record<keyof CheckoutForm, 'required' | 'short' | 'phone'>> = {};
   if (form.ism.trim().length < 2) errors.ism = form.ism.trim() ? 'short' : 'required';
   if (!/^\+998\d{9}$/.test(form.telefon)) errors.telefon = 'phone';
-  if (form.turi === 'kuryer' && form.manzil.trim().length < 6) errors.manzil = form.manzil.trim() ? 'short' : 'required';
+  if (form.turi === 'kuryer' && fullAddress(form).length < 6) errors.manzil = form.manzil.trim() ? 'short' : 'required';
   return errors;
 }
 
@@ -138,8 +162,12 @@ export function buildOrderWrite(args: {
     items[cat][pid] = { nomi: l.product.nomi, narxi: l.product.narxi, soni: qty, ...(l.product.eskiNarx ? { eskiNarx: l.product.eskiNarx } : {}) };
     soni += qty;
   }
+  const point = { lat: form.lat, lng: form.lng };
   const yetkazish = form.turi === 'kuryer'
-    ? { turi: 'kuryer', manzil: form.manzil.trim(), ...(form.moljal.trim() ? { moljal: form.moljal.trim() } : {}) }
+    ? {
+      turi: 'kuryer', manzil: fullAddress(form), ...(form.moljal.trim() ? { moljal: form.moljal.trim() } : {}),
+      ...(isValidLatLng(point) ? { lat: roundCoord(point.lat), lng: roundCoord(point.lng) } : {}),
+    }
     : { turi: 'olib' };
   const order = {
     raqam, createdAt: ts, updatedAt: ts, holat: 'yangi', tarix: { yangi: ts },
