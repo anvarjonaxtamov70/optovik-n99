@@ -13,6 +13,7 @@ export const ru: Dict = {
 
   'common.back': 'Назад',
   'common.close': 'Закрыть',
+  'common.hideKeyboard': 'Скрыть клавиатуру',
   'common.retry': 'Повторить',
   'common.cancel': 'Отмена',
   'common.save': 'Сохранить',

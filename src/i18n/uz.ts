@@ -12,6 +12,7 @@ export const uz = {
 
   'common.back': 'Orqaga',
   'common.close': 'Yopish',
+  'common.hideKeyboard': 'Klaviaturani yopish',
   'common.retry': 'Qayta urinish',
   'common.cancel': 'Bekor qilish',
   'common.save': 'Saqlash',

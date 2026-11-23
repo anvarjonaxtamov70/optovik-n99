@@ -210,7 +210,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
             <IconButton icon="trash-outline" label={t('common.delete')} onPress={() => void remove()} size={40} bg={colors.saleSoft} color={colors.sale} />
           </>
         ) : undefined} />
-      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.root} behavior="padding">
         <ScrollView ref={scroll} contentContainerStyle={[styles.body, wide && styles.bodyWide, { paddingBottom: insets.bottom + (stacked ? 170 : 110) }]} keyboardShouldPersistTaps="handled">
           {wide ? (
             <View style={styles.columns}>

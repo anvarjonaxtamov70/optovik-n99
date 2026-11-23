@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,6 +9,7 @@ import { ProductImage } from '../components/shop/ProductImage';
 import { Button } from '../components/ui/Button';
 import { Card, Radio, Segmented } from '../components/ui/Controls';
 import { Field, PhoneField } from '../components/ui/Field';
+import { FormScroll } from '../components/ui/FormScroll';
 import { goBack, Header } from '../components/ui/Header';
 import { Icon, PartIcon } from '../components/ui/Icon';
 import { PressableScale } from '../components/ui/PressableScale';
@@ -83,8 +84,7 @@ export default function CheckoutScreen() {
   return (
     <View style={styles.root}>
       <Header title={t('checkout.title')} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
-        <ScrollView contentContainerStyle={[styles.body, { paddingBottom: 130 + insets.bottom }]} keyboardShouldPersistTaps="handled">
+      <FormScroll contentContainerStyle={[styles.body, { paddingBottom: 130 + insets.bottom }]}>
           {authProblem ? <View style={styles.noticeWrap}><Notice icon="alert-circle-outline" tone="warning" text={t('checkout.err.auth')} /></View> : null}
           <Step n={1} title={t('checkout.method')}>
             {courierOk && pickupOk ? (
@@ -167,8 +167,7 @@ export default function CheckoutScreen() {
               <Txt variant="smallStrong" color={colors.sale} style={styles.flex}>{error}</Txt>
             </Animated.View>
           ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </FormScroll>
       <View style={[styles.bar, shadow.float, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <View style={styles.flex}>
           <Txt variant="tiny">{t('cart.total')}</Txt>

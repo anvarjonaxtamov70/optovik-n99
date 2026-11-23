@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Controls';
 import { Field, PhoneField } from '../components/ui/Field';
+import { FormScroll } from '../components/ui/FormScroll';
 import { goBack, Header } from '../components/ui/Header';
 import { Icon } from '../components/ui/Icon';
 import { Txt } from '../components/ui/Txt';
@@ -37,8 +38,7 @@ export default function ProfileEditScreen() {
   return (
     <View style={styles.root}>
       <Header title={t('edit.title')} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
+      <FormScroll contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
           <Card style={styles.gap}>
             <Field label={t('edit.name')} icon="person-outline" value={form.name} onChangeText={(v) => setForm((f) => ({ ...f, name: v }))} maxLength={80}
               error={touched && nameBad ? t('checkout.err.short') : null} autoComplete="name" textContentType="name" />
@@ -51,8 +51,7 @@ export default function ProfileEditScreen() {
             <Txt variant="tiny" style={styles.flex}>{t('edit.localNote')}</Txt>
           </View>
           <Button title={t('common.save')} size="lg" loading={busy} onPress={save} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </FormScroll>
     </View>
   );
 }

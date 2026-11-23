@@ -86,7 +86,7 @@ function AdminLogin() {
   return (
     <View style={styles.root}>
       <Header title={t('admin.title')} back={!IS_WEB} />
-      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.root} behavior="padding">
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <View style={styles.center}><LogoMark size={76} /></View>
           <Txt variant="h2" center>{t('admin.login')}</Txt>
