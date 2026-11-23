@@ -10,7 +10,7 @@ import { useT, type TKey } from '../i18n';
 import { useSettings } from '../state/catalog';
 import { colors } from '../theme/tokens';
 
-const PAGES: InfoPage[] = ['about', 'faq', 'privacy', 'delivery'];
+const PAGES: InfoPage[] = ['about', 'faq', 'privacy', 'delivery', 'oferta'];
 
 export default function InfoScreen() {
   const params = useLocalSearchParams<{ page: string }>();

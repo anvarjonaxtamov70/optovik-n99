@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +10,7 @@ import { Card, SwitchRow } from '../../components/ui/Controls';
 import { Field, PhoneField } from '../../components/ui/Field';
 import { goBack, Header } from '../../components/ui/Header';
 import { Txt } from '../../components/ui/Txt';
-import { readMediaKey, type ShopSettings } from '../../domain/content';
+import { legalErrors, readMediaKey, type ShopSettings } from '../../domain/content';
 import { useT } from '../../i18n';
 import { haptic } from '../../lib/haptics';
 import { saveMediaKey, saveSettings, useMediaKey } from '../../state/admin';
@@ -33,11 +34,18 @@ function Form({ initial, initialKey, secure }: { initial: ShopSettings; initialK
   const [key, setKey] = useState(initialKey);
   const [coords, setCoords] = useState(initial.lat != null && initial.lng != null ? `${initial.lat}, ${initial.lng}` : '');
   const [busy, setBusy] = useState(false);
+  const [touched, setTouched] = useState(false);
   const set = (patch: Partial<ShopSettings>) => setS((x) => ({ ...x, ...patch }));
   const num = (v: string) => parseInt(v.replace(/\D/g, '') || '0', 10);
+  const digits = (v: string) => v.replace(/\D/g, '');
   const keyError = key && !readMediaKey(key) ? t('admin.settings.mediaKeyBad') : null;
+  const legal = legalErrors(s);
+  // Xato faqat «Saqlash» bosilgandan keyin ko'rsatiladi — raqam yozilayotganda qizarib turmaydi.
+  const err = (k: keyof typeof legal, text: string) => (touched && legal[k] ? text : null);
   const save = async () => {
+    setTouched(true);
     if (keyError) { showToast(keyError, { kind: 'error' }); return; }
+    if (Object.keys(legal).length) { haptic.warning(); showToast(t('admin.settings.fixErrors'), { kind: 'error' }); return; }
     const m = coords.match(/(-?\d{1,2}\.\d+)\s*[,; ]\s*(-?\d{1,3}\.\d+)/);
     setBusy(true);
     try {
@@ -90,8 +98,32 @@ function Form({ initial, initialKey, secure }: { initial: ShopSettings; initialK
 
       <Txt variant="h3">{t('admin.settings.legal')}</Txt>
       <Card style={styles.gap}>
-        <Field label={t('admin.settings.legalName')} value={s.legalName} onChangeText={(v) => set({ legalName: v })} maxLength={120} placeholder="«OPTOVIK N99» MCHJ" />
-        <Field label={t('admin.settings.inn')} value={s.inn} onChangeText={(v) => set({ inn: v.replace(/\D/g, '') })} keyboardType="number-pad" maxLength={14} />
+        <Txt variant="small">{t('admin.settings.legalHint')}</Txt>
+        <Field label={t('admin.settings.legalName')} value={s.legalName} onChangeText={(v) => set({ legalName: v })} maxLength={120}
+          placeholder={t('admin.settings.legalNamePh')} />
+        <Field label={t('admin.settings.inn')} value={s.inn} onChangeText={(v) => set({ inn: digits(v) })} keyboardType="number-pad" maxLength={14}
+          error={err('inn', t('admin.settings.digits', { n: 9 }))} />
+        <Field label={t('admin.settings.legalAddress')} value={s.legalAddress} onChangeText={(v) => set({ legalAddress: v })} maxLength={300} multiline />
+        <Field label={t('admin.settings.director')} value={s.director} onChangeText={(v) => set({ director: v })} maxLength={120} />
+        <Field label={t('admin.settings.bankName')} value={s.bankName} onChangeText={(v) => set({ bankName: v })} maxLength={160} />
+        <Field label={t('admin.settings.bankAccount')} value={s.bankAccount} onChangeText={(v) => set({ bankAccount: digits(v) })} keyboardType="number-pad" maxLength={20}
+          hint={t('admin.settings.bankAccountHint')} error={err('bankAccount', t('admin.settings.digits', { n: 20 }))} />
+        <Field label={t('admin.settings.bankMfo')} value={s.bankMfo} onChangeText={(v) => set({ bankMfo: digits(v) })} keyboardType="number-pad" maxLength={5}
+          error={err('bankMfo', t('admin.settings.digits', { n: 5 }))} />
+        <Field label={t('admin.settings.email')} value={s.email} onChangeText={(v) => set({ email: v.trim() })} keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
+          maxLength={120} placeholder="info@example.uz" error={err('email', t('admin.settings.emailBad'))} />
+        <Button title={t('admin.settings.openOferta')} icon="document-text-outline" variant="secondary" size="sm"
+          onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'oferta' } })} />
+      </Card>
+
+      <Txt variant="h3">{t('admin.settings.receipt')}</Txt>
+      <Card style={styles.gap}>
+        <Txt variant="small">{t('admin.settings.receiptHint')}</Txt>
+        <Field label={t('admin.settings.mxik')} value={s.mxik} onChangeText={(v) => set({ mxik: digits(v) })} keyboardType="number-pad" maxLength={17}
+          error={err('mxik', t('admin.settings.digits', { n: 17 }))} />
+        <Field label={t('admin.settings.packageCode')} value={s.packageCode} onChangeText={(v) => set({ packageCode: digits(v) })} keyboardType="number-pad" maxLength={10} />
+        <Field label={t('admin.settings.vat')} value={String(s.vatPercent)} onChangeText={(v) => set({ vatPercent: Math.min(30, num(v)) })} keyboardType="number-pad" maxLength={2}
+          hint={t('admin.settings.vatHint')} />
       </Card>
 
       <Txt variant="h3">{t('admin.settings.media')}</Txt>

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { cartLines, cartSuggestions, clampToStock, emptyCart, MAX_LINES, pruneMissing, restoreCart, setQty, summarize, toggleLine } from '../src/domain/cart.ts';
-import { bannerHasContent, DEFAULT_SETTINGS, isSafeLink, LEGACY_PUBLIC_MEDIA_FIELDS, readBanners, readMediaKey, readSettings } from '../src/domain/content.ts';
+import { bannerHasContent, DEFAULT_SETTINGS, isSafeLink, LEGACY_PUBLIC_MEDIA_FIELDS, legalErrors, readBanners, readMediaKey, readSettings } from '../src/domain/content.ts';
+import { ofertaSections, RETURN_DAYS } from '../src/content/oferta.ts';
 import { composeAddress, distanceKm, formatKm, isValidLatLng, mapUrl, roundCoord, SAMARQAND } from '../src/domain/geo.ts';
 import { formatSom, groupDigits } from '../src/domain/money.ts';
 import { buildOrderWrite, fullAddress, nextStatus, orderNumber, readOrder, recomputeTotals, statusFlow, validateCheckout } from '../src/domain/order.ts';
@@ -248,6 +249,39 @@ test('bannerlar va sozlamalar: xavfsiz havola, standart qiymatlar', () => {
   assert.equal(readMediaKey('short'), '');
   assert.equal(readMediaKey('has space inside 123'), '');
   assert.equal(readMediaKey(42), '');
+});
+
+test('rekvizitlar: o‘qish, shakl tekshiruvi (bo‘sh maydon xato emas)', () => {
+  const s = readSettings({ inn: '311895653', bankAccount: '20208000207198275001', bankMfo: '01125', mxik: '08708001374000000', packageCode: '1417724', vatPercent: 0, email: 'info@n99.uz' });
+  assert.equal(s.bankAccount, '20208000207198275001');
+  assert.equal(s.vatPercent, 0);
+  assert.deepEqual(legalErrors(s), {});
+  assert.deepEqual(legalErrors(DEFAULT_SETTINGS), {}, 'bo‘sh rekvizitlar — xato emas');
+  assert.deepEqual(Object.keys(legalErrors({ ...s, inn: '31189565', bankAccount: '2020800020719827500', bankMfo: '1125', mxik: '0870800137400000', email: 'info@', packageCode: 'dona', vatPercent: 31 })).sort(),
+    ['bankAccount', 'bankMfo', 'email', 'inn', 'mxik', 'packageCode', 'vatPercent']);
+  assert.deepEqual(legalErrors({ ...s, inn: '12345678901234' }), {}, 'yakka tadbirkor JSHSHIR — 14 raqam');
+  assert.equal(readSettings({ vatPercent: 12.5 }).vatPercent, 0, 'kasr QQS qabul qilinmaydi');
+});
+
+test('oferta: o‘zbek va rus matni bir xil tuzilishda, rekvizitlar va qaytarish sharti bor', () => {
+  const s = readSettings({
+    name: 'OPTOVIK N99', legalName: '«OPTAVIK N99» mas’uliyati cheklangan jamiyati', inn: '311895653', phone: '+998882893030',
+    bankAccount: '20208000207198275001', bankMfo: '01125', address: 'Yangi Samarqand zapchast bozori', director: 'Nosirov Azizbek Shokirovich',
+  });
+  const uzO = ofertaSections('uz', s);
+  const ruO = ofertaSections('ru', s);
+  assert.equal(uzO.length, ruO.length);
+  const uzText = uzO.map((x) => `${x.title}\n${x.text}`).join('\n');
+  const ruText = ruO.map((x) => `${x.title}\n${x.text}`).join('\n');
+  for (const t of [uzText, ruText]) {
+    for (const v of ['«OPTAVIK N99» mas’uliyati cheklangan jamiyati', '311895653', '20208000207198275001', '01125', 'Nosirov Azizbek Shokirovich', '+998 88 289 30 30', 'OPTOVIK N99']) assert.ok(t.includes(v), v);
+    assert.ok(t.includes(`${RETURN_DAYS}`), 'qaytarish muddati');
+    assert.ok(!/undefined|null|NaN|: \n/.test(t), 'bo‘sh qiymat matnga tushmaydi');
+  }
+  assert.ok(!uzText.includes('Email'), 'email kiritilmagan bo‘lsa, ko‘rsatilmaydi');
+  assert.ok(ofertaSections('uz', { ...s, email: 'info@n99.uz' }).at(-1).text.includes('Email: info@n99.uz'));
+  const bare = ofertaSections('uz', readSettings({}));
+  assert.ok(bare.at(-1).text.startsWith('OPTOVIK N99'), 'rekvizitlar bo‘lmasa ham do‘kon nomi bilan ochiladi');
 });
 
 test('tovar rasmlari: https, takrorsiz, 10 tadan oshmaydi; tartibni surish', () => {

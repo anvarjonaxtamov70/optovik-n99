@@ -18,14 +18,14 @@ Android va iPhone uchun mustaqil ilova (Telegram shart emas). GM / Chevrolet eht
 - Savat: tanlab buyurtma berish, miqdor, o‘chirib «Qaytarish», bepul yetkazishgacha qolgan summa, qoldiq o‘zgarsa avtomatik moslash.
 - Rasmiylashtirish: do‘kondan olib ketish yoki kuryer; yetkazish manzili xaritada belgilanadi (GPS, ko‘cha avtomatik), xonadon va mo‘ljal; +998 telefon niqobi, naqd to‘lov (Payme / Click — «Tez kunda»), izoh.
 - Buyurtmalar: holat chizig‘i (Qabul qilindi → Tasdiqlandi → Yo‘lda/Tayyor → Yetkazildi), jonli yangilanadi; tasdiqlanmagan buyurtmani bekor qilish, qayta buyurtma.
-- Kabinet: ism va telefon, mashina, til (UZ/RU), aloqa (qo‘ng‘iroq, Telegram, Instagram, Yandex/Google xarita), yetkazish va to‘lov, savol-javob, maxfiylik siyosati.
+- Kabinet: ism va telefon, mashina, til (UZ/RU), aloqa (qo‘ng‘iroq, Telegram, Instagram, Yandex/Google xarita), yetkazish va to‘lov, savol-javob, maxfiylik siyosati, ommaviy oferta (rekvizitlar sozlamalardan).
 
 **Do‘kon egasi (brauzerda: https://optovikn99.web.app/admin)**
 - Kompyuterda chap menyuli admin paneli; web versiya faqat admin uchun (do‘kon sahifalari brauzerda `/admin` ga yo‘naltiriladi). Firebase Hosting’ga «Web admin panel» amali joylaydi.
 - Bugungi buyurtmalar va savdo, yangi buyurtma kelsa xabar.
 - Buyurtmalar: holatni o‘zgartirish, mijozga qo‘ng‘iroq, ichki izoh. Tasdiqlanganda qoldiq avtomatik ayriladi, bekor qilinsa qaytariladi.
 - Tovarlar: qo‘shish/tahrirlash/nusxalash/o‘chirish, narx, eski narx (aksiya), qoldiq, artikul, mos modellar, rasmlar (havola yoki ImgBB orqali; bir nechta rasm, kompyuterda sudrab tashlash va Ctrl+V). Kompyuterda ro‘yxatning o‘zida narx va qoldiqni o‘zgartirish.
-- Bannerlar (o‘zbekcha/ruscha, rang, havola) va do‘kon sozlamalari (telefonlar, manzil, xarita, yetkazish narxi, bepul yetkazish chegarasi, MCHJ nomi va STIR).
+- Bannerlar (o‘zbekcha/ruscha, rang, havola) va do‘kon sozlamalari (telefonlar, manzil, xarita, yetkazish narxi, bepul yetkazish chegarasi, MChJ rekvizitlari: nom, STIR, manzil, bank, MFO, direktor, email; chek uchun MXIK, qadoq kodi, QQS).
 
 ## Texnologiya
 

@@ -188,6 +188,15 @@ export default function CheckoutScreen() {
             <Icon name="shield-checkmark-outline" size={15} color={colors.faint} />
             <Txt variant="tiny" style={styles.flex}>{t('checkout.remember')}</Txt>
           </View>
+          {/* Ofertani qabul qilish (aksept) — buyurtma tugmasi bosilganda. Matni har doim ochiq. */}
+          <PressableScale onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'oferta' } })} scaleTo={1} accessibilityRole="link"
+            accessibilityLabel={`${t('checkout.agree')} ${t('checkout.agreeLink')}`} style={styles.agree}>
+            <PressOverlay color={colors.primary} max={0.06} radius={radius.sm} />
+            <Icon name="document-text-outline" size={15} color={colors.faint} />
+            <Txt variant="tiny" style={styles.flex}>
+              {t('checkout.agree')} <Txt variant="tiny" color={colors.primary} style={styles.link}>{t('checkout.agreeLink')}</Txt>
+            </Txt>
+          </PressableScale>
         </Card>
         {error ? (
           <Animated.View entering={FadeIn.duration(200)} layout={LinearTransition.duration(200)} style={styles.error}>
@@ -304,6 +313,8 @@ const styles = StyleSheet.create({
   line: { flexDirection: 'row', alignItems: 'center' },
   hr: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
   remember: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  agree: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, marginTop: -8, marginBottom: -8 },
+  link: { fontFamily: fonts.bold, textDecorationLine: 'underline' },
   error: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: radius.md, backgroundColor: colors.saleSoft },
   placeBtn: { minWidth: 186 },
 });

@@ -15,6 +15,8 @@ Tekshirilgan sana: 2026-11-21. Holat: `typecheck`, `lint`, 14 ta unit test o‘t
 - [x] 3-bosqich — dizayn (`feat/dizayn-mukammal` PR).
 - [x] 3.1 — tugmalar bosilishi, nozik soyalar, likillaydigan animatsiyalarni olib tashlash (`feat/animatsiya-soya` PR).
 - [x] 3.2 — dizayn tahlili, shisha tugmalar, klaviatura, savat, xaritada manzil, 5 ta fara (`feat/shisha-savat-yetkazish` PR).
+- [x] Payme/Click’ga tayyorgarlik: MChJ rekvizitlari, MXIK, ommaviy oferta (`feat/oferta-rekvizitlar` PR) — ariza ma’lumotlari: [PAYME_CLICK.md](PAYME_CLICK.md).
+- [ ] Payme/Click ulash (ariza tasdiqlangach: Cloudflare Worker, chek).
 - [ ] 4-bosqich — do‘konlarga chiqish.
 - [ ] Excel/CSV import va eksport.
 

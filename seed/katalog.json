@@ -87,7 +87,17 @@
       "courierEnabled": true,
       "courierFee": 20000,
       "freeDeliveryFrom": 500000,
-      "pickupEnabled": true
+      "pickupEnabled": true,
+      "legalName": "«OPTAVIK N99» mas’uliyati cheklangan jamiyati",
+      "inn": "311895653",
+      "legalAddress": "Samarqand viloyati, Samarqand tumani, Yangiariq MFY, Hamal ko‘chasi, 16-uy",
+      "director": "Nosirov Azizbek Shokirovich",
+      "bankName": "AT «Xalq banki» Bosh amaliyotlar boshqarmasi (Toshkent sh.)",
+      "bankAccount": "20208000207198275001",
+      "bankMfo": "01125",
+      "mxik": "08708001374000000",
+      "packageCode": "1417724",
+      "vatPercent": 0
     }
   }
 }

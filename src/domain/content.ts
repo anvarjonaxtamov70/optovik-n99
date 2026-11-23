@@ -129,8 +129,23 @@ export type ShopSettings = {
   freeDeliveryFrom: number;
   pickupEnabled: boolean;
   deliveryNote: string;
+  /** Sotuvchi (MChJ) rekvizitlari — ommaviy oferta va to'lov cheki uchun. */
   legalName: string;
   inn: string;
+  legalAddress: string;
+  director: string;
+  bankName: string;
+  /** Hisob raqami: 20 raqam. */
+  bankAccount: string;
+  /** Bank MFO kodi: 5 raqam. */
+  bankMfo: string;
+  email: string;
+  /** Chek uchun: tovarning MXIK (IKPU) kodi — 17 raqam (hozircha barcha tovarlar uchun bitta). */
+  mxik: string;
+  /** Chek uchun: o'lchov birligi (qadoq) kodi, masalan «dona». */
+  packageCode: string;
+  /** Chekdagi QQS foizi: aylanmadan olinadigan soliq to'lovchisi uchun 0. */
+  vatPercent: number;
 };
 
 /** Hamma o'qiy oladigan `settings/shop` ga tushmasligi kerak bo'lgan eski maydonlar (kalitlar endi `settings/private` da). */
@@ -159,6 +174,15 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   deliveryNote: '',
   legalName: '',
   inn: '',
+  legalAddress: '',
+  director: '',
+  bankName: '',
+  bankAccount: '',
+  bankMfo: '',
+  email: '',
+  mxik: '',
+  packageCode: '',
+  vatPercent: 0,
 };
 
 export function readSettings(value: unknown): ShopSettings {
@@ -175,5 +199,29 @@ export function readSettings(value: unknown): ShopSettings {
     courierFee: money('courierFee'), freeDeliveryFrom: money('freeDeliveryFrom'),
     pickupEnabled: value.pickupEnabled !== false,
     deliveryNote: s('deliveryNote', 300), legalName: s('legalName', 120), inn: s('inn', 20),
+    legalAddress: s('legalAddress', 300), director: s('director', 120), bankName: s('bankName', 160),
+    bankAccount: s('bankAccount', 20), bankMfo: s('bankMfo', 5), email: s('email', 120),
+    mxik: s('mxik', 17), packageCode: s('packageCode', 10),
+    vatPercent: typeof value.vatPercent === 'number' && Number.isInteger(value.vatPercent) && value.vatPercent >= 0 && value.vatPercent <= 30 ? value.vatPercent : 0,
   };
+}
+
+export type LegalField = 'inn' | 'bankAccount' | 'bankMfo' | 'email' | 'mxik' | 'packageCode' | 'vatPercent';
+
+/**
+ * Rekvizitlar shakli tekshiruvi (admin sozlamalarida). Bo'sh maydon xato emas — faqat noto'g'ri to'ldirilgani.
+ * Qoidalar (database.rules.json) xuddi shu shakllarni server tomonda ham tekshiradi.
+ */
+export function legalErrors(s: Pick<ShopSettings, LegalField>): Partial<Record<LegalField, true>> {
+  const e: Partial<Record<LegalField, true>> = {};
+  const bad = (v: string, re: RegExp) => v !== '' && !re.test(v);
+  // MChJ uchun 9 raqam; yakka tadbirkorda JSHSHIR — 14 raqam.
+  if (bad(s.inn, /^(\d{9}|\d{14})$/)) e.inn = true;
+  if (bad(s.bankAccount, /^\d{20}$/)) e.bankAccount = true;
+  if (bad(s.bankMfo, /^\d{5}$/)) e.bankMfo = true;
+  if (bad(s.email, /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/)) e.email = true;
+  if (bad(s.mxik, /^\d{17}$/)) e.mxik = true;
+  if (bad(s.packageCode, /^\d{1,10}$/)) e.packageCode = true;
+  if (!Number.isInteger(s.vatPercent) || s.vatPercent < 0 || s.vatPercent > 30) e.vatPercent = true;
+  return e;
 }
