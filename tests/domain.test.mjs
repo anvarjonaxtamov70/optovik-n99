@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { cartLines, clampToStock, emptyCart, MAX_LINES, restoreCart, setQty, summarize, toggleLine } from '../src/domain/cart.ts';
-import { DEFAULT_SETTINGS, isSafeLink, LEGACY_PUBLIC_MEDIA_FIELDS, readBanners, readMediaKey, readSettings } from '../src/domain/content.ts';
+import { cartLines, cartSuggestions, clampToStock, emptyCart, MAX_LINES, pruneMissing, restoreCart, setQty, summarize, toggleLine } from '../src/domain/cart.ts';
+import { bannerHasContent, DEFAULT_SETTINGS, isSafeLink, LEGACY_PUBLIC_MEDIA_FIELDS, readBanners, readMediaKey, readSettings } from '../src/domain/content.ts';
 import { formatSom, groupDigits } from '../src/domain/money.ts';
 import { buildOrderWrite, nextStatus, orderNumber, readOrder, recomputeTotals, statusFlow, validateCheckout } from '../src/domain/order.ts';
 import { displayPhone, formatLocal, isValidUzPhone, localDigits, toE164 } from '../src/domain/phone.ts';
@@ -121,6 +121,34 @@ test('savat: qoldiq kamaysa moslanadi, tugagani "tugagan" bo‘lib qoladi', () =
   assert.equal(changed, true);
   assert.equal(cart.items['dvigatel/oil'], 12);
   assert.equal(cart.items['dvigatel/belt'], 2);
+});
+
+test('savat: tugagan tovar har yangilanishda «qoldiq yangilandi» demaydi; sotuvdan olinganlari o‘chiriladi', () => {
+  const soldOnly = { items: { 'dvigatel/belt': 2 }, off: {} };
+  assert.equal(clampToStock(soldOnly, byId).changed, false, 'tugagan qator xabar chiqarmaydi');
+  const withGone = { items: { 'dvigatel/oil': 1, 'eski/yoq': 3 }, off: { 'eski/yoq': true } };
+  const pruned = pruneMissing(withGone, byId);
+  assert.equal(pruned.removed, 1);
+  assert.deepEqual(pruned.cart, { items: { 'dvigatel/oil': 1 }, off: {} });
+  assert.equal(pruneMissing(withGone, new Map()).removed, 0, 'katalog bo‘sh bo‘lsa hech narsa o‘chirilmaydi');
+});
+
+test('savat takliflari: mos mashina va bo‘lim birinchi, savatdagi va tugagan tovar yo‘q', () => {
+  const lines = cartLines({ items: { 'dvigatel/oil': 1 }, off: {} }, byId);
+  const ids = cartSuggestions(products, lines).map((p) => p.id);
+  assert.ok(!ids.includes('dvigatel/oil'), 'savatdagi tovar taklif qilinmaydi');
+  assert.ok(!ids.includes('dvigatel/belt'), 'tugagan tovar taklif qilinmaydi');
+  assert.ok(cartSuggestions(products, []).every((p) => p.qoldiq > 0 && (p.ommabop || p.eskiNarx)), 'bog‘liq tovar bo‘lmasa — faqat ommabop va aksiyadagilar');
+});
+
+test('bannerlar: bo‘sh ro‘yxatga olib boradigan banner yashiriladi', () => {
+  assert.equal(bannerHasContent('sale', products), true);
+  assert.equal(bannerHasContent('group:accessories', products), true);
+  assert.equal(bannerHasContent('group:accessories', products.filter((p) => p.kategoriya !== 'aksessuarlar')), false);
+  assert.equal(bannerHasContent('cat:tormoz', products), false);
+  assert.equal(bannerHasContent('model:cobalt', products), true);
+  assert.equal(bannerHasContent('delivery', []), true, 'ro‘yxatga bog‘liq bo‘lmagan havola doim ko‘rinadi');
+  assert.equal(bannerHasContent('https://t.me/n99', []), true);
 });
 
 test('buyurtma: atomar yozuv tuzilmasi, holatlar ketma-ketligi, summa qayta hisobi', () => {

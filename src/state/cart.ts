@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import {
-  cartLines, clampToStock, emptyCart, removeLines, restoreCart, setAllSelected, setQty, summarize, toggleLine,
+  cartLines, clampToStock, emptyCart, pruneMissing, removeLines, restoreCart, setAllSelected, setQty, summarize, toggleLine,
   type CartState, type DeliveryKind,
 } from '../domain/cart';
 import type { Product } from '../domain/products';
@@ -9,8 +9,10 @@ import { createStore, useStore } from '../lib/store';
 import { debouncedSaver, readLocal } from '../lib/storage';
 import { catalogStore, useSettings } from './catalog';
 
-export type CartStore = CartState & { hydrated: boolean; notice: boolean };
-export const cartStore = createStore<CartStore>({ ...emptyCart, hydrated: false, notice: false });
+/** Savat ustidagi xabar: qoldiqqa moslandi yoki sotuvdan olingan tovarlar o'chirildi. */
+export type CartNotice = 'adjusted' | 'removed' | null;
+export type CartStore = CartState & { hydrated: boolean; notice: CartNotice };
+export const cartStore = createStore<CartStore>({ ...emptyCart, hydrated: false, notice: null });
 const save = debouncedSaver('cart', 250);
 
 export async function hydrateCart() {
@@ -25,8 +27,9 @@ export async function hydrateCart() {
     const c = catalogStore.get();
     if (!c.live || c.version === lastVersion) return;
     lastVersion = c.version;
-    const { cart, changed } = clampToStock(cartStore.get(), c.byId);
-    if (changed) cartStore.set((s) => ({ ...s, ...cart, notice: true }));
+    const pruned = pruneMissing(cartStore.get(), c.byId);
+    const { cart, changed } = clampToStock(pruned.cart, c.byId);
+    if (pruned.removed || changed) cartStore.set((s) => ({ ...s, ...cart, notice: pruned.removed ? 'removed' : 'adjusted' }));
   });
 }
 
@@ -43,10 +46,13 @@ export const cart = {
   dec(p: Product) { update((c) => setQty(c, p.id, (c.items[p.id] ?? 0) - 1, p.qoldiq)); },
   set(p: Product, qty: number) { update((c) => setQty(c, p.id, qty, p.qoldiq)); },
   remove(ids: string[]) { update((c) => removeLines(c, ids)); },
-  restore(entries: Record<string, number>) { update((c) => ({ ...c, items: { ...c.items, ...entries } })); },
+  /** «Qaytarish»: o'chirilgan qatorlar avvalgi miqdori va belgisi (tanlangan/tanlanmagan) bilan qaytadi. */
+  restore(entries: Record<string, number>, off: string[] = []) {
+    update((c) => ({ items: { ...c.items, ...entries }, off: { ...c.off, ...Object.fromEntries(off.map((id) => [id, true as const])) } }));
+  },
   toggle(id: string) { update((c) => toggleLine(c, id)); },
   selectAll(selected: boolean) { update((c) => setAllSelected(c, selected)); },
-  dismissNotice() { cartStore.set((s) => ({ ...s, notice: false })); },
+  dismissNotice() { cartStore.set((s) => ({ ...s, notice: null })); },
   /** Buyurtma muvaffaqiyatli yuborilgach, faqat buyurtmaga kirgan miqdorlarni ayiradi. */
   ordered(items: Record<string, number>) {
     update((c) => {

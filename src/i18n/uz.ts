@@ -162,6 +162,10 @@ export const uz = {
   'cart.nothingSelected': 'Buyurtma uchun tovar tanlang',
   'cart.offline': 'Internetga ulaning — narx va qoldiq tekshirilishi kerak',
   'cart.recommend': 'Sizga ham kerak bo‘lishi mumkin',
+  'cart.unavailable': 'Hozir sotuvda yo‘q ({n})',
+  'cart.clearUnavailable': 'Olib tashlash',
+  'cart.removedMissing': 'Sotuvdan olingan tovarlar savatdan olib tashlandi.',
+  'cart.recommendShort': 'Bular ham kerak bo‘lishi mumkin',
   'cart.removeAllConfirm': 'Tanlangan tovarlar savatdan o‘chirilsinmi?',
   'cart.toFavorites': 'Saralanganga',
 

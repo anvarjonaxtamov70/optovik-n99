@@ -163,6 +163,10 @@ export const ru: Dict = {
   'cart.nothingSelected': 'Выберите товары для заказа',
   'cart.offline': 'Подключитесь к интернету — нужно проверить цены и остатки',
   'cart.recommend': 'Вам также может понадобиться',
+  'cart.unavailable': 'Сейчас нет в наличии ({n})',
+  'cart.clearUnavailable': 'Убрать',
+  'cart.removedMissing': 'Товары, снятые с продажи, убраны из корзины.',
+  'cart.recommendShort': 'Может пригодиться',
   'cart.removeAllConfirm': 'Удалить выбранные товары из корзины?',
   'cart.toFavorites': 'В избранное',
 

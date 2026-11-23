@@ -81,18 +81,55 @@ export function cartLines(cart: CartState, byId: Map<string, Product>): CartLine
   });
 }
 
-/** Katalog yangilanganda miqdorni mavjud qoldiqqa moslaydi. Faqat jonli katalogda chaqiriladi. */
+/**
+ * Katalog yangilanganda miqdorni mavjud qoldiqqa moslaydi. Faqat jonli katalogda chaqiriladi.
+ * Tugagan tovar miqdori o'zgarmaydi (savatda "tugagan" deb turadi) — shuning uchun u har yangilanishda
+ * «qoldiq yangilandi» xabarini qayta chiqarmaydi (avvalgi xato).
+ */
 export function clampToStock(cart: CartState, byId: Map<string, Product>): { cart: CartState; changed: boolean } {
   let changed = false;
   const items: Record<string, number> = {};
   for (const [id, qty] of Object.entries(cart.items)) {
     const p = byId.get(id);
-    if (!p) { items[id] = qty; continue; }
+    if (!p || p.qoldiq <= 0) { items[id] = qty; continue; }
     const next = Math.min(qty, p.qoldiq);
     if (next !== qty) changed = true;
-    items[id] = next > 0 ? next : qty; // tugaganini savatda "tugagan" deb ko'rsatamiz
+    items[id] = next;
   }
   return { cart: changed ? { ...cart, items } : cart, changed };
+}
+
+/**
+ * Katalogdan butunlay olib tashlangan tovarlarni savatdan o'chiradi (savatda nomi ham, narxi ham yo'q —
+ * faqat tushunarsiz kod qolardi). Katalog bo'sh bo'lsa hech narsa o'chirilmaydi (ulanish xatosi bo'lishi mumkin).
+ */
+export function pruneMissing(cart: CartState, byId: Map<string, Product>): { cart: CartState; removed: number } {
+  if (!byId.size) return { cart, removed: 0 };
+  const gone = Object.keys(cart.items).filter((id) => !byId.has(id));
+  return gone.length ? { cart: removeLines(cart, gone), removed: gone.length } : { cart, removed: 0 };
+}
+
+/**
+ * Savatga qo'shimcha takliflar: savatdagi mashinalarga mos va o'sha bo'limlardagi tovarlar birinchi,
+ * keyin ommabop va aksiyadagilar. Savatda bor va tugagan tovarlar taklif qilinmaydi.
+ */
+export function cartSuggestions(products: Product[], lines: CartLine[], limit = 10): Product[] {
+  const inCart = new Set(lines.map((l) => l.id));
+  const models = new Set<string>();
+  const cats = new Set<string>();
+  for (const l of lines) {
+    if (!l.product) continue;
+    l.product.modellar.forEach((m) => models.add(m));
+    cats.add(l.product.kategoriya);
+  }
+  const score = (p: Product) => (p.modellar.some((m) => models.has(m)) ? 4 : 0) + (cats.has(p.kategoriya) ? 2 : 0) + (p.ommabop ? 1 : 0) + (p.eskiNarx ? 0.5 : 0);
+  return products
+    .filter((p) => p.qoldiq > 0 && !inCart.has(p.id))
+    .map((p) => ({ p, s: score(p) }))
+    .filter((x) => x.s > 0)
+    .sort((a, b) => b.s - a.s)
+    .slice(0, limit)
+    .map((x) => x.p);
 }
 
 export type DeliveryKind = 'kuryer' | 'olib';
