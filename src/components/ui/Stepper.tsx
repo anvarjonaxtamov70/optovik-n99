@@ -23,7 +23,7 @@ export function Stepper({ value, onInc, onDec, max, size = 'md', tone = 'tint', 
   const dec = () => { setTouched(true); onDec(); };
   return (
     <View style={[styles.wrap, { height: h, borderRadius: size === 'lg' ? radius.md : radius.sm + 2, backgroundColor: tone === 'primary' ? colors.primary : colors.tint }]}>
-      <GlassFill tone={tone === 'primary' ? 'primary' : 'tint'} radius={size === 'lg' ? radius.md : radius.sm + 2} />
+      <GlassFill tone={tone === 'primary' ? 'primary' : 'tint'} radius={size === 'lg' ? radius.md : radius.sm + 2} lite={size === 'sm'} />
       <PressableScale onPress={dec} disabled={!trashAtOne && value <= 1} feedback="tap" scaleTo={0.9} accessibilityLabel={labelDec} hitSlop={4} style={[styles.btn, { width: h }]}>
         <PressOverlay color={colors.ink} max={0.1} />
         <Icon name={trashAtOne && value <= 1 ? 'trash-outline' : 'remove'} size={size === 'sm' ? 17 : 20} color={fg} />

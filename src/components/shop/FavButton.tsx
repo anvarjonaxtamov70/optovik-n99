@@ -6,7 +6,7 @@ import { haptic } from '../../lib/haptics';
 import { prefs, useIsFavorite } from '../../state/prefs';
 import { spring } from '../../theme/motion';
 import { colors, shadow } from '../../theme/tokens';
-import { GlassFill, LIQUID_GLASS } from '../ui/Glass';
+import { GlassFill, glassLite, LIQUID_GLASS } from '../ui/Glass';
 import { Icon } from '../ui/Icon';
 import { PressableScale } from '../ui/PressableScale';
 
@@ -38,8 +38,9 @@ export function FavButton({ id, name, size = 34, floating = true, real = false }
   return (
     <PressableScale onPress={onPress} scaleTo={0.9} hitSlop={8} accessibilityRole="button" accessibilityState={{ selected: saved }}
       accessibilityLabel={`${name}: ${saved ? t('product.favRemoved') : t('product.favAdded')}`}
-      style={[styles.btn, { width: size, height: size, borderRadius: size / 2 }, floating && real && !LIQUID_GLASS && Platform.OS !== 'android' && shadow.xs]}>
-      {floating ? <GlassFill tone="clear" radius={size / 2} real={real} /> : null}
+      style={[styles.btn, { width: size, height: size, borderRadius: size / 2 }, floating && !(real && LIQUID_GLASS) && glassLite,
+        floating && real && !LIQUID_GLASS && Platform.OS !== 'android' && shadow.xs]}>
+      {floating && real && LIQUID_GLASS ? <GlassFill tone="clear" radius={size / 2} real /> : null}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         {DOTS.map((i) => <Dot key={i} i={i} burst={burst} size={size} />)}
       </View>

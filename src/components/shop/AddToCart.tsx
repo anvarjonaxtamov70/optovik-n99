@@ -31,7 +31,7 @@ export function AddToCart({ product, size = 'sm' }: { product: Product; size?: '
   if (soldOut) {
     return (
       <View style={[styles.off, { height: h }]}>
-        <GlassFill tone="muted" radius={R} />
+        <GlassFill tone="muted" radius={R} lite />
         <Txt variant="smallStrong" color={colors.faint}>{t('product.soldOut')}</Txt>
       </View>
     );
@@ -61,7 +61,7 @@ export function AddToCart({ product, size = 'sm' }: { product: Product; size?: '
         style={[styles.addWrap, { height: h, backgroundColor: live ? colors.primary : '#ECEFF3' }, live && shadow.buttonSm]}
       >
         {/* Ro'yxatdagi tugma — doim arzon shisha taqlidi (o'nlab haqiqiy shisha aylantirishni og'irlashtiradi). */}
-        <GlassFill tone={live ? 'primary' : 'muted'} radius={R} />
+        <GlassFill tone={live ? 'primary' : 'muted'} radius={R} lite />
         <PressOverlay color={colors.ink} max={0.14} radius={R} />
         <Icon name="cart-outline" size={size === 'md' ? 19 : 17} color={live ? colors.white : colors.faint} />
         <Txt variant="smallStrong" color={live ? colors.white : colors.faint}>{t('product.add')}</Txt>

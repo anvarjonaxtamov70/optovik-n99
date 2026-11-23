@@ -25,11 +25,16 @@ export const LIQUID_GLASS = detectLiquidGlass();
  * - Qolgan hamma joyda va Android/eski iOS/brauzerda — arzon taqlid: gradient + yorug' yuqori chet.
  *   Xiralashtirish yo'q, animatsiya yo'q: telefon uni bir marta chizadi.
  */
-export const GlassFill = memo(function GlassFill({ tone = 'light', radius = 0, real = false }: { tone?: GlassTone; radius?: number; real?: boolean }) {
+export const GlassFill = memo(function GlassFill({ tone = 'light', radius = 0, real = false, lite = false }: {
+  tone?: GlassTone; radius?: number; real?: boolean;
+  /** Ro'yxatda takrorlanadigan tugmalar (kartadagi «Savatga», miqdor): bitta gradient qatlami — aylantirish yengil. */
+  lite?: boolean;
+}) {
   const g = glass[tone];
   if (real && LIQUID_GLASS) {
     return <GlassView pointerEvents="none" glassEffectStyle={tone === 'clear' ? 'clear' : 'regular'} tintColor={g.tint} style={[fill, { borderRadius: radius }]} />;
   }
+  if (lite) return <LinearGradient pointerEvents="none" colors={g.colors} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[fill, { borderRadius: radius }]} />;
   return (
     <View pointerEvents="none" style={[fill, { borderRadius: radius }, styles.clip]}>
       <LinearGradient colors={g.colors} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={fill} />
@@ -38,6 +43,12 @@ export const GlassFill = memo(function GlassFill({ tone = 'light', radius = 0, r
     </View>
   );
 });
+
+/**
+ * Rasm ustidagi kichik doira tugmalar (kartadagi yurakcha) uchun qo'shimcha qatlamsiz shisha: yarim shaffof oq fon
+ * va nozik hoshiya tugmaning o'z uslubida — ro'yxatda o'nlab bo'lsa ham telefon qo'shimcha narsa chizmaydi.
+ */
+export const glassLite = { backgroundColor: 'rgba(255,255,255,0.86)', borderWidth: 1, borderColor: 'rgba(15,35,56,0.08)' } as const;
 
 /** Rangli shisha tugmaning yuqori yarmidagi yumshoq yorug'lik (yorug' tepadan tushgandek). */
 const SHEEN = ['rgba(255,255,255,0.24)', 'rgba(255,255,255,0)'] as const;

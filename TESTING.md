@@ -29,8 +29,10 @@ EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1 npx expo start --web
 
 1. Ochilish: ko‘k ekranda logotip — g‘ildiraklar aylanadi, gupchaklar yonadi, so‘ng bosh sahifa.
 2. Bosh sahifa: bannerlar o‘zi aylanadi va barmoq bilan suriladi; pastga surganda logotip qatori yashirinib, qidiruv tepada qoladi.
-3. Qidiruv: `cobalt kolodka`, `кобальт колодка`, `N99 4001`. Natija chiqsin; oxirgi qidiruvlar saqlansin.
+3. Qidiruv: `cobalt fara`, `фара кобальт`, `N99 F101`. Natija chiqsin; oxirgi qidiruvlar saqlansin.
 4. Mashinani tanlang (qidiruv yonidagi mashina tugmasi) → bosh sahifada «Cobalt uchun», tovar sahifasida «Cobalt ga mos keladi».
+5a. Rasmiylashtirish → «Yetkazib berish» → «Manzilni xaritada belgilang»: xarita ochilsin, «Mening joylashuvim» ruxsat so‘rasin, xarita surilganda ko‘cha va uy o‘zi yozilsin. Klaviatura ochilganda yozilayotgan maydon ko‘rinib tursin, klaviatura ustida «Yopish» tugmasi bo‘lsin.
+5b. To‘lovda Payme va Click «Tez kunda» bo‘lib tursin, ularni tanlab bo‘lmasin.
 5. Kartada **Savatga** → miqdor tanlagichga aylanadi, pastki menyudagi savat soni «sakraydi». Qoldiqdan ko‘p qo‘shib bo‘lmasin.
 6. Savat: belgini olib tashlang — jami kamaysin; o‘chiring → «Qaytarish»; ilovani yopib oching — savat saqlangan bo‘lsin.
 7. Rasmiylashtirish: olib ketish va kuryer; noto‘g‘ri telefon/bo‘sh ism xato ko‘rsatsin. Buyurtma bering → yashil belgi va konfetti, buyurtma raqami.

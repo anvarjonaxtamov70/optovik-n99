@@ -14,6 +14,7 @@ Tekshirilgan sana: 2026-11-21. Holat: `typecheck`, `lint`, 14 ta unit test o‘t
 - [x] 2-bosqich — web admin paneli + hosting (`feat/web-admin-panel` PR).
 - [x] 3-bosqich — dizayn (`feat/dizayn-mukammal` PR).
 - [x] 3.1 — tugmalar bosilishi, nozik soyalar, likillaydigan animatsiyalarni olib tashlash (`feat/animatsiya-soya` PR).
+- [x] 3.2 — dizayn tahlili, shisha tugmalar, klaviatura, savat, xaritada manzil, 5 ta fara (`feat/shisha-savat-yetkazish` PR).
 - [ ] 4-bosqich — do‘konlarga chiqish.
 - [ ] Excel/CSV import va eksport.
 
@@ -88,7 +89,32 @@ Do‘kon egasining fikri: tugmalar bosilganda «tirik» tursin, nozik soyalar bo
 - Olib tashlandi: skeletondagi yaltiroq chiziq, bo‘sh holatdagi «nafas oluvchi» halqa, buyurtma holatidagi pulsatsiya, bannerdagi tebranuvchi «%», introdagi yonib-o‘chish, bo‘limlar orasidagi yarim shaffof o‘tish, ro‘yxatda kartalarning birma-bir chiqishi.
 - Qoidalar: `docs/DESIGN.md` → «Harakat va soya qoidalari».
 
+### 3.2. Dizayn tahlili, shisha, klaviatura, savat va yetkazish ✅
+Tahlilda topilganlar va nima qilindi:
+
+| Arzon ko‘rinardi | Tuzatish |
+| --- | --- |
+| Rasmsiz kartalarda katta ko‘k ikonka (shablondek) | kulrang, sokin belgi; 5 ta tovar rasm bilan |
+| Bir xil tovar bosh sahifada 3–4 marta (aksiya/ommabop/yangi qatorlari) | katalog 12 tadan kam bo‘lsa qatorlar chiqmaydi |
+| Bo‘sh ro‘yxatga olib boradigan banner va bitta yolg‘iz kategoriya katagi | bunday banner va kategoriyalar to‘ri yashiriladi |
+| Ekran chetidan kesilib turgan ishonch belgilari qatori | bitta kartada uch ustun |
+| Banner rasmi matn ustiga tushardi | rasm kartaning o‘ng yarmidan chiqmaydi |
+| O‘chirilgan tugma — xira ko‘k (buzilgandek) | tinch kulrang |
+| Savatda ulkan «Sizga ham kerak» kartalari | ixcham qator, savatdagi tovarga mos takliflar |
+| «Saralangan» bo‘sh holatida ko‘rinmaydigan belgi (▯) | matn bilan almashtirildi |
+| Qidiruvda 18 ta ikonkali chip to‘dasi | ikki guruh: model (ikonkasiz) va bo‘lim |
+
+| Ko‘zni charchatardi | Tuzatish |
+| --- | --- |
+| To‘q qizil-to‘q sariq aksiya banneri va katta «%» | yumshoq iliq fon, qizil faqat belgi |
+| Hamma joyda qizil narx va qizil «−N%» | narx qora, chegirma belgisi yumshoq |
+| Hammasi ko‘k: ko‘kish fon, ko‘k ikonka, ko‘k tus | fon neytral kulrang, ko‘k faqat amal va tanlangan holatda |
+
+Yangi: shisha tugmalar (iOS 26 da haqiqiy Liquid Glass, boshqa joyda arzon taqlid), suzuvchi pastki menyu va narx paneli, klaviatura ustida «Yopish» tugmasi, yozilayotgan maydon klaviatura ustiga suriladi (Android ham), Sheet `Modal` emas; savat mantiqi (sotuvdan olingan tovar o‘chiriladi, tugaganlar alohida); xaritada manzil, GPS, xonadon/mo‘ljal, buyurtmada nuqta; Payme/Click «Tez kunda»; 5 ta old fara rasmlari bilan.
+
 ### 4-bosqich. Do‘konlarga chiqish
+0. Android build uchun **Google Maps API kaliti** kerak (Expo Go’da kerak emas): Google Cloud’da «Maps SDK for Android» yoqiladi, kalit `app.json` → `react-native-maps` plaginiga yoziladi (hujjat: docs.expo.dev → react-native-maps → Deploy). Telefon ilovasidagi xarita foydalanishi bepul, lekin Google Cloud hisobiga karta ulanishi so‘raladi. iPhone’da Apple xaritasi — kalitsiz.
+0. Payme/Click ulanmagan bo‘lsa, App Store’ga yuborishdan oldin «Tez kunda» qatorlari yashiriladi (`SHOW_SOON_PAYMENTS = false`).
 1. Kod: «Ma’lumotlarimni o‘chirish» (ilovada + ochiq web sahifa), maxfiylik siyosatini web’da ochiq havola qilish, `eas.json` submit sozlamalari. («Tez orada» to‘lovlar, admin kirishi va iPad 3-bosqichda hal qilindi.)
 2. Hisoblar: Google Play Console (bir martalik 25$), Apple Developer (yiliga 99$; MCHJ nomidan bo‘lsa D-U-N-S raqami kerak).
 3. Hisoblar MCHJ nomidan: Google Play’dagi 12 testerli 14 kunlik yopiq test talabi (faqat shaxsiy hisoblar uchun) bizga tegishli emas, lekin tashkilot hisobini tasdiqlash uchun D-U-N-S raqami va hujjatlar so‘raladi. Apple ham MCHJ uchun D-U-N-S talab qiladi (bepul, lekin olish bir necha hafta cho‘zilishi mumkin — oldindan boshlash kerak).
