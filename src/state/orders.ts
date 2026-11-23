@@ -6,7 +6,7 @@ import type { CartLine, CartSummary } from '../domain/cart';
 import {
   buildOrderWrite, readOrder, readOrderIndex, type CheckoutForm, type Order, type OrderIndex, type OrderStatus,
 } from '../domain/order';
-import { classifyError, db, withTimeout } from '../lib/firebase';
+import { classifyError, db, withTimeout, type FirebaseProblem } from '../lib/firebase';
 import { readLocal, saveLocal } from '../lib/storage';
 import { ensureCustomer, useUid } from './account';
 import { catalogStore } from './catalog';
@@ -31,12 +31,22 @@ export async function placeOrder(lines: CartLine[], summary: CartSummary, form: 
   if (Date.now() - last < RATE_MS) throw new PlaceOrderError('rate');
   const orderId = push(ref(db, `orders/${uid}`)).key as string;
   const raqam = 100000 + Math.floor(Math.random() * 900000);
-  const writes = buildOrderWrite({ uid, orderId, raqam, lines, summary, form, lang, platform: Platform.OS, ts: serverTimestamp() });
+  const write = (f: CheckoutForm) => withTimeout(update(ref(db), buildOrderWrite({ uid, orderId, raqam, lines, summary, form: f, lang, platform: Platform.OS, ts: serverTimestamp() })), 20000);
   try {
-    await withTimeout(update(ref(db), writes), 20000);
+    await write(form);
   } catch (e) {
-    const kind = classifyError(e);
-    throw new PlaceOrderError(kind === 'network' ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
+    let kind: FirebaseProblem | null = classifyError(e);
+    // Bazadagi qoidalar hali eski bo'lsa (xarita nuqtasini bilmaydi), buyurtma yo'qolmasin: nuqtasiz qayta yuboriladi.
+    // Yozuv atomar — rad etilgan urinish hech narsa saqlamaydi, shuning uchun 30 soniyalik cheklov xalaqit bermaydi.
+    if (kind === 'permission' && form.lat != null && form.lng != null) {
+      try {
+        await write({ ...form, lat: null, lng: null });
+        kind = null;
+      } catch (e2) {
+        kind = classifyError(e2);
+      }
+    }
+    if (kind) throw new PlaceOrderError(kind === 'network' ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
   }
   await saveLocal('lastOrderAt', Date.now()).catch(() => {});
   return { id: orderId, uid, raqam };
