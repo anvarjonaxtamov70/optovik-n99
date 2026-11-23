@@ -29,7 +29,9 @@ export default function ProfileEditScreen() {
     setTouched(true);
     if (phoneBad || nameBad) { haptic.warning(); return; }
     setBusy(true);
-    await saveProfile(form);
+    // Manzil matni o'zgargan bo'lsa, eski xaritadagi nuqta endi to'g'ri emas — u tashlanadi.
+    const moved = form.address.trim() !== profile.address.trim();
+    await saveProfile(moved ? { ...form, lat: null, lng: null } : form);
     setBusy(false);
     haptic.success();
     showToast(t('edit.saved'), { kind: 'success' });
@@ -44,6 +46,7 @@ export default function ProfileEditScreen() {
               error={touched && nameBad ? t('checkout.err.short') : null} autoComplete="name" textContentType="name" />
             <PhoneField label={t('edit.phone')} value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} error={touched && phoneBad ? t('checkout.err.phone') : null} />
             <Field label={t('edit.address')} icon="location-outline" value={form.address} onChangeText={(v) => setForm((f) => ({ ...f, address: v }))} maxLength={300} placeholder={t('checkout.addressPh')} />
+            <Field label={t('address.apartment')} icon="business-outline" value={form.apartment} onChangeText={(v) => setForm((f) => ({ ...f, apartment: v }))} maxLength={80} placeholder={t('address.apartmentPh')} />
             <Field label={t('edit.landmark')} icon="flag-outline" value={form.landmark} onChangeText={(v) => setForm((f) => ({ ...f, landmark: v }))} maxLength={200} placeholder={t('checkout.landmarkPh')} />
           </Card>
           <View style={styles.note}>

@@ -1,14 +1,16 @@
 import { onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { onValue, ref, set } from 'firebase/database';
 
+import { isValidLatLng, roundCoord } from '../domain/geo';
 import { WEB_ADMIN_ONLY } from '../lib/platform';
 
 import { auth, classifyError, db, withTimeout, type FirebaseProblem } from '../lib/firebase';
 import { createStore, useStore } from '../lib/store';
 import { readLocal, saveLocal } from '../lib/storage';
 
-export type Profile = { name: string; phone: string; address: string; landmark: string };
-export const emptyProfile: Profile = { name: '', phone: '', address: '', landmark: '' };
+/** Mijoz ma'lumotlari: keyingi buyurtmada manzil (xaritadagi nuqta bilan) qayta yozilmaydi. */
+export type Profile = { name: string; phone: string; address: string; apartment: string; landmark: string; lat: number | null; lng: number | null };
+export const emptyProfile: Profile = { name: '', phone: '', address: '', apartment: '', landmark: '', lat: null, lng: null };
 
 export type AccountState = {
   ready: boolean;
@@ -33,7 +35,11 @@ let offAdmin: (() => void) | null = null;
 function readProfile(v: unknown): Profile {
   const p = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
   const s = (k: keyof Profile, max: number) => (typeof p[k] === 'string' ? (p[k] as string).slice(0, max) : '');
-  return { name: s('name', 80), phone: /^\+998\d{9}$/.test(String(p.phone ?? '')) ? String(p.phone) : '', address: s('address', 300), landmark: s('landmark', 200) };
+  const point = isValidLatLng(p) ? { lat: roundCoord(p.lat), lng: roundCoord(p.lng) } : { lat: null, lng: null };
+  return {
+    name: s('name', 80), phone: /^\+998\d{9}$/.test(String(p.phone ?? '')) ? String(p.phone) : '',
+    address: s('address', 200), apartment: s('apartment', 80), landmark: s('landmark', 200), ...point,
+  };
 }
 
 export async function startAccount() {
@@ -81,7 +87,10 @@ export async function saveProfile(profile: Profile) {
   await saveLocal('profile', clean).catch(() => {});
   const uid = auth.currentUser?.uid;
   if (uid && clean.name.trim().length >= 2 && clean.phone) {
-    await withTimeout(set(ref(db, `customers/${uid}/profile`), { ...clean, updatedAt: Date.now() }), 8000).catch(() => {});
+    // Bazada bo'sh nuqta saqlanmaydi (qoidalar raqam kutadi).
+    const { lat, lng, ...rest } = clean;
+    const body = { ...rest, ...(lat != null && lng != null ? { lat, lng } : {}), updatedAt: Date.now() };
+    await withTimeout(set(ref(db, `customers/${uid}/profile`), body), 8000).catch(() => {});
   }
 }
 

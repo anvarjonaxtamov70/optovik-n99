@@ -8,7 +8,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#F3F7FB",
+    "backgroundColor": "#F2F4F7",
     "primaryColor": "#2173B1",
     "description": "GM / Chevrolet ehtiyot qismlari va avtoaksessuarlar do‘koni. Naqd to‘lov, yetkazib berish va do‘kondan olib ketish.",
     "runtimeVersion": { "policy": "appVersion" },
@@ -48,6 +48,13 @@
           "photosPermission": "Tovar rasmini yuklash uchun galereyaga ruxsat kerak (faqat do‘kon admini uchun).",
           "cameraPermission": false,
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Yetkazib berish manzilini xaritada aniq belgilash uchun joylashuvingiz kerak (faqat buyurtma berayotganda). / Чтобы точно отметить адрес доставки на карте.",
+          "locationAlwaysAndWhenInUsePermission": "Yetkazib berish manzilini xaritada aniq belgilash uchun joylashuvingiz kerak (faqat buyurtma berayotganda). / Чтобы точно отметить адрес доставки на карте."
         }
       ]
     ],

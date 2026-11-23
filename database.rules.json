@@ -109,6 +109,9 @@
           "phone": { ".validate": "newData.isString() && newData.val().matches(/^\\+998[0-9]{9}$/)" },
           "address": { ".validate": "newData.isString() && newData.val().length <= 300" },
           "landmark": { ".validate": "newData.isString() && newData.val().length <= 200" },
+          "apartment": { ".validate": "newData.isString() && newData.val().length <= 80" },
+          "lat": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
+          "lng": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
           "updatedAt": { ".validate": "newData.isNumber()" },
           "$other": { ".validate": false }
         },
@@ -155,6 +158,8 @@
             "turi": { ".validate": "newData.isString() && newData.val().matches(/^(kuryer|olib)$/)" },
             "manzil": { ".validate": "newData.isString() && newData.val().length >= 6 && newData.val().length <= 300" },
             "moljal": { ".validate": "newData.isString() && newData.val().length <= 200" },
+            "lat": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90 && newData.parent().child('lng').isNumber()" },
+            "lng": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180 && newData.parent().child('lat').isNumber()" },
             "$other": { ".validate": false }
           },
           "tolov": { ".validate": "newData.val() === 'naqd'" },

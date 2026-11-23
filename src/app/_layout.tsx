@@ -58,6 +58,8 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
         <Stack.Screen name="checkout" />
+        {/* Xarita surilganda ekran chetidan "orqaga" imosi bilan adashmasin. */}
+        <Stack.Screen name="address" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="order-success" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="admin" options={{ animation: 'slide_from_bottom' }} />
       </Stack>

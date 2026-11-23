@@ -2,6 +2,7 @@ import * as Linking from 'expo-linking';
 import { Alert } from 'react-native';
 
 import type { ShopSettings } from '../domain/content';
+import { mapUrl, type LatLng } from '../domain/geo';
 
 async function open(url: string) {
   try {
@@ -35,6 +36,11 @@ export function openMap(s: Pick<ShopSettings, 'lat' | 'lng' | 'address'>, provid
   }
   const q = encodeURIComponent(s.address);
   void open(provider === 'yandex' ? `https://yandex.uz/maps/?text=${q}` : `https://www.google.com/maps/search/?api=1&query=${q}`);
+}
+
+/** Mijoz xaritada belgilagan nuqtani Yandex yoki Google xaritada ochadi (kuryer uchun yo'l ham shu yerdan). */
+export function openPoint(p: LatLng, provider: 'yandex' | 'google' = 'yandex') {
+  void open(mapUrl(p, provider));
 }
 
 export function openUrl(url: string) {

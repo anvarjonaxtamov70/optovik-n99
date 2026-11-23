@@ -1,3 +1,4 @@
+import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -13,12 +14,13 @@ import { Icon, type IconName } from '../components/ui/Icon';
 import { PressableScale } from '../components/ui/PressableScale';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Txt } from '../components/ui/Txt';
+import { distanceKm, formatKm, isValidLatLng, mapUrl, type LatLng } from '../domain/geo';
 import { canCustomerCancel, orderNumber, recomputeTotals, type Order } from '../domain/order';
 import { displayPhone } from '../domain/phone';
 import { useT } from '../i18n';
 import { confirmAsync } from '../lib/confirm';
 import { haptic } from '../lib/haptics';
-import { callPhone } from '../lib/links';
+import { callPhone, openPoint } from '../lib/links';
 import { openProduct } from '../lib/nav';
 import { useUid } from '../state/account';
 import { cart } from '../state/cart';
@@ -55,6 +57,7 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
   // Admin noutbukda: chapda holat va boshqaruv, o'ngda tarkib va ma'lumotlar.
   const wide = !!admin && width >= layout.wide;
   const openItem = (id: string) => (admin ? router.push({ pathname: '/admin/product', params: { id } }) : openProduct(id));
+  const point = isValidLatLng(o.yetkazish) ? { lat: o.yetkazish.lat as number, lng: o.yetkazish.lng as number } : null;
 
   const cancel = async () => {
     const ok = await confirmAsync(t('orders.cancel'), t('orders.cancelConfirm'), { ok: t('common.yes'), cancel: t('common.no'), destructive: true });
@@ -113,6 +116,7 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
       <Card style={styles.gap}>
         <Info icon={o.yetkazish.turi === 'kuryer' ? 'bicycle-outline' : 'storefront-outline'} title={t('orders.delivery')}
           text={o.yetkazish.turi === 'kuryer' ? `${t('checkout.courier')}: ${o.yetkazish.manzil ?? ''}${o.yetkazish.moljal ? ` (${o.yetkazish.moljal})` : ''}` : `${t('checkout.pickup')}: ${settings.address}`} />
+        {o.yetkazish.turi === 'kuryer' && point ? <DeliveryPoint point={point} admin={!!admin} /> : null}
         <Info icon="cash-outline" title={t('orders.payment')} text={t('checkout.cash')} />
         <Info icon="person-outline" title={t('checkout.contact')} text={`${o.mijoz.ism}, ${displayPhone(o.mijoz.telefon)}`} />
         {o.izoh ? <Info icon="chatbubble-ellipses-outline" title={t('checkout.comment')} text={o.izoh} /> : null}
@@ -139,6 +143,27 @@ export function OrderView({ order: o, admin }: { order: Order; admin?: React.Rea
           </View>
         ) : null}
       </ScrollView>
+    </View>
+  );
+}
+
+/**
+ * Xaritadagi nuqta: Yandex/Google'da ochish (kuryer yo'lni shu yerdan oladi). Adminda — havolani nusxalash
+ * (kuryerga Telegram orqali yuborish uchun) va do'kondan masofa.
+ */
+function DeliveryPoint({ point, admin }: { point: LatLng; admin: boolean }) {
+  const { t } = useT();
+  const settings = useSettings();
+  const km = settings.lat != null && settings.lng != null ? distanceKm({ lat: settings.lat, lng: settings.lng }, point) : null;
+  const copy = () => void Clipboard.setStringAsync(mapUrl(point)).then(() => { haptic.success(); showToast(t('common.copied'), { kind: 'success' }); });
+  return (
+    <View style={styles.point}>
+      {km != null ? <Txt variant="small" style={styles.pointKm}>{t('address.fromShop', { km: formatKm(km) })}</Txt> : null}
+      <View style={styles.pointRow}>
+        <Button title={t('address.yandex')} icon="navigate-outline" variant="secondary" size="sm" full={false} style={styles.flex} onPress={() => openPoint(point, 'yandex')} />
+        <Button title={t('address.google')} icon="map-outline" variant="outline" size="sm" full={false} style={styles.flex} onPress={() => openPoint(point, 'google')} />
+      </View>
+      {admin ? <Button title={t('address.copyLink')} icon="copy-outline" variant="ghost" size="sm" onPress={copy} /> : null}
     </View>
   );
 }
@@ -179,4 +204,7 @@ const styles = StyleSheet.create({
   info: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   infoIcon: { width: 36, height: 36, borderRadius: 11, backgroundColor: colors.tint, alignItems: 'center', justifyContent: 'center' },
   actions: { gap: 10, marginTop: 4 },
+  point: { gap: 8, marginLeft: 48 },
+  pointKm: { marginTop: -6 },
+  pointRow: { flexDirection: 'row', gap: 8 },
 });
