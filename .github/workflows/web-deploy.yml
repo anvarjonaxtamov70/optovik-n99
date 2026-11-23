@@ -8,6 +8,8 @@ on:
     paths:
       - 'src/**'
       - 'assets/**'
+      # Tovar rasmlari (https://optovikn99.web.app/img/...)
+      - 'public/**'
       - 'app.json'
       - 'package.json'
       - 'package-lock.json'
