@@ -152,6 +152,18 @@ test('admin: tovar, banner va sozlamalar tekshiriladi; mijoz yoza olmaydi', asyn
   denied(await req('bannerlar/b3', { method: 'PUT', auth: ALICE, body: { title: { uz: 'X' }, link: 'sale' } }), 'mijoz banner qo‘sha olmaydi');
   ok(await req('settings/shop/courierFee', { method: 'PUT', auth: OWNER, body: 25000 }), 'sozlama');
   denied(await req('settings/shop/secret', { method: 'PUT', auth: OWNER, body: 'x' }), 'begona sozlama');
+  ok(await req('settings/shop', { method: 'PATCH', auth: OWNER, body: {
+    legalName: '«OPTAVIK N99» mas’uliyati cheklangan jamiyati', inn: '311895653', legalAddress: 'Samarqand viloyati, Samarqand tumani', director: 'Nosirov A. Sh.',
+    bankName: 'AT «Xalq banki»', bankAccount: '20208000207198275001', bankMfo: '01125', email: 'info@n99.uz', mxik: '08708001374000000', packageCode: '1417724', vatPercent: 0,
+  } }), 'rekvizitlar');
+  ok(await req('settings/shop', { method: 'PATCH', auth: OWNER, body: { email: '', bankAccount: '', mxik: '' } }), 'bo‘sh rekvizit — ruxsat');
+  denied(await req('settings/shop/bankAccount', { method: 'PUT', auth: OWNER, body: '2020800020719827500' }), 'hisob raqami 19 raqam');
+  denied(await req('settings/shop/bankMfo', { method: 'PUT', auth: OWNER, body: '1125a' }), 'MFO harf bilan');
+  denied(await req('settings/shop/mxik', { method: 'PUT', auth: OWNER, body: '0870800137400000' }), 'MXIK 16 raqam');
+  denied(await req('settings/shop/inn', { method: 'PUT', auth: OWNER, body: '31189565' }), 'STIR 8 raqam');
+  denied(await req('settings/shop/email', { method: 'PUT', auth: OWNER, body: 'info@' }), 'email noto‘g‘ri');
+  denied(await req('settings/shop/vatPercent', { method: 'PUT', auth: OWNER, body: 12.5 }), 'QQS kasr');
+  denied(await req('settings/shop/bankAccount', { method: 'PUT', auth: ALICE, body: '20208000207198275001' }), 'mijoz rekvizit yoza olmaydi');
   denied(await req('settings/shop/courierFee', { method: 'PUT', auth: ALICE, body: 0 }), 'mijoz sozlama yoza olmaydi');
   denied(await req('admins/alice', { method: 'PUT', auth: ALICE, body: true }), 'o‘zini admin qila olmaydi');
 });

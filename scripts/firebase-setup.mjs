@@ -118,9 +118,19 @@ if (!emulator) {
     log(`✅ Namuna katalog yuklandi: ${count} ta tovar (narxlarni Admin → Tovarlar'da o'zgartiring)`);
   }
   const settings = await db('settings/shop');
-  if (settings.ok && (await settings.json()) === null) {
-    const put = await db('settings/shop', { method: 'PUT', body: JSON.stringify(seed.settings.shop) });
-    log(put.ok ? '✅ Do\'kon sozlamalari (manzil, yetkazish narxi) yozildi' : `⚠️ Sozlamalar yozilmadi (${put.status})`);
+  if (settings.ok) {
+    const current = await settings.json();
+    if (current === null) {
+      const put = await db('settings/shop', { method: 'PUT', body: JSON.stringify(seed.settings.shop) });
+      log(put.ok ? '✅ Do\'kon sozlamalari (manzil, yetkazish narxi, rekvizitlar) yozildi' : `⚠️ Sozlamalar yozilmadi (${put.status})`);
+    } else {
+      // Faqat bo'sh maydonlar to'ldiriladi (masalan, yangi qo'shilgan rekvizitlar). Admin yozgan qiymat o'zgarmaydi.
+      const fill = Object.fromEntries(Object.entries(seed.settings.shop).filter(([k]) => current[k] === undefined || current[k] === ''));
+      if (Object.keys(fill).length) {
+        const patch = await db('settings/shop', { method: 'PATCH', body: JSON.stringify(fill) });
+        log(patch.ok ? `✅ Sozlamalarning bo'sh maydonlari to'ldirildi: ${Object.keys(fill).join(', ')}` : `⚠️ Sozlamalar to'ldirilmadi (${patch.status})`);
+      } else log('⏭ Do\'kon sozlamalari to\'liq — o\'zgartirilmadi');
+    }
   }
 }
 

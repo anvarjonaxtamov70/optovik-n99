@@ -93,7 +93,8 @@ export default function ProfileScreen() {
             <ListRow icon="bicycle-outline" title={t('profile.delivery')} onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'delivery' } })} />
             <ListRow icon="help-circle-outline" title={t('profile.faq')} onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'faq' } })} />
             <ListRow icon="information-circle-outline" title={t('profile.about')} onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'about' } })} />
-            <ListRow icon="shield-checkmark-outline" title={t('profile.privacy')} onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'privacy' } })} last />
+            <ListRow icon="shield-checkmark-outline" title={t('profile.privacy')} onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'privacy' } })} />
+            <ListRow icon="document-text-outline" title={t('info.oferta.title')} onPress={() => router.push({ pathname: '/info/[page]', params: { page: 'oferta' } })} last />
           </Group>
 
           {/* Do'kon boshqaruvi telefon ilovasida yo'q: admin https://optovikn99.web.app/admin dan ishlaydi. */}

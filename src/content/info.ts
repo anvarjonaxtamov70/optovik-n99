@@ -1,7 +1,8 @@
 import type { ShopSettings } from '../domain/content';
 import { formatSom, type Lang } from '../domain/money';
+import { ofertaSections } from './oferta';
 
-export type InfoPage = 'about' | 'faq' | 'privacy' | 'delivery';
+export type InfoPage = 'about' | 'faq' | 'privacy' | 'delivery' | 'oferta';
 export type InfoSection = { title: string; text: string };
 
 const fee = (s: ShopSettings, lang: Lang) => {
@@ -18,6 +19,8 @@ export function infoPage(page: InfoPage, lang: Lang, s: ShopSettings): InfoSecti
   const contact = s.phone ? s.phone : ru ? 'контакты в разделе «Связаться с нами»' : '«Biz bilan aloqa» bo‘limidagi raqamlar';
   const owner = s.legalName || s.name;
   switch (page) {
+    case 'oferta':
+      return ofertaSections(lang, s);
     case 'about':
       return ru ? [
         { title: s.name, text: `Магазин запчастей и аксессуаров для автомобилей GM / Chevrolet: Cobalt, Nexia, Gentra, Lacetti, Spark, Damas, Malibu, Tracker, Onix и других. Адрес: ${s.address}.` },
@@ -32,12 +35,12 @@ export function infoPage(page: InfoPage, lang: Lang, s: ShopSettings): InfoSecti
       return ru ? [
         { title: 'Самовывоз', text: `Бесплатно из магазина: ${s.address}.${s.workHours ? ` Часы работы: ${s.workHours}.` : ''} Заберите заказ после того, как оператор подтвердит его готовность.` },
         { title: 'Доставка', text: fee(s, lang) },
-        { title: 'Оплата', text: 'Оплата наличными при получении заказа — курьеру или в магазине. Чек выдаётся по запросу.' },
+        { title: 'Оплата', text: 'Оплата наличными при получении заказа — курьеру или в магазине. За покупку выдаётся чек.' },
         { title: 'Подтверждение заказа', text: 'После оформления оператор звонит по указанному номеру, уточняет детали и подтверждает заказ. Статус заказа виден в разделе «Мои заказы».' },
       ] : [
         { title: 'Do‘kondan olib ketish', text: `Do‘kondan bepul: ${s.address}.${s.workHours ? ` Ish vaqti: ${s.workHours}.` : ''} Operator buyurtma tayyorligini tasdiqlagach olib ketishingiz mumkin.` },
         { title: 'Yetkazib berish', text: fee(s, lang) },
-        { title: 'To‘lov', text: 'Tovarni qabul qilganda naqd to‘lanadi — kuryerga yoki do‘konda. So‘rasangiz, chek beriladi.' },
+        { title: 'To‘lov', text: 'Tovarni qabul qilganda naqd to‘lanadi — kuryerga yoki do‘konda. Xarid uchun chek beriladi.' },
         { title: 'Buyurtmani tasdiqlash', text: 'Rasmiylashtirgandan so‘ng operator ko‘rsatilgan raqamga qo‘ng‘iroq qilib, buyurtmani tasdiqlaydi. Holatini «Buyurtmalarim» bo‘limida kuzatasiz.' },
       ];
     case 'faq':
