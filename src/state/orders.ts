@@ -10,7 +10,9 @@ import { auth, classifyError, db, readServerJson, writeServerJson, withTimeout }
 import { readLocalStrict, saveLocal } from '../lib/storage';
 import { ensureCustomer, useUid } from './account';
 import { useCatalogLive } from './catalog';
-import { cart } from './cart';
+import { cart, cartStore } from './cart';
+import { useStore } from '../lib/store';
+import { parsePendingOrder } from '../domain/pendingOrder';
 import { checkoutQuote, assertQuoteMatches, readQuoteProduct } from '../domain/checkoutQuote';
 import { readSettings } from '../domain/content';
 
@@ -43,8 +45,8 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
     throw new PlaceOrderError(kind === 'network' ? 'network' : 'auth');
   }
   const pendingKey = `pendingOrder:${uid}`;
-  const pending = await readLocalStrict<{ id: string; raqam: number }>(pendingKey).catch(() => { throw new PlaceOrderError('unknown'); });
-  const validPending = pending && /^[-A-Za-z0-9_]{20}$/.test(pending.id) && Number.isInteger(pending.raqam) && pending.raqam >= 100000 && pending.raqam <= 999999 ? pending : null;
+  const pending = await readLocalStrict(pendingKey).catch(() => { throw new PlaceOrderError('unknown'); });
+  const validPending = parsePendingOrder(pending);
   if (pending !== null && !validPending) throw new PlaceOrderError('unknown');
   const finish = async (id: string, raqam: number, phone: string, ordered: Record<string, number>, recovered: boolean) => {
     await cart.ordered(`${uid}/${id}`, ordered);
@@ -63,7 +65,8 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
     // Reuse the same key even if an earlier request is still being processed.
   } else {
     const last = (await readLocalStrict<number>('lastOrderAt').catch(() => { throw new PlaceOrderError('unknown'); })) ?? 0;
-    if (Date.now() - last < RATE_MS) throw new PlaceOrderError('rate');
+    if (typeof last !== 'number' || !Number.isFinite(last) || last < 0) throw new PlaceOrderError('unknown');
+    if (last <= Date.now() && Date.now() - last < RATE_MS) throw new PlaceOrderError('rate');
   }
   const orderId = validPending?.id ?? push(ref(db, `orders/${uid}`)).key as string;
   const raqam = validPending?.raqam ?? 100000 + Math.floor(Math.random() * 900000);
@@ -112,13 +115,14 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
 export function usePendingOrderRecovery() {
   const uid = useUid();
   const live = useCatalogLive();
+  const hydrated = useStore(cartStore, s => s.hydrated);
   useEffect(() => {
-    if (!uid || !live || placingOrder) return;
+    if (!uid || !live || !hydrated || placingOrder) return;
     placingOrder = true;
     void (async () => {
       const key = `pendingOrder:${uid}`;
-      const pending = await readLocalStrict<{ id: string; raqam: number }>(key);
-      if (!pending || !/^[-A-Za-z0-9_]{20}$/.test(pending.id) || !Number.isInteger(pending.raqam)) return;
+      const pending = parsePendingOrder(await readLocalStrict(key));
+      if (!pending) return;
       const raw = await readServerJson(`orders/${uid}/${pending.id}`, uid);
       const order = readOrder(uid, pending.id, raw);
       if (!order || order.raqam !== pending.raqam || !order.items.length) return;
@@ -126,7 +130,7 @@ export function usePendingOrderRecovery() {
       await saveLocal('lastOrderAt', Date.now());
       await saveLocal(key, null);
     })().catch(() => {}).finally(() => { placingOrder = false; });
-  }, [uid, live]);
+  }, [uid, live, hydrated]);
 }
 
 export function useMyOrders() {
