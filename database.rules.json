@@ -12,7 +12,7 @@
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$kat": {
         "$id": {
-          ".validate": "newData.hasChildren(['nomi', 'narxi', 'qoldiq'])",
+          ".validate": "newData.hasChildren(['nomi', 'narxi', 'qoldiq']) && (!data.exists() || ((newData.child('qoldiq').val() === data.child('qoldiq').val() && newData.child('narxi').val() === data.child('narxi').val()) || (newData.child('revision').isNumber() && (data.child('revision').exists() ? newData.child('revision').val() === data.child('revision').val() + 1 : newData.child('revision').val() === 1)))) && (!data.child('revision').exists() || newData.child('revision').exists())",
           "nomi": {
             ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 160"
           },
@@ -58,7 +58,7 @@
             ".validate": "newData.isNumber()"
           },
           "revision": {
-            ".validate": "newData.isNumber() && (!data.exists() || newData.val() === data.val() + 1)"
+            ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && (!data.exists() || newData.val() === data.val() + 1)"
           },
           "updatedAt": {
             ".validate": "newData.isNumber() && newData.val() <= now"
