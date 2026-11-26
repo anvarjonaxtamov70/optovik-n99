@@ -37,15 +37,15 @@ export const ProductArt = memo(function ProductArt({ kategoriya, seed, iconScale
 export const ProductImage = memo(function ProductImage({ uri, kategoriya, seed, style, iconScale, contentFit = 'contain', size }: {
   uri?: string; kategoriya: string; seed: string; style?: StyleProp<ViewStyle>; iconScale?: number; contentFit?: 'contain' | 'cover'; size?: number;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [failedUri, setFailedUri] = useState<string | undefined>();
   return (
     <View style={[styles.box, style]}>
-      {!uri || failed ? (
+      {!uri || failedUri === uri ? (
         <ProductArt kategoriya={kategoriya} seed={seed} iconScale={iconScale} size={size} />
       ) : (
         // Qisqa, yumshoq paydo bo'lish. Telefon xotirasidagi (keshdagi) rasm qayta "o'chib-yonmaydi".
         <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit={contentFit} transition={160} recyclingKey={uri}
-          cachePolicy="memory-disk" onError={() => setFailed(true)} accessibilityIgnoresInvertColors />
+          cachePolicy="memory-disk" onError={() => setFailedUri(uri)} accessibilityIgnoresInvertColors />
       )}
     </View>
   );
