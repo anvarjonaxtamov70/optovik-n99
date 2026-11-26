@@ -45,9 +45,10 @@ function AdminPanel({ order: o }: { order: Order }) {
   const [note, setNote] = useState(o.adminIzoh ?? '');
   const next = nextStatus(o);
   const totals = recomputeTotals(o);
-  const mismatch = totals.jami !== o.jami;
+  const mismatch = !o.items.length || totals.jami !== o.jami || totals.summa !== o.summa || totals.soni !== o.soni;
 
   const move = async (s: OrderStatus) => {
+    if (busy || (s !== 'bekor' && mismatch)) return;
     setBusy(s);
     try {
       await adminSetStatus(o, s);
@@ -87,7 +88,7 @@ function AdminPanel({ order: o }: { order: Order }) {
         ) : null}
         {next ? (
           <Button title={t('admin.moveTo', { status: t(statusKey(next, o.yetkazish.turi)) })} icon="arrow-forward-circle-outline" size="lg"
-            loading={busy === next} disabled={!!busy} onPress={() => void move(next)} />
+            loading={busy === next} disabled={!!busy || mismatch} onPress={() => void move(next)} />
         ) : null}
         {isActive(o.holat) ? (
           <Button title={t('admin.cancelOrder')} variant="ghost" loading={busy === 'bekor'} disabled={!!busy}
