@@ -221,3 +221,11 @@ test('order lifecycle: split writes, backwards and skipped transitions are denie
   ok(await move('yetkazildi'), 'valid completion');
   denied(await move('bekor'), 'completed order cannot be cancelled');
 });
+
+test('reservation: stale stock revision and independent flag changes are rejected', async () => {
+  denied(await req('orders/bob/b1/zaxira', { method: 'PUT', auth: OWNER, body: false }), 'reservation flag cannot change independently');
+  const before = (await req('tovarlar/filtrlar/q1')).body;
+  ok(await req('tovarlar/filtrlar/q1', { method: 'PATCH', auth: OWNER, body: { qoldiq: 2, revision: before.revision + 1 } }), 'first stock writer');
+  denied(await req('tovarlar/filtrlar/q1', { method: 'PATCH', auth: OWNER, body: { qoldiq: 1, revision: before.revision + 1 } }), 'stale stock writer');
+  assert.equal((await req('tovarlar/filtrlar/q1/qoldiq')).body, 2);
+});
