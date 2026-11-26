@@ -28,3 +28,15 @@ export function checkoutQuote(request: unknown, catalog: ReadonlyMap<string, Cat
   if (!Number.isSafeInteger(total) || subtotal > 1_000_000_000_000) throw new Error('total-out-of-range');
   return { items, subtotal, count, delivery, total };
 }
+
+/** Compare the displayed quote with fresh database values; never silently charge a new price. */
+export function assertQuoteMatches(quote: ReturnType<typeof checkoutQuote>, displayed: { subtotal: number; count: number; delivery: number; total: number; lines: number }, prices: ReadonlyMap<string, number>) {
+  if (quote.subtotal !== displayed.subtotal || quote.count !== displayed.count || quote.delivery !== displayed.delivery || quote.total !== displayed.total || quote.items.length !== displayed.lines || quote.items.some(item => prices.get(item.id) !== item.price)) throw new Error('quote-changed');
+}
+
+export function readQuoteProduct(raw: unknown): CatalogPrice {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('stock-unavailable');
+  const p = raw as Record<string, unknown>;
+  if (typeof p.narxi !== 'number' || typeof p.qoldiq !== 'number' || !Number.isSafeInteger(p.narxi) || p.narxi < 0 || !Number.isSafeInteger(p.qoldiq) || p.qoldiq < 0) throw new Error('invalid-product');
+  return { narxi: p.narxi, qoldiq: p.qoldiq, archived: p.archived === true };
+}

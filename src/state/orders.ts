@@ -11,6 +11,8 @@ import { readLocalStrict, saveLocal } from '../lib/storage';
 import { ensureCustomer, useUid } from './account';
 import { useCatalogLive } from './catalog';
 import { cart } from './cart';
+import { checkoutQuote, assertQuoteMatches, readQuoteProduct } from '../domain/checkoutQuote';
+import { readSettings } from '../domain/content';
 
 export type PlaceError = 'auth' | 'rules' | 'rate' | 'network' | 'empty' | 'unknown';
 export class PlaceOrderError extends Error {
@@ -68,6 +70,20 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   let writes: ReturnType<typeof buildOrderWrite>;
   try { writes = buildOrderWrite({ uid, orderId, raqam, lines, summary, form, lang, platform: Platform.OS, ts: serverTimestamp() }); }
   catch { throw new PlaceOrderError('rules'); }
+  // Fresh server reads reduce stale checkout errors; rules remain the final write gate.
+  const selected = lines.filter(line => line.selected && line.product && Math.min(line.qty, line.product.qoldiq) > 0);
+  const request = selected.map(line => ({ id: line.id, qty: Math.min(line.qty, line.product!.qoldiq) }));
+  const prices = new Map(selected.map(line => [line.id, line.product!.narxi]));
+  try {
+    const [rawSettings, entries] = await Promise.all([
+      readServerJson('settings/shop', uid),
+      Promise.all(request.map(async line => [line.id, readQuoteProduct(await readServerJson(`tovarlar/${line.id}`, uid))] as const)),
+    ]);
+    const quote = checkoutQuote(request, new Map(entries), readSettings(rawSettings), form.turi);
+    assertQuoteMatches(quote, summary, prices);
+  } catch (error) {
+    throw new PlaceOrderError(classifyError(error) === 'network' ? 'network' : 'rules');
+  }
   await saveLocal(pendingKey, { id: orderId, raqam }).catch(() => { throw new PlaceOrderError('unknown'); });
   try {
     await writeServerJson(writes, uid);

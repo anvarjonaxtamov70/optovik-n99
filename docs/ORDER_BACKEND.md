@@ -31,3 +31,5 @@ Checkout and order transitions use authenticated REST requests without the SDK o
 Staging can be selected explicitly with a different Firebase project; invalid staging settings fail closed and local storage is isolated. The staging project itself is not provisioned. No production changes were applied.
 
 Cart startup reconciliation now runs after hydration even if the catalog arrived first, and only prunes on a connected ready catalog. Undo restores only currently available quantities within normal cart limits. Invalid checkout payloads are rejected before creating a new pending ID. These changes do not provide cross-device idempotency or a trusted server-side aggregate calculator.
+
+Checkout now compares each displayed price, quantity and delivery total with fresh authenticated database reads before sending a new order. This is a client preflight, not an authoritative backend: rules remain the final write gate and cross-device idempotency remains unresolved. It adds up to 51 reads per checkout (50 products plus settings).
