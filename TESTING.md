@@ -20,7 +20,7 @@ Qoidalar testi tekshiradiganlar: soxta narx, qoldiqdan koâ€˜p miqdor, mavjud boâ
 # 1-terminal
 npx firebase-tools@14 emulators:start --only database,auth --project demo-n99
 # 2-terminal: qoidalar + namuna katalog
-FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9000 FIREBASE_DB_NAMESPACE=optovikn99-default-rtdb npm run firebase:setup
+FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9000 FIREBASE_DB_NAMESPACE=demo-n99-default-rtdb npm run firebase:setup
 # 3-terminal: ilova emulyatorga ulanadi
 EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1 npx expo start --web
 ```
@@ -61,3 +61,5 @@ npx expo start --tunnel
 Open the Metro QR with a compatible Expo Go version. Staging configuration is mandatory in staging mode; it will not fall back to production. Auth app names and local storage namespaces are isolated. Test project credentials/configuration and the running Metro host are not provisioned by this PR. The existing EAS production publish workflow is not a staging test; app.json sets runtimeVersion, which prevents Expo Go from opening ordinary EAS Updates.
 
 Test checkout on a synthetic product with known stock: submit, interrupt the connection, reopen the app and visit order history; retry only with the original pending ID; verify that one order exists and the cart receipt is applied at most once. Confirm from two admin sessions, verify one stale revision fails; archive an item and confirm or cancel its existing order without losing the inventory record. Do not test these operations on production.
+
+Emulator builds now use the synthetic `demo-n99` Firebase identity and a separate local storage namespace. Only local/private-network emulator hosts are accepted. Existing emulator-only local carts are intentionally not migrated.

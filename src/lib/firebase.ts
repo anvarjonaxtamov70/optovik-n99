@@ -3,7 +3,7 @@ import { getApps, initializeApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth, getReactNativePersistence, initializeAuth, type Auth } from 'firebase/auth';
 import { connectDatabaseEmulator, getDatabase } from 'firebase/database';
 import { Platform } from 'react-native';
-import { selectFirebaseConfig, type PublicFirebaseConfig } from '../domain/firebaseEnvironment';
+import { selectRuntimeConfig, type PublicFirebaseConfig } from '../domain/firebaseEnvironment';
 
 // Firebase web konfiguratsiyasi maxfiy emas: himoya database.rules.json qoidalarida.
 const productionConfig = {
@@ -18,8 +18,7 @@ const productionConfig = {
 
 const emulatorHost = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST;
 const mode = process.env.EXPO_PUBLIC_N99_ENV;
-const firebaseConfig: PublicFirebaseConfig = selectFirebaseConfig(productionConfig, mode, process.env.EXPO_PUBLIC_N99_STAGING_CONFIG);
-if (mode === 'staging' && emulatorHost) throw new Error('Do not mix staging and emulator');
+const firebaseConfig: PublicFirebaseConfig = selectRuntimeConfig(productionConfig, mode, process.env.EXPO_PUBLIC_N99_STAGING_CONFIG, emulatorHost);
 const appName = emulatorHost ? 'n99-emulator' : mode === 'staging' ? 'n99-staging-' + firebaseConfig.projectId : '[DEFAULT]';
 export const app = getApps().find((candidate) => candidate.name === appName) ?? initializeApp(firebaseConfig, appName);
 export const db = getDatabase(app);

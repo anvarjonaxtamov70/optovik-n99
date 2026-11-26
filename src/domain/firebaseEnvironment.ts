@@ -24,3 +24,11 @@ export function selectFirebaseConfig(production: PublicFirebaseConfig, mode: str
       !(url.hostname === root + '.firebaseio.com' || (url.hostname.startsWith(root + '.') && url.hostname.endsWith('.firebasedatabase.app')))) throw new Error('Invalid staging database');
   return { apiKey: candidate.apiKey, appId: candidate.appId, projectId: candidate.projectId, authDomain: candidate.authDomain, databaseURL: url.origin };
 }
+
+/** Keep emulator identity independent from any live Firebase project. */
+export function selectRuntimeConfig(production: PublicFirebaseConfig, mode: string | undefined, stagingJson: string | undefined, emulatorHost: string | undefined): PublicFirebaseConfig {
+  if (!emulatorHost) return selectFirebaseConfig(production, mode, stagingJson);
+  if (mode && mode !== 'production') throw new Error('Do not mix staging and emulator');
+  if (!/^(localhost|127\.0\.0\.1|10\.0\.2\.2|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})$/.test(emulatorHost)) throw new Error('Invalid local emulator host');
+  return { projectId: 'demo-n99', apiKey: 'demo-n99-local', appId: 'demo-n99-local', authDomain: 'demo-n99.firebaseapp.com', databaseURL: 'https://demo-n99-default-rtdb.firebaseio.com' };
+}
