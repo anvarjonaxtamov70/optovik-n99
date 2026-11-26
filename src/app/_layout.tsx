@@ -1,11 +1,11 @@
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold } from '@expo-google-fonts/manrope';
 import { Unbounded_700Bold, Unbounded_800ExtraBold } from '@expo-google-fonts/unbounded';
 import { useFonts } from 'expo-font';
-import { router, Stack, usePathname } from 'expo-router';
+import { router, Stack, usePathname, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { IntroSplash } from '../components/brand/IntroSplash';
 import { KeyboardDismiss } from '../components/ui/KeyboardDismiss';
@@ -21,6 +21,19 @@ import { hydratePrefs } from '../state/prefs';
 import { colors } from '../theme/tokens';
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Do not expose raw exceptions, customer data or credentials in the recovery UI.
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  return (
+    <View style={styles.recovery}>
+      <Text accessibilityRole="header" style={styles.recoveryTitle}>Xatolik yuz berdi / Произошла ошибка</Text>
+      <Text style={styles.recoveryText}>Qayta urinib ko‘ring / Попробуйте снова</Text>
+      <Pressable accessibilityRole="button" onPress={() => { void retry(); }} style={styles.recoveryButton}>
+        <Text style={styles.recoveryButtonText}>Qayta urinish / Повторить</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -75,6 +88,11 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  recovery: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: colors.bg, gap: 16 },
+  recoveryTitle: { fontSize: 20, fontWeight: '700', color: colors.ink, textAlign: 'center' },
+  recoveryText: { fontSize: 15, color: colors.ink, textAlign: 'center' },
+  recoveryButton: { backgroundColor: colors.primary, borderRadius: 14, padding: 16 },
+  recoveryButtonText: { color: '#FFFFFF', fontWeight: '700' },
   // Yo'naltirish tugaguncha do'kon sahifasi bir lahza ham ko'rinmasin.
   cover: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg },
 });
