@@ -13,3 +13,9 @@ Authenticated callable endpoint receives product identifiers, integer quantities
 5. Release compatible clients and disable direct customer order creation only after migration verification. Keep cancellation behavior and existing order history compatible.
 
 Do not deploy or enable billing without owner approval. No production rules changes are required by this document.
+
+## Checkout recovery and catalog maintenance
+
+Pending checkout reconciliation uses an authenticated REST read rather than the SDK's potentially cached snapshot. An ambiguous submission retains its original ID; confirmed orders use their original quantities, and the local cart persists a receipt together with its contents before clearing the pending ID. This is device-local recovery, not cross-device business idempotency.
+
+Product deletion and category moves perform a server-read preflight of active indexed orders. This is deliberately a client guard, not an atomic server invariant; it does not cover an order created between the check and mutation, missing historical index entries or other clients. The scan also costs reads proportional to order history and should be replaced with a trusted product-reference index or stable product IDs before scaling. Existing product IDs remain unchanged. No production deployment or billing changes.

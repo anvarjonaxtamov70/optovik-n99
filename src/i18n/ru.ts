@@ -421,6 +421,7 @@ export const ru: Dict = {
   'admin.product.order': 'Порядок (больше — выше)',
   'admin.product.saved': 'Товар сохранён',
   'admin.product.deleted': 'Товар удалён',
+  'admin.product.activeOrder': 'Товар есть в активном заказе. Удаление и смена категории доступны после завершения заказа.',
   'admin.product.deleteConfirm': 'Удалить товар из каталога навсегда?',
   'admin.product.conflict': 'Товар изменён в другом месте. Откройте страницу заново.',
   'admin.product.err.name': 'Название — минимум 2 буквы',

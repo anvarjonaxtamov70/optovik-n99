@@ -27,3 +27,10 @@ export function debouncedSaver(key: string, delay = 400) {
     timer = setTimeout(() => { timer = null; void saveLocal(key, latest).catch(() => {}); }, delay);
   };
 }
+
+/** Checkout must distinguish missing local state from a failed storage read. */
+export async function readLocalStrict<T>(key: string): Promise<T | null> {
+  await queue.catch(() => {});
+  const raw = await AsyncStorage.getItem(PREFIX + key);
+  return raw === null ? null : JSON.parse(raw) as T;
+}

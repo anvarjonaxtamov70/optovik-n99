@@ -1,4 +1,4 @@
-import { get, limitToLast, onValue, orderByChild, push, query, ref, serverTimestamp, update } from 'firebase/database';
+import { limitToLast, onValue, orderByChild, push, query, ref, serverTimestamp, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -6,10 +6,11 @@ import type { CartLine, CartSummary } from '../domain/cart';
 import {
   buildOrderWrite, readOrder, readOrderIndex, isActive, nextStatus, recomputeTotals, type CheckoutForm, type Order, type OrderIndex, type OrderStatus,
 } from '../domain/order';
-import { classifyError, db, withTimeout, type FirebaseProblem } from '../lib/firebase';
-import { readLocal, saveLocal } from '../lib/storage';
+import { classifyError, db, readServerJson, withTimeout, type FirebaseProblem } from '../lib/firebase';
+import { readLocalStrict, saveLocal } from '../lib/storage';
 import { ensureCustomer, useUid } from './account';
 import { catalogStore } from './catalog';
+import { cart } from './cart';
 
 export type PlaceError = 'auth' | 'rules' | 'rate' | 'network' | 'empty' | 'unknown';
 export class PlaceOrderError extends Error {
@@ -39,22 +40,28 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
     const kind = classifyError(e);
     throw new PlaceOrderError(kind === 'network' ? 'network' : 'auth');
   }
-  const last = (await readLocal<number>('lastOrderAt')) ?? 0;
-  if (Date.now() - last < RATE_MS) throw new PlaceOrderError('rate');
-  // Persist only an opaque request ID, not customer address or phone.
   const pendingKey = `pendingOrder:${uid}`;
-  const pending = await readLocal<{ id: string; raqam: number }>(pendingKey);
+  const pending = await readLocalStrict<{ id: string; raqam: number }>(pendingKey).catch(() => { throw new PlaceOrderError('unknown'); });
   const validPending = pending && /^[-A-Za-z0-9_]{20}$/.test(pending.id) && Number.isInteger(pending.raqam) && pending.raqam >= 100000 && pending.raqam <= 999999 ? pending : null;
+  if (pending !== null && !validPending) throw new PlaceOrderError('unknown');
+  const finish = async (id: string, raqam: number, phone: string, ordered: Record<string, number>, recovered: boolean) => {
+    await cart.ordered(`${uid}/${id}`, ordered);
+    await saveLocal('lastOrderAt', Date.now());
+    await saveLocal(pendingKey, null);
+    return { id, uid, raqam, phone, recovered };
+  };
   if (validPending) {
-    const existing = await withTimeout(get(ref(db, `orders/${uid}/${validPending.id}`)), 5000).catch(() => null);
-    // Do not create a different order while the previous outcome is unknown.
-    if (!existing) throw new PlaceOrderError('network');
-    if (existing.exists()) {
-      await saveLocal('lastOrderAt', Date.now()).catch(() => {});
-      await saveLocal(pendingKey, null).catch(() => {});
-      // The current cart may have changed; do not report this as a new successful checkout.
-      throw new PlaceOrderError('rate');
+    // Only an actual server response can resolve an ambiguous earlier write.
+    const existing = await readServerJson(`orders/${uid}/${validPending.id}`, uid).catch(() => { throw new PlaceOrderError('network'); });
+    if (existing !== null) {
+      const order = readOrder(uid, validPending.id, existing);
+      if (!order || order.raqam !== validPending.raqam || !order.items.length) throw new PlaceOrderError('unknown');
+      return finish(order.id, order.raqam, order.mijoz.telefon, Object.fromEntries(order.items.map((item) => [item.id, item.soni])), true);
     }
+    // Reuse the same key even if an earlier queued write has not reached the server yet.
+  } else {
+    const last = (await readLocalStrict<number>('lastOrderAt').catch(() => { throw new PlaceOrderError('unknown'); })) ?? 0;
+    if (Date.now() - last < RATE_MS) throw new PlaceOrderError('rate');
   }
   const orderId = validPending?.id ?? push(ref(db, `orders/${uid}`)).key as string;
   const raqam = validPending?.raqam ?? 100000 + Math.floor(Math.random() * 900000);
@@ -82,9 +89,8 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
       throw new PlaceOrderError(kind === 'network' ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
     }
   }
-  await saveLocal('lastOrderAt', Date.now()).catch(() => {});
-  await saveLocal(pendingKey, null).catch(() => {});
-  return { id: orderId, uid, raqam };
+  const ordered = Object.fromEntries(lines.filter((line) => line.selected && line.product).map((line) => [line.id, Math.min(line.qty, line.product!.qoldiq)]).filter(([, qty]) => Number(qty) > 0));
+  return finish(orderId, raqam, form.telefon, ordered, false);
 }
 
 export function useMyOrders() {

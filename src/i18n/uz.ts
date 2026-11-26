@@ -420,6 +420,7 @@ export const uz = {
   'admin.product.order': 'Tartib (kattasi oldinda)',
   'admin.product.saved': 'Tovar saqlandi',
   'admin.product.deleted': 'Tovar o‘chirildi',
+  'admin.product.activeOrder': 'Tovar faol buyurtmada mavjud. Buyurtma yakunlanmaguncha uni o‘chirish yoki kategoriyasini almashtirish mumkin emas.',
   'admin.product.deleteConfirm': 'Tovar katalogdan butunlay o‘chirilsinmi?',
   'admin.product.conflict': 'Tovar boshqa joyda o‘zgartirilgan. Sahifani qayta oching.',
   'admin.product.err.name': 'Nom kamida 2 harf',

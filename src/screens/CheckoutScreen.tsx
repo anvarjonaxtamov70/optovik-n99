@@ -22,7 +22,7 @@ import { useT, type TKey } from '../i18n';
 import { haptic } from '../lib/haptics';
 import { openMap } from '../lib/links';
 import { saveProfile, useAccount, useProfile } from '../state/account';
-import { cart, useCart } from '../state/cart';
+import { useCart } from '../state/cart';
 import { useCatalogLive, useSettings } from '../state/catalog';
 import { initDeliveryDraft, useDeliveryDraft, type DeliveryDraft } from '../state/delivery';
 import { PlaceOrderError, placeOrder } from '../state/orders';
@@ -77,18 +77,16 @@ export default function CheckoutScreen() {
     if (Object.keys(errors).length) { haptic.warning(); return; }
     setBusy(true);
     try {
-      const ordered = Object.fromEntries(lines.filter((l) => l.selected && l.product).map((l) => [l.id, Math.min(l.qty, l.product!.qoldiq)]));
       const res = await placeOrder(lines, summary, order, lang);
       done.current = true;
       haptic.success();
       const courier = kind === 'kuryer';
-      void saveProfile({
+      if (!res.recovered) void saveProfile({
         name: contact.ism, phone: contact.telefon,
         address: courier ? draft.manzil : profile.address, apartment: courier ? draft.xonadon : profile.apartment,
         landmark: courier ? draft.moljal : profile.landmark, lat: courier ? draft.lat : profile.lat, lng: courier ? draft.lng : profile.lng,
       });
-      cart.ordered(ordered);
-      router.replace({ pathname: '/order-success', params: { id: res.id, raqam: String(res.raqam), phone: contact.telefon } });
+      router.replace({ pathname: '/order-success', params: { id: res.id, raqam: String(res.raqam), phone: res.phone } });
     } catch (e) {
       haptic.warning();
       const reason = e instanceof PlaceOrderError ? e.reason : 'unknown';

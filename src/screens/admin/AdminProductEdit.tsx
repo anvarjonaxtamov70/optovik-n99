@@ -19,7 +19,7 @@ import { useT, type TKey } from '../../i18n';
 import { confirmAsync } from '../../lib/confirm';
 import { classifyError } from '../../lib/firebase';
 import { haptic } from '../../lib/haptics';
-import { deleteProduct, formFromCopy, formFromProduct, nextNewForm, saveProduct, validateProduct, type ProductForm } from '../../state/admin';
+import { ActiveOrderProductError, deleteProduct, formFromCopy, formFromProduct, nextNewForm, saveProduct, validateProduct, type ProductForm } from '../../state/admin';
 import { useCatalogStatus, useProduct, useProducts } from '../../state/catalog';
 import { showToast } from '../../state/toast';
 import { colors } from '../../theme/tokens';
@@ -110,7 +110,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
       }
     } catch (e) {
       haptic.warning();
-      showToast(classifyError(e) === 'permission' ? t('admin.product.conflict') : t('common.error'), { kind: 'error' });
+      showToast(e instanceof ActiveOrderProductError ? t('admin.product.activeOrder') : classifyError(e) === 'permission' ? t('admin.product.conflict') : t('common.error'), { kind: 'error' });
     } finally {
       setBusy(false);
     }
@@ -136,8 +136,8 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
       showToast(t('admin.product.deleted'), { kind: 'success' });
       allowLeave();
       goBack('/admin/products');
-    } catch {
-      showToast(t('common.error'), { kind: 'error' });
+    } catch (e) {
+      showToast(e instanceof ActiveOrderProductError ? t('admin.product.activeOrder') : t('common.error'), { kind: 'error' });
     }
   };
 

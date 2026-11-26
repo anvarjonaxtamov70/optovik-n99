@@ -55,3 +55,28 @@ export function withTimeout<T>(promise: Promise<T>, ms = 15000): Promise<T> {
     promise.then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
   });
 }
+
+/** Acknowledged server reads for reconciliation; the RTDB SDK may return cached data. */
+export async function readServerJson(path: string, uid: string): Promise<unknown> {
+  const user = auth.currentUser;
+  if (!user || user.uid !== uid) throw Object.assign(new Error('Account changed'), { code: 'permission-denied' });
+  const token = await withTimeout(user.getIdToken(), 8000);
+  const encoded = path.split('/').map(encodeURIComponent).join('/');
+  const namespace = new URL(firebaseConfig.databaseURL).hostname.split('.')[0];
+  const base = emulatorHost ? `http://${emulatorHost}:9000` : firebaseConfig.databaseURL;
+  const url = `${base}/${encoded}.json?auth=${encodeURIComponent(token)}${emulatorHost ? '&ns=' + encodeURIComponent(namespace) : ''}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(url, { signal: controller.signal, headers: { 'Cache-Control': 'no-cache, no-store' } });
+    if (!response.ok) throw Object.assign(new Error('Server read failed'), { code: response.status === 401 || response.status === 403 ? 'permission-denied' : 'network' });
+    const value: unknown = await response.json();
+    if (auth.currentUser?.uid !== uid) throw Object.assign(new Error('Account changed'), { code: 'permission-denied' });
+    return value;
+  } catch (error) {
+    // Do not propagate fetch errors containing an authenticated URL.
+    throw Object.assign(new Error('Server read failed'), { code: classifyError(error) === 'permission' ? 'permission-denied' : 'network' });
+  } finally {
+    clearTimeout(timer);
+  }
+}

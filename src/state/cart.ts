@@ -6,21 +6,23 @@ import {
 } from '../domain/cart';
 import type { Product } from '../domain/products';
 import { createStore, useStore } from '../lib/store';
-import { debouncedSaver, readLocal } from '../lib/storage';
+import { debouncedSaver, readLocal, saveLocal } from '../lib/storage';
 import { catalogStore, useSettings } from './catalog';
 
 /** Savat ustidagi xabar: qoldiqqa moslandi yoki sotuvdan olingan tovarlar o'chirildi. */
 export type CartNotice = 'adjusted' | 'removed' | null;
-export type CartStore = CartState & { hydrated: boolean; notice: CartNotice };
-export const cartStore = createStore<CartStore>({ ...emptyCart, hydrated: false, notice: null });
+export type CartStore = CartState & { hydrated: boolean; notice: CartNotice; receipts: string[] };
+export const cartStore = createStore<CartStore>({ ...emptyCart, hydrated: false, notice: null, receipts: [] });
 const save = debouncedSaver('cart', 250);
 
 export async function hydrateCart() {
-  const saved = restoreCart(await readLocal('cart'));
-  cartStore.set((s) => ({ ...s, items: { ...saved.items, ...s.items }, off: { ...saved.off, ...s.off }, hydrated: true }));
+  const raw = await readLocal<{ receipts?: unknown }>('cart');
+  const saved = restoreCart(raw);
+  const receipts = Array.isArray(raw?.receipts) ? raw.receipts.filter((v): v is string => typeof v === 'string').slice(-20) : [];
+  cartStore.set((s) => ({ ...s, items: { ...saved.items, ...s.items }, off: { ...saved.off, ...s.off }, receipts, hydrated: true }));
   cartStore.subscribe(() => {
-    const { items, off } = cartStore.get();
-    save({ items, off });
+    const { items, off, receipts } = cartStore.get();
+    save({ items, off, receipts });
   });
   let lastVersion = -1;
   catalogStore.subscribe(() => {
@@ -54,16 +56,21 @@ export const cart = {
   selectAll(selected: boolean) { update((c) => setAllSelected(c, selected)); },
   dismissNotice() { cartStore.set((s) => ({ ...s, notice: null })); },
   /** Buyurtma muvaffaqiyatli yuborilgach, faqat buyurtmaga kirgan miqdorlarni ayiradi. */
-  ordered(items: Record<string, number>) {
-    update((c) => {
+  async ordered(receipt: string, items: Record<string, number>) {
+    if (!cartStore.get().hydrated) throw new Error('Cart not ready');
+    cartStore.set((c) => {
+      if (c.receipts.includes(receipt)) return c;
       const next = { ...c.items };
       const off = { ...c.off };
       for (const [id, q] of Object.entries(items)) {
         const left = (next[id] ?? 0) - q;
         if (left > 0) next[id] = left; else { delete next[id]; delete off[id]; }
       }
-      return { items: next, off };
+      return { ...c, items: next, off, receipts: [...c.receipts, receipt].slice(-20) };
     });
+    // Store cart and receipt in one local write before clearing the pending order.
+    const current = cartStore.get();
+    await saveLocal('cart', { items: current.items, off: current.off, receipts: current.receipts });
   },
 };
 
