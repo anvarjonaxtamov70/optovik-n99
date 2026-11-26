@@ -9,11 +9,12 @@ import { Header } from '../components/ui/Header';
 import { Skeleton } from '../components/ui/Skeleton';
 import { isActive } from '../domain/order';
 import { useT } from '../i18n';
-import { useMyOrders } from '../state/orders';
+import { useMyOrders, usePendingOrderRecovery } from '../state/orders';
 import { colors, radius } from '../theme/tokens';
 
 export default function OrdersScreen() {
   const { t } = useT();
+  usePendingOrderRecovery();
   const { orders, loading, error } = useMyOrders();
   const [tab, setTab] = useState<'active' | 'done'>('active');
   const list = orders.filter((o) => (tab === 'active' ? isActive(o.holat) : !isActive(o.holat)));

@@ -1,6 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const PREFIX = 'n99:v2:';
+// Never expose production carts, pending order IDs or profiles to a test build.
+const staging = process.env.EXPO_PUBLIC_N99_ENV === 'staging';
+const emulator = !!process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST;
+const testProject = staging ? JSON.parse(process.env.EXPO_PUBLIC_N99_STAGING_CONFIG ?? '{}').projectId as string : '';
+const PREFIX = staging ? `n99:staging:${testProject}:v2:` : emulator ? 'n99:emulator:v2:' : 'n99:v2:';
 let queue = Promise.resolve();
 
 export function saveLocal(key: string, value: unknown): Promise<void> {

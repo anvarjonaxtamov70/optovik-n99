@@ -22,6 +22,7 @@ export type Product = {
   yangi: boolean;
   tartib: number;
   revision: number;
+  archived?: boolean;
   updatedAt: number;
   /** Qidiruv uchun tayyorlangan matn. */
   hay: string;
@@ -78,6 +79,7 @@ export function readProduct(kategoriya: string, key: string, p: unknown): Produc
     ommabop: p.ommabop === true,
     yangi: p.yangi === true,
     tartib: typeof p.tartib === 'number' && Number.isFinite(p.tartib) ? p.tartib : 0,
+    archived: p.archived === true,
     revision: typeof p.revision === 'number' ? p.revision : 0,
     updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : 0,
     hay: fold([nomi, artikul, brend, model, modelNames, kategoriya, cat?.label.uz, cat?.label.ru].filter(Boolean).join(' ')),
@@ -93,7 +95,7 @@ export function readProducts(value: unknown): Product[] {
     if (!isRecord(entries)) continue;
     for (const [key, p] of Object.entries(entries)) {
       const product = readProduct(kategoriya, key, p);
-      if (product) out.push(product);
+      if (product && !product.archived) out.push(product);
     }
   }
   return out.sort(defaultOrder);
@@ -112,7 +114,7 @@ export function readCachedProducts(value: unknown): Product[] {
     const [kategoriya, key, extra] = raw.id.split('/');
     if (!kategoriya || !key || extra !== undefined) continue;
     const p = readProduct(kategoriya, key, { ...raw, rasmlar: raw.rasmlar });
-    if (p) out.push(p);
+    if (p && !p.archived) out.push(p);
   }
   return out.sort(defaultOrder);
 }
@@ -121,7 +123,7 @@ export function toCache(products: Product[]) {
   return products.map((p) => ({
     id: p.id, nomi: p.nomi, narxi: p.narxi, eskiNarx: p.eskiNarx, qoldiq: p.qoldiq, rasmlar: p.rasmlar, tavsif: p.tavsif,
     artikul: p.artikul, brend: p.brend, model: p.model, birlik: p.birlik, ommabop: p.ommabop, yangi: p.yangi, tartib: p.tartib,
-    revision: p.revision, updatedAt: p.updatedAt,
+    revision: p.revision, archived: p.archived, updatedAt: p.updatedAt,
   }));
 }
 

@@ -49,3 +49,15 @@ EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1 npx expo start --web
 2. Buyurtmani tasdiqlang → tovar qoldig‘i kamaysin; bekor qiling → qaytsin.
 3. Tovar narxini ro‘yxatda o‘zgartirib Enter bosing → telefondagi ilovada darhol yangilansin.
 4. Rasm qo‘shish: bir nechta fayl, sahifaga sudrab tashlash, Ctrl+V; tartibni ‹ › bilan o‘zgartirish; Ctrl+S bilan saqlash.
+
+## Isolated staging / Expo Go
+
+Create a separate Firebase Spark project, enable Anonymous and Email/Password authentication, create its default Realtime Database and publish the PR rules **to that staging project only**. Populate it with synthetic catalog data and a test admin. Do not copy production customers or keys. Set the two staging variables from .env.example before starting Metro:
+
+```sh
+npx expo start --tunnel
+```
+
+Open the Metro QR with a compatible Expo Go version. Staging configuration is mandatory in staging mode; it will not fall back to production. Auth app names and local storage namespaces are isolated. Test project credentials/configuration and the running Metro host are not provisioned by this PR. The existing EAS production publish workflow is not a staging test; app.json sets runtimeVersion, which prevents Expo Go from opening ordinary EAS Updates.
+
+Test checkout on a synthetic product with known stock: submit, interrupt the connection, reopen the app and visit order history; retry only with the original pending ID; verify that one order exists and the cart receipt is applied at most once. Confirm from two admin sessions, verify one stale revision fails; archive an item and confirm or cancel its existing order without losing the inventory record. Do not test these operations on production.

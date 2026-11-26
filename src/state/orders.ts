@@ -2,14 +2,14 @@ import { limitToLast, onValue, orderByChild, push, query, ref, serverTimestamp, 
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
-import type { CartLine, CartSummary } from '../domain/cart';
+import { MAX_LINES, validId, type CartLine, type CartSummary } from '../domain/cart';
 import {
-  buildOrderWrite, readOrder, readOrderIndex, isActive, nextStatus, recomputeTotals, type CheckoutForm, type Order, type OrderIndex, type OrderStatus,
+  buildOrderWrite, readOrder, readOrderIndex, isActive, nextStatus, recomputeTotals, planStockChanges, readStockSnapshot, type CheckoutForm, type Order, type OrderIndex, type OrderStatus,
 } from '../domain/order';
-import { classifyError, db, readServerJson, withTimeout, type FirebaseProblem } from '../lib/firebase';
+import { auth, classifyError, db, readServerJson, writeServerJson, withTimeout } from '../lib/firebase';
 import { readLocalStrict, saveLocal } from '../lib/storage';
 import { ensureCustomer, useUid } from './account';
-import { catalogStore } from './catalog';
+import { useCatalogLive } from './catalog';
 import { cart } from './cart';
 
 export type PlaceError = 'auth' | 'rules' | 'rate' | 'network' | 'empty' | 'unknown';
@@ -66,28 +66,19 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   const orderId = validPending?.id ?? push(ref(db, `orders/${uid}`)).key as string;
   const raqam = validPending?.raqam ?? 100000 + Math.floor(Math.random() * 900000);
   await saveLocal(pendingKey, { id: orderId, raqam }).catch(() => { throw new PlaceOrderError('unknown'); });
-  const write = (f: CheckoutForm) => withTimeout(update(ref(db), buildOrderWrite({ uid, orderId, raqam, lines, summary, form: f, lang, platform: Platform.OS, ts: serverTimestamp() })), 20000);
   try {
-    await write(form);
+    await writeServerJson(buildOrderWrite({ uid, orderId, raqam, lines, summary, form, lang, platform: Platform.OS, ts: serverTimestamp() }), uid);
   } catch (e) {
-    let kind: FirebaseProblem | null = classifyError(e);
-    // Bazadagi qoidalar hali eski bo'lsa (xarita nuqtasini bilmaydi), buyurtma yo'qolmasin: nuqtasiz qayta yuboriladi.
-    // Yozuv atomar — rad etilgan urinish hech narsa saqlamaydi, shuning uchun 30 soniyalik cheklov xalaqit bermaydi.
-    if (kind === 'permission' && form.lat != null && form.lng != null) {
-      try {
-        await write({ ...form, lat: null, lng: null });
-        kind = null;
-      } catch (e2) {
-        kind = classifyError(e2);
-      }
+    const kind = classifyError(e);
+    // A timeout or a lost response may still mean the server committed the order.
+    const existing = await readServerJson(`orders/${uid}/${orderId}`, uid).catch(() => undefined);
+    if (existing !== undefined && existing !== null) {
+      const order = readOrder(uid, orderId, existing);
+      if (!order || order.raqam !== raqam || !order.items.length) throw new PlaceOrderError('unknown');
+      return finish(order.id, order.raqam, order.mijoz.telefon, Object.fromEntries(order.items.map((item) => [item.id, item.soni])), true);
     }
-    // A local Firebase snapshot can contain an unacknowledged write. Never
-    // report checkout success from a cached read after a network timeout.
-    // Retain the pending ID for reconciliation instead.
-    if (kind) {
-      if (kind === 'permission' && !validPending) await saveLocal(pendingKey, null).catch(() => {});
-      throw new PlaceOrderError(kind === 'network' ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
-    }
+    if (kind === 'permission' && existing === null && !validPending) await saveLocal(pendingKey, null).catch(() => {});
+    throw new PlaceOrderError(kind === 'network' || existing === undefined ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
   }
   const ordered: Record<string, number> = {};
   for (const line of lines) {
@@ -96,6 +87,27 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
     if (qty > 0) ordered[line.id] = qty;
   }
   return finish(orderId, raqam, form.telefon, ordered, false);
+}
+
+/** Recover confirmed pending orders even if checkout is no longer accessible (empty cart). */
+export function usePendingOrderRecovery() {
+  const uid = useUid();
+  const live = useCatalogLive();
+  useEffect(() => {
+    if (!uid || !live || placingOrder) return;
+    placingOrder = true;
+    void (async () => {
+      const key = `pendingOrder:${uid}`;
+      const pending = await readLocalStrict<{ id: string; raqam: number }>(key);
+      if (!pending || !/^[-A-Za-z0-9_]{20}$/.test(pending.id) || !Number.isInteger(pending.raqam)) return;
+      const raw = await readServerJson(`orders/${uid}/${pending.id}`, uid);
+      const order = readOrder(uid, pending.id, raw);
+      if (!order || order.raqam !== pending.raqam || !order.items.length) return;
+      await cart.ordered(`${uid}/${order.id}`, Object.fromEntries(order.items.map((item) => [item.id, item.soni])));
+      await saveLocal('lastOrderAt', Date.now());
+      await saveLocal(key, null);
+    })().catch(() => {}).finally(() => { placingOrder = false; });
+  }, [uid, live]);
 }
 
 export function useMyOrders() {
@@ -131,12 +143,12 @@ export function useOrder(uid: string | undefined | null, id: string | undefined)
 
 export async function cancelMyOrder(o: Order) {
   const base = `orders/${o.uid}/${o.id}`;
-  await withTimeout(update(ref(db), {
+  await writeServerJson({
     [`${base}/holat`]: 'bekor',
     [`${base}/tarix/bekor`]: serverTimestamp(),
     [`${base}/updatedAt`]: serverTimestamp(),
     [`orderIndex/${o.id}/holat`]: 'bekor',
-  }), 15000);
+  }, o.uid);
 }
 
 /* ---------- Admin ---------- */
@@ -156,6 +168,11 @@ export function useAdminOrders(limit = 300) {
 }
 
 export async function adminSetStatus(o: Order, next: OrderStatus) {
+  const adminUid = auth.currentUser?.uid;
+  if (!adminUid) throw new Error('Not authenticated');
+  const latest = readOrder(o.uid, o.id, await readServerJson(`orders/${o.uid}/${o.id}`, adminUid));
+  if (!latest || latest.holat !== o.holat || latest.zaxira !== o.zaxira) throw Object.assign(new Error('Order changed'), { code: 'permission-denied' });
+  o = latest;
   if (!isActive(o.holat) || (next !== 'bekor' && next !== nextStatus(o))) throw new Error('Invalid order transition');
   const totals = recomputeTotals(o);
   if (next !== 'bekor' && (!o.items.length || totals.jami !== o.jami || totals.summa !== o.summa || totals.soni !== o.soni)) throw new Error('Order totals mismatch');
@@ -167,23 +184,21 @@ export async function adminSetStatus(o: Order, next: OrderStatus) {
     [`${base}/updatedAt`]: ts,
     [`orderIndex/${o.id}/holat`]: next,
   };
-  const byId = catalogStore.get().byId;
   // Tasdiqlashda qoldiq band qilinadi, band qilingan buyurtma bekor bo'lsa — qaytariladi.
   const reserve = next !== 'bekor' && next !== 'yangi' && !o.zaxira;
   const release = next === 'bekor' && o.zaxira;
   if (reserve || release) {
-    for (const item of o.items) {
-      const product = byId.get(item.id);
-      if (!product) throw new Error('Order product missing');
-      const stock = product.qoldiq + (reserve ? -item.soni : item.soni);
-      if (stock < 0) throw new Error('Insufficient stock');
-      writes[`tovarlar/${item.id}/qoldiq`] = stock;
-      // Explicit revision acts as optimistic concurrency guard in database rules.
-      writes[`tovarlar/${item.id}/revision`] = product.revision + 1;
+    if (!o.items.length || o.items.length > MAX_LINES || o.items.some((item) => !validId(item.id))) throw new Error('Invalid order items');
+    const products = new Map(await Promise.all(o.items.map(async (item) => {
+      return [item.id, readStockSnapshot(await readServerJson(`tovarlar/${item.id}`, adminUid))] as const;
+    })));
+    for (const change of planStockChanges(o.items, products, reserve)) {
+      writes[`tovarlar/${change.id}/qoldiq`] = change.stock;
+      writes[`tovarlar/${change.id}/revision`] = change.revision;
     }
     writes[`${base}/zaxira`] = reserve;
   }
-  await withTimeout(update(ref(db), writes), 15000);
+  await writeServerJson(writes, adminUid);
 }
 
 export async function adminSaveNote(o: Order, note: string) {

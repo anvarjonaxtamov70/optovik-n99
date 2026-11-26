@@ -6,7 +6,7 @@ import { bannerHasContent, DEFAULT_SETTINGS, isSafeLink, LEGACY_PUBLIC_MEDIA_FIE
 import { ofertaSections, RETURN_DAYS } from '../src/content/oferta.ts';
 import { composeAddress, distanceKm, formatKm, isValidLatLng, mapUrl, roundCoord, SAMARQAND } from '../src/domain/geo.ts';
 import { formatSom, groupDigits } from '../src/domain/money.ts';
-import { buildOrderWrite, fullAddress, nextStatus, orderNumber, readOrder, recomputeTotals, statusFlow, validateCheckout } from '../src/domain/order.ts';
+import { buildOrderWrite, fullAddress, nextStatus, orderNumber, readOrder, recomputeTotals, planStockChanges, readStockSnapshot, statusFlow, validateCheckout } from '../src/domain/order.ts';
 import { displayPhone, formatLocal, isValidUzPhone, localDigits, toE164 } from '../src/domain/phone.ts';
 import { addImages, applyFilters, discountPercent, isPlaceholderCatalog, MAX_IMAGES, moveImage, parseWhole, readCachedProducts, readProducts, searchScore, similarProducts, toCache } from '../src/domain/products.ts';
 import { categoryFor, categoryLabel, parseModels } from '../src/domain/taxonomy.ts';
@@ -343,4 +343,29 @@ test('confirmed checkout receipt is applied only once, including after serializa
   const next = applyOrderReceipt(restored, 'user/next', { 'dvigatel/oil': 2 });
   assert.deepEqual(next.items, { 'aksessuarlar/holder': 2 });
   assert.throws(() => applyOrderReceipt(initial, 'user/bad', { 'dvigatel/oil': -1 }));
+});
+
+test('archived products remain readable by physical ID but are excluded from shop and cache', () => {
+  const archived = { nomi: 'Archived', narxi: 100, qoldiq: 5, revision: 2, archived: true };
+  assert.equal(readProducts({ a: { b: archived } }).length, 0);
+  assert.equal(readCachedProducts([{ id: 'a/b', ...archived }]).length, 0);
+  const product = readProducts({ a: { b: { ...archived, archived: false } } })[0];
+  assert.equal(product.id, 'a/b');
+});
+
+test('inventory plan reserves and releases original product IDs with exact revision', () => {
+  const items = [{ id: 'a/b', nomi: 'X', narxi: 10, soni: 2 }];
+  const catalog = new Map([['a/b', { qoldiq: 5, revision: 3, archived: true }]]);
+  assert.deepEqual(planStockChanges(items, catalog, true), [{ id: 'a/b', stock: 3, revision: 4 }]);
+  assert.deepEqual(planStockChanges(items, catalog, false), [{ id: 'a/b', stock: 7, revision: 4 }]);
+  assert.throws(() => planStockChanges([...items, ...items], catalog, true));
+  assert.throws(() => planStockChanges([{ ...items[0], soni: 6 }], catalog, true));
+  assert.throws(() => planStockChanges([{ ...items[0], soni: 0 }], catalog, false));
+});
+
+test('inventory rejects malformed legacy stock instead of rounding it', () => {
+  assert.deepEqual(readStockSnapshot({ qoldiq: 2 }), { qoldiq: 2, revision: 0 });
+  assert.throws(() => readStockSnapshot({ qoldiq: 1.5, revision: 2 }));
+  assert.throws(() => readStockSnapshot({ qoldiq: -1 }));
+  assert.throws(() => readStockSnapshot({ qoldiq: 1, revision: '2' }));
 });

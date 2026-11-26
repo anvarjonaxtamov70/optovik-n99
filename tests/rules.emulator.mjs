@@ -274,3 +274,15 @@ test('order audit: lifecycle timestamps cannot be erased', async () => {
   denied(await req('orders/bob/b1/tarix/tasdiqlandi', { method: 'DELETE', auth: OWNER }), 'confirmation timestamp deletion');
   denied(await req('orders/bob/b1/tarix', { method: 'PUT', auth: OWNER, body: { yangi: { '.sv': 'timestamp' } } }), 'history replacement');
 });
+
+test('catalog archive preserves the original product and its inventory', async () => {
+  const path = 'tovarlar/filtrlar/archive-example';
+  ok(await req(path, { method: 'PUT', auth: OWNER, body: { nomi: 'Archive example', narxi: 10000, qoldiq: 5, revision: 1 } }), 'create catalog item');
+  ok(await req(path, { method: 'PATCH', auth: OWNER, body: { archived: true, revision: 2 } }), 'archive catalog item');
+  const archived = await req(path);
+  ok(archived, 'physical record retained');
+  assert.equal(archived.body.archived, true);
+  assert.equal(archived.body.qoldiq, 5);
+  ok(await req(path, { method: 'PATCH', auth: OWNER, body: { qoldiq: 6, revision: 3 } }), 'stock correction remains possible');
+  assert.equal((await req(path)).body.archived, true);
+});

@@ -21,3 +21,11 @@ Pending checkout reconciliation uses an authenticated REST read rather than the 
 Product deletion and category moves perform a server-read preflight of active indexed orders. This is deliberately a client guard, not an atomic server invariant; it does not cover an order created between the check and mutation, missing historical index entries or other clients. The scan also costs reads proportional to order history and should be replaced with a trusted product-reference index or stable product IDs before scaling. Existing product IDs remain unchanged. No production deployment or billing changes.
 
 The product editor retains the revision captured when its form opened. A live catalog update must not silently refresh that revision while leaving stale form quantities in place. Reload the editor after a conflict.
+
+## Stable inventory paths and acknowledged requests
+
+Product removal is now a permanent catalog archive: the physical category/key record and inventory remain available for existing orders. The client hides archived products and the rules reject them in new orders. Ordinary admin writes cannot delete product records; physical category moves are temporarily disabled to keep legacy order references valid. An admin archive does not remove the physical stock. A future stable-ID migration will support category reassignment and a dedicated archive management screen.
+
+Checkout and order transitions use authenticated REST requests without the SDK offline write queue. Timeouts still have unknown outcomes: checkout retains the ID, checks the actual server, and can reconcile confirmed orders from the order history screen. The old coordinates-stripping fallback was removed because it could silently lose the address pin. Admin status changes read the current order and product revisions from the server before making a single atomic write. Arbitrary aggregate totals, cross-device idempotency and enforcing every stock delta against a specific order remain limitations of this client/rules architecture.
+
+Staging can be selected explicitly with a different Firebase project; invalid staging settings fail closed and local storage is isolated. The staging project itself is not provisioned. No production changes were applied.

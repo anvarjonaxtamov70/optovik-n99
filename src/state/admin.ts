@@ -2,7 +2,7 @@ import { get, onValue, push, ref, remove, serverTimestamp, set, update } from 'f
 
 import { LEGACY_PUBLIC_MEDIA_FIELDS, readMediaKey, type Banner, type ShopSettings } from '../domain/content';
 import type { Product } from '../domain/products';
-import { auth, db, readServerJson, withTimeout } from '../lib/firebase';
+import { db, withTimeout } from '../lib/firebase';
 import { createStore, useStore } from '../lib/store';
 
 export type ProductForm = {
@@ -52,33 +52,17 @@ export function validateProduct(f: ProductForm): Partial<Record<keyof ProductFor
   return e;
 }
 
-/** Best-effort preflight; RTDB cannot atomically query arbitrary reverse references. */
+/** Existing product paths are stable until a compatible category migration exists. */
 export class ActiveOrderProductError extends Error {
-  constructor() { super('Product has an active order'); }
+  constructor() { super('Existing product category is locked'); }
 }
 
-async function ensureNoActiveOrder(p: Product) {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error('Not authenticated');
-  const raw = await readServerJson('orderIndex', uid);
-  if (raw === null) return;
-  if (typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Invalid order index');
-  for (const [id, value] of Object.entries(raw)) {
-    if (!value || typeof value !== 'object') throw new Error('Invalid order index entry');
-    const entry = value as { uid?: unknown; holat?: unknown };
-    if (entry.holat === 'bekor' || entry.holat === 'yetkazildi') continue;
-    if (typeof entry.uid !== 'string' || !entry.uid) throw new Error('Invalid order owner');
-    const item = await readServerJson(`orders/${entry.uid}/${id}/items/${p.id}`, uid);
-    if (item !== null) throw new ActiveOrderProductError();
-  }
-}
-
-/** Tovarni saqlaydi. Kategoriya o'zgarsa — eski yo'l o'chiriladi (bitta atomar yozuvda). */
+/** Update in place. Never move or delete a physical product path. */
 export async function saveProduct(f: ProductForm, existing?: Product): Promise<string> {
   if (Object.keys(validateProduct(f)).length) throw new Error('Invalid product form');
   const cat = f.kategoriya.trim();
   if (!cat || [...cat].some((ch) => '.#$[]/'.includes(ch) || ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127)) throw new Error('Invalid category');
-  if (existing && existing.kategoriya !== cat) await ensureNoActiveOrder(existing);
+  if (existing && existing.kategoriya !== cat) throw new ActiveOrderProductError();
   const key = existing && existing.kategoriya === cat ? existing.key : (existing?.key ?? (push(ref(db, `tovarlar/${cat}`)).key as string));
   const opt = (v: string) => (v.trim() ? v.trim() : null);
   const value = {
@@ -90,7 +74,6 @@ export async function saveProduct(f: ProductForm, existing?: Product): Promise<s
     revision: (existing?.revision ?? 0) + 1, updatedAt: serverTimestamp(),
   };
   const writes: Record<string, unknown> = {};
-  if (existing && existing.kategoriya !== cat) writes[`tovarlar/${existing.kategoriya}/${existing.key}`] = null;
   if (existing && existing.kategoriya === cat) {
     for (const [k, v] of Object.entries(value)) writes[`tovarlar/${cat}/${key}/${k}`] = v;
   } else {
@@ -101,8 +84,8 @@ export async function saveProduct(f: ProductForm, existing?: Product): Promise<s
 }
 
 export async function deleteProduct(p: Product) {
-  await ensureNoActiveOrder(p);
-  await withTimeout(remove(ref(db, `tovarlar/${p.kategoriya}/${p.key}`)), 15000);
+  // Keep the physical record for existing orders and stock releases.
+  await withTimeout(update(ref(db, `tovarlar/${p.id}`), { archived: true, revision: p.revision + 1, updatedAt: serverTimestamp() }), 15000);
 }
 
 /**

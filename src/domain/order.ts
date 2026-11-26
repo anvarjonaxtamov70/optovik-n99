@@ -159,6 +159,7 @@ export function buildOrderWrite(args: {
     if (!l.selected || !l.product) continue;
     const qty = Math.min(l.qty, l.product.qoldiq);
     if (qty <= 0) continue;
+    if (l.product.archived) throw new Error('Product archived');
     if (++lineCount > MAX_LINES || qty > MAX_QTY || !validId(l.id) || !Number.isSafeInteger(qty) || !Number.isSafeInteger(l.product.narxi) || l.product.narxi < 0) throw new Error('Invalid order item');
     const [cat, pid] = l.id.split('/');
     if (!cat || !pid || l.id !== l.product.id || items[cat]?.[pid]) throw new Error('Invalid or duplicate order item');
@@ -192,4 +193,27 @@ export function buildOrderWrite(args: {
 
 export function orderNumber(raqam: number): string {
   return 'N' + String(raqam).padStart(6, '0');
+}
+
+/** Validate stock plans before writing the order and all inventory revisions atomically. */
+export function planStockChanges(items: OrderItem[], products: ReadonlyMap<string, { qoldiq: number; revision: number }>, reserve: boolean) {
+  if (!items.length || items.length > MAX_LINES) throw new Error('Invalid order items');
+  const seen = new Set<string>();
+  return items.map((item) => {
+    if (!validId(item.id) || seen.has(item.id) || !Number.isSafeInteger(item.soni) || item.soni < 1 || item.soni > MAX_QTY) throw new Error('Invalid order item');
+    seen.add(item.id);
+    const product = products.get(item.id);
+    if (!product || !Number.isSafeInteger(product.qoldiq) || product.qoldiq < 0 || !Number.isSafeInteger(product.revision) || product.revision < 0) throw new Error('Order product missing or invalid');
+    const stock = product.qoldiq + (reserve ? -item.soni : item.soni);
+    if (!Number.isSafeInteger(stock) || stock < 0 || stock > 1_000_000 || !Number.isSafeInteger(product.revision + 1)) throw new Error('Invalid resulting stock');
+    return { id: item.id, stock, revision: product.revision + 1 };
+  });
+}
+
+/** Preserve exact server stock; do not round invalid historical inventory. */
+export function readStockSnapshot(value: unknown): { qoldiq: number; revision: number } {
+  if (!isRecord(value) || typeof value.qoldiq !== 'number' || !Number.isSafeInteger(value.qoldiq) || value.qoldiq < 0 || value.qoldiq > 1_000_000) throw new Error('Invalid stock snapshot');
+  const revision = value.revision === undefined ? 0 : value.revision;
+  if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 0) throw new Error('Invalid stock revision');
+  return { qoldiq: value.qoldiq, revision };
 }

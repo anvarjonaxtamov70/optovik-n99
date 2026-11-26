@@ -140,7 +140,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
       allowLeave();
       goBack('/admin/products');
     } catch (e) {
-      showToast(e instanceof ActiveOrderProductError ? t('admin.product.activeOrder') : t('common.error'), { kind: 'error' });
+      showToast(classifyError(e) === 'permission' ? t('admin.product.conflict') : t('common.error'), { kind: 'error' });
     }
   };
 

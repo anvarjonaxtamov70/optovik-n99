@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getApp, getApps, initializeApp } from 'firebase/app';
+import { getApps, initializeApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth, getReactNativePersistence, initializeAuth, type Auth } from 'firebase/auth';
 import { connectDatabaseEmulator, getDatabase } from 'firebase/database';
 import { Platform } from 'react-native';
+import { selectFirebaseConfig, type PublicFirebaseConfig } from '../domain/firebaseEnvironment';
 
 // Firebase web konfiguratsiyasi maxfiy emas: himoya database.rules.json qoidalarida.
-const firebaseConfig = {
+const productionConfig = {
   apiKey: 'AIzaSyDHt-KJLFQDd1wOAr-dYm67VZksaSTdmSU',
   authDomain: 'optovikn99.firebaseapp.com',
   databaseURL: 'https://optovikn99-default-rtdb.europe-west1.firebasedatabase.app',
@@ -15,7 +16,12 @@ const firebaseConfig = {
   appId: '1:220211635407:web:8af6df7846ef7b66f883ba',
 };
 
-export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const emulatorHost = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST;
+const mode = process.env.EXPO_PUBLIC_N99_ENV;
+const firebaseConfig: PublicFirebaseConfig = selectFirebaseConfig(productionConfig, mode, process.env.EXPO_PUBLIC_N99_STAGING_CONFIG);
+if (mode === 'staging' && emulatorHost) throw new Error('Do not mix staging and emulator');
+const appName = emulatorHost ? 'n99-emulator' : mode === 'staging' ? 'n99-staging-' + firebaseConfig.projectId : '[DEFAULT]';
+export const app = getApps().find((candidate) => candidate.name === appName) ?? initializeApp(firebaseConfig, appName);
 export const db = getDatabase(app);
 
 export const auth: Auth = (() => {
@@ -29,7 +35,6 @@ export const auth: Auth = (() => {
 })();
 
 // Faqat lokal sinov uchun: EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1 — production bazaga tegmaydi.
-const emulatorHost = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST;
 if (emulatorHost) {
   connectDatabaseEmulator(db, emulatorHost, 9000);
   connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true });
@@ -57,18 +62,19 @@ export function withTimeout<T>(promise: Promise<T>, ms = 15000): Promise<T> {
 }
 
 /** Acknowledged server reads for reconciliation; the RTDB SDK may return cached data. */
-export async function readServerJson(path: string, uid: string): Promise<unknown> {
+async function serverJson(path: string, uid: string, writes?: Record<string, unknown>): Promise<unknown> {
   const user = auth.currentUser;
   if (!user || user.uid !== uid) throw Object.assign(new Error('Account changed'), { code: 'permission-denied' });
   const token = await withTimeout(user.getIdToken(), 8000);
+  if (auth.currentUser?.uid !== uid) throw Object.assign(new Error('Account changed'), { code: 'permission-denied' });
   const encoded = path.split('/').map(encodeURIComponent).join('/');
   const namespace = new URL(firebaseConfig.databaseURL).hostname.split('.')[0];
   const base = emulatorHost ? `http://${emulatorHost}:9000` : firebaseConfig.databaseURL;
   const url = `${base}/${encoded}.json?auth=${encodeURIComponent(token)}${emulatorHost ? '&ns=' + encodeURIComponent(namespace) : ''}`;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000);
+  const timer = setTimeout(() => controller.abort(), writes ? 20000 : 10000);
   try {
-    const response = await fetch(url, { signal: controller.signal, headers: { 'Cache-Control': 'no-cache, no-store' } });
+    const response = await fetch(url, { signal: controller.signal, method: writes ? 'PATCH' : 'GET', headers: { 'Cache-Control': 'no-cache, no-store', ...(writes ? { 'Content-Type': 'application/json' } : {}) }, ...(writes ? { body: JSON.stringify(writes) } : {}) });
     if (!response.ok) throw Object.assign(new Error('Server read failed'), { code: response.status === 401 || response.status === 403 ? 'permission-denied' : 'network' });
     const value: unknown = await response.json();
     if (auth.currentUser?.uid !== uid) throw Object.assign(new Error('Account changed'), { code: 'permission-denied' });
@@ -79,4 +85,13 @@ export async function readServerJson(path: string, uid: string): Promise<unknown
   } finally {
     clearTimeout(timer);
   }
+}
+
+export function readServerJson(path: string, uid: string): Promise<unknown> {
+  return serverJson(path, uid);
+}
+
+/** REST writes never enter the SDK's offline write queue. A timeout still has an unknown outcome. */
+export async function writeServerJson(writes: Record<string, unknown>, uid: string): Promise<void> {
+  await serverJson('', uid, writes);
 }

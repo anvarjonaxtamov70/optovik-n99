@@ -1,6 +1,6 @@
 import { MAX_LINES, MAX_QTY, validId } from './cart.ts';
 
-type CatalogPrice = { narxi: number; qoldiq: number };
+type CatalogPrice = { narxi: number; qoldiq: number; archived?: boolean };
 type DeliverySettings = { courierEnabled: boolean; pickupEnabled: boolean; courierFee: number; freeDeliveryFrom: number };
 
 /** Catalog and settings must be loaded by the trusted service, not supplied by the customer. */
@@ -16,7 +16,7 @@ export function checkoutQuote(request: unknown, catalog: ReadonlyMap<string, Cat
     if (!line || typeof line.id !== 'string' || !validId(line.id) || seen.has(line.id) || !Number.isSafeInteger(line.qty) || line.qty < 1 || line.qty > MAX_QTY) throw new Error('invalid-item');
     seen.add(line.id);
     const product = catalog.get(line.id);
-    if (!product || !Number.isSafeInteger(product.qoldiq) || product.qoldiq < line.qty) throw new Error('stock-unavailable');
+    if (!product || product.archived || !Number.isSafeInteger(product.qoldiq) || product.qoldiq < line.qty) throw new Error('stock-unavailable');
     if (!Number.isSafeInteger(product.narxi) || product.narxi < 0) throw new Error('invalid-price');
     subtotal += product.narxi * line.qty;
     count += line.qty;
