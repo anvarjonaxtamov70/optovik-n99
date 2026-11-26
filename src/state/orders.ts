@@ -80,7 +80,7 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
       if (saved?.exists()) kind = null;
     }
     if (kind) {
-      if (kind === 'permission') await saveLocal(pendingKey, null).catch(() => {});
+      if (kind === 'permission' && !validPending) await saveLocal(pendingKey, null).catch(() => {});
       throw new PlaceOrderError(kind === 'network' ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
     }
   }
