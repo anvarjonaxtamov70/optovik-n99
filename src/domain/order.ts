@@ -153,15 +153,20 @@ export function buildOrderWrite(args: {
   const { uid, orderId, raqam, lines, summary, form, ts } = args;
   const items: Record<string, Record<string, { nomi: string; narxi: number; soni: number; eskiNarx?: number }>> = {};
   let soni = 0;
+  let summa = 0;
   for (const l of lines) {
     if (!l.selected || !l.product) continue;
     const qty = Math.min(l.qty, l.product.qoldiq);
     if (qty <= 0) continue;
+    if (!Number.isSafeInteger(qty) || !Number.isSafeInteger(l.product.narxi) || l.product.narxi < 0) throw new Error('Invalid order item');
     const [cat, pid] = l.id.split('/');
+    if (!cat || !pid || l.id !== l.product.id || items[cat]?.[pid]) throw new Error('Invalid or duplicate order item');
     items[cat] ??= {};
     items[cat][pid] = { nomi: l.product.nomi, narxi: l.product.narxi, soni: qty, ...(l.product.eskiNarx ? { eskiNarx: l.product.eskiNarx } : {}) };
     soni += qty;
+    summa += qty * l.product.narxi;
   }
+  if (!soni || !Number.isSafeInteger(summa) || !Number.isSafeInteger(summary.delivery) || summary.delivery < 0 || summa !== summary.subtotal || soni !== summary.count || summa + summary.delivery !== summary.total) throw new Error('Checkout totals changed');
   const point = { lat: form.lat, lng: form.lng };
   const yetkazish = form.turi === 'kuryer'
     ? {
@@ -173,10 +178,10 @@ export function buildOrderWrite(args: {
     raqam, createdAt: ts, updatedAt: ts, holat: 'yangi', tarix: { yangi: ts },
     mijoz: { ism: form.ism.trim(), telefon: form.telefon },
     yetkazish, tolov: 'naqd', ...(form.izoh.trim() ? { izoh: form.izoh.trim().slice(0, 500) } : {}),
-    items, summa: summary.subtotal, yetkazishNarxi: summary.delivery, jami: summary.total, soni,
+    items, summa, yetkazishNarxi: summary.delivery, jami: summa + summary.delivery, soni,
     til: args.lang, platforma: args.platform,
   };
-  const index = { uid, raqam, createdAt: ts, holat: 'yangi', jami: summary.total, ism: form.ism.trim(), telefon: form.telefon, soni, turi: form.turi };
+  const index = { uid, raqam, createdAt: ts, holat: 'yangi', jami: summa + summary.delivery, ism: form.ism.trim(), telefon: form.telefon, soni, turi: form.turi };
   return {
     [`orders/${uid}/${orderId}`]: order,
     [`orderIndex/${orderId}`]: index,
