@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 import type { CartLine, CartSummary } from '../domain/cart';
 import {
-  buildOrderWrite, readOrder, readOrderIndex, type CheckoutForm, type Order, type OrderIndex, type OrderStatus,
+  buildOrderWrite, readOrder, readOrderIndex, isActive, nextStatus, recomputeTotals, type CheckoutForm, type Order, type OrderIndex, type OrderStatus,
 } from '../domain/order';
 import { classifyError, db, withTimeout, type FirebaseProblem } from '../lib/firebase';
 import { readLocal, saveLocal } from '../lib/storage';
@@ -110,6 +110,9 @@ export function useAdminOrders(limit = 300) {
 }
 
 export async function adminSetStatus(o: Order, next: OrderStatus) {
+  if (!isActive(o.holat) || (next !== 'bekor' && next !== nextStatus(o))) throw new Error('Invalid order transition');
+  const totals = recomputeTotals(o);
+  if (next !== 'bekor' && (!o.items.length || totals.jami !== o.jami || totals.summa !== o.summa || totals.soni !== o.soni)) throw new Error('Order totals mismatch');
   const base = `orders/${o.uid}/${o.id}`;
   const ts = serverTimestamp();
   const writes: Record<string, unknown> = {
@@ -124,7 +127,7 @@ export async function adminSetStatus(o: Order, next: OrderStatus) {
   const release = next === 'bekor' && o.zaxira;
   if (reserve || release) {
     for (const item of o.items) {
-      if (!byId.has(item.id)) continue;
+      if (!byId.has(item.id)) throw new Error('Order product missing');
       writes[`tovarlar/${item.id}/qoldiq`] = increment(reserve ? -item.soni : item.soni);
       writes[`tovarlar/${item.id}/revision`] = increment(1);
     }
