@@ -258,3 +258,13 @@ test('inventory: concurrent stale revisions cannot both succeed', async () => {
   assert.equal(saved.revision, 2);
   assert.ok([3, 4].includes(saved.qoldiq));
 });
+
+test('order audit: admin cannot delete orders or corrupt index metadata', async () => {
+  denied(await req('orders/bob/b1', { method: 'DELETE', auth: OWNER }), 'order deletion');
+  denied(await req('orderIndex/b1', { method: 'DELETE', auth: OWNER }), 'index deletion');
+  denied(await req('orderIndex/b1/jami', { method: 'PUT', auth: OWNER, body: 1 }), 'index total');
+  denied(await req('orderIndex/b1/soni', { method: 'PUT', auth: OWNER, body: 99 }), 'index quantity');
+  denied(await req('orders/bob/b1/soni', { method: 'PUT', auth: OWNER, body: 99 }), 'order quantity');
+  denied(await req('orders/bob/b1/yetkazish/turi', { method: 'PUT', auth: OWNER, body: 'olib' }), 'delivery mutation');
+  ok(await req('orders/bob/b1/adminIzoh', { method: 'PUT', auth: OWNER, body: 'Audit test' }), 'admin note remains editable');
+});
