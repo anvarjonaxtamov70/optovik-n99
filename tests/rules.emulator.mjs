@@ -244,3 +244,17 @@ test('delivery: configured fees, enabled modes and index metadata are enforced',
   denied(await place(auth, uid, 'fee4', { ...courier, yetkazishNarxi: 25000 }), 'free delivery must not charge');
   ok(await place(auth, uid, 'fee5', courier), 'free delivery at threshold');
 });
+
+test('inventory: concurrent stale revisions cannot both succeed', async () => {
+  const path = 'tovarlar/filtrlar/concurrency';
+  ok(await req(path, { method: 'PUT', auth: OWNER, body: { nomi: 'Test', narxi: 10000, qoldiq: 5, revision: 1 } }), 'seed');
+  denied(await req(path + '/qoldiq', { method: 'PUT', auth: OWNER, body: 4 }), 'stock without revision');
+  denied(await req(path + '/narxi', { method: 'PUT', auth: OWNER, body: 20000 }), 'price without revision');
+  denied(await req(path + '/revision', { method: 'DELETE', auth: OWNER }), 'revision deletion');
+  const results = await Promise.all([4, 3].map(qoldiq => req(path, { method: 'PATCH', auth: OWNER, body: { qoldiq, revision: 2 } })));
+  assert.equal(results.filter(r => r.status === 200).length, 1);
+  denied(results.find(r => r.status !== 200), 'stale concurrent writer');
+  const saved = (await req(path)).body;
+  assert.equal(saved.revision, 2);
+  assert.ok([3, 4].includes(saved.qoldiq));
+});
