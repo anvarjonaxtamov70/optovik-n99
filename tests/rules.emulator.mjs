@@ -204,3 +204,20 @@ test('profil: faqat egasi, to‘g‘ri telefon bilan', async () => {
   ok(await req('customers/alice', { auth: OWNER }), 'admin mijozni ko‘radi');
   denied(await req('customers/alice', { auth: BOB }), 'begona mijoz');
 });
+
+test('order lifecycle: split writes, backwards and skipped transitions are denied', async () => {
+  denied(await req('orders/carol/g4/holat', { method: 'PUT', auth: CAROL, body: 'bekor' }), 'split customer cancellation');
+  denied(await req('orderIndex/g4/holat', { method: 'PUT', auth: CAROL, body: 'bekor' }), 'split index cancellation');
+  const move = (status) => req('', { method: 'PATCH', auth: OWNER, body: {
+    'orders/bob/b1/holat': status,
+    ['orders/bob/b1/tarix/' + status]: TS,
+    'orders/bob/b1/updatedAt': TS,
+    'orderIndex/b1/holat': status,
+  } });
+  denied(await move('yangi'), 'backwards');
+  denied(await move('tayyor'), 'wrong delivery flow');
+  denied(await move('yetkazildi'), 'skipped status');
+  ok(await move('yolda'), 'valid courier transition');
+  ok(await move('yetkazildi'), 'valid completion');
+  denied(await move('bekor'), 'completed order cannot be cancelled');
+});
