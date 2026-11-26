@@ -362,16 +362,16 @@
             }
           },
           "summa": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000000 && (!data.exists() || newData.val() === data.val())"
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000000 && (!data.exists() || newData.val() === data.val()) && newData.val() % 1 === 0"
           },
           "yetkazishNarxi": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && (data.exists() ? newData.val() === data.val() : (newData.val() === 0 || newData.val() === root.child('settings').child('shop').child('courierFee').val()))"
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0 && (data.exists() ? newData.val() === data.val() : ((newData.parent().child('yetkazish/turi').val() === 'olib' && root.child('settings/shop').child('pickupEnabled').val() !== false && newData.val() === 0) || (newData.parent().child('yetkazish/turi').val() === 'kuryer' && root.child('settings/shop').child('courierEnabled').val() !== false && ((root.child('settings/shop').child('freeDeliveryFrom').isNumber() && root.child('settings/shop').child('freeDeliveryFrom').val() > 0 && newData.parent().child('summa').val() >= root.child('settings/shop').child('freeDeliveryFrom').val()) ? newData.val() === 0 : (root.child('settings/shop').child('courierFee').isNumber() ? newData.val() === root.child('settings/shop').child('courierFee').val() : newData.val() === 0)))))"
           },
           "jami": {
             ".validate": "newData.isNumber() && newData.val() === newData.parent().child('summa').val() + newData.parent().child('yetkazishNarxi').val()"
           },
           "soni": {
-            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50000"
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50000 && newData.val() % 1 === 0"
           },
           "til": {
             ".validate": "newData.isString() && newData.val().matches(/^(uz|ru)$/)"
@@ -398,7 +398,7 @@
       ],
       "$oid": {
         ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('uid').val() === auth.uid))",
-        ".validate": "newData.hasChildren(['uid', 'raqam', 'createdAt', 'holat', 'jami', 'ism', 'telefon', 'soni', 'turi']) && (data.exists() || (newData.child('holat').val() === 'yangi' && newData.child('jami').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('jami').val())) && newData.child('holat').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('holat').val()",
+        ".validate": "newData.hasChildren(['uid', 'raqam', 'createdAt', 'holat', 'jami', 'ism', 'telefon', 'soni', 'turi']) && (data.exists() || (newData.child('holat').val() === 'yangi' && newData.child('jami').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('jami').val())) && newData.child('holat').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('holat').val() && (data.exists() || (newData.child('raqam').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('raqam').val() && newData.child('soni').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('soni').val() && newData.child('ism').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('mijoz/ism').val() && newData.child('telefon').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('mijoz/telefon').val() && newData.child('turi').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('yetkazish/turi').val()))",
         "uid": {
           ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())"
         },
