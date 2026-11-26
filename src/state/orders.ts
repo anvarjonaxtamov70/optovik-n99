@@ -41,8 +41,24 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   }
   const last = (await readLocal<number>('lastOrderAt')) ?? 0;
   if (Date.now() - last < RATE_MS) throw new PlaceOrderError('rate');
-  const orderId = push(ref(db, `orders/${uid}`)).key as string;
-  const raqam = 100000 + Math.floor(Math.random() * 900000);
+  // Persist only an opaque request ID, not customer address or phone.
+  const pendingKey = `pendingOrder:${uid}`;
+  const pending = await readLocal<{ id: string; raqam: number }>(pendingKey);
+  const validPending = pending && /^[-A-Za-z0-9_]{20}$/.test(pending.id) && Number.isInteger(pending.raqam) && pending.raqam >= 100000 && pending.raqam <= 999999 ? pending : null;
+  if (validPending) {
+    const existing = await withTimeout(get(ref(db, `orders/${uid}/${validPending.id}`)), 5000).catch(() => null);
+    // Do not create a different order while the previous outcome is unknown.
+    if (!existing) throw new PlaceOrderError('network');
+    if (existing.exists()) {
+      await saveLocal('lastOrderAt', Date.now()).catch(() => {});
+      await saveLocal(pendingKey, null).catch(() => {});
+      // The current cart may have changed; do not report this as a new successful checkout.
+      throw new PlaceOrderError('rate');
+    }
+  }
+  const orderId = validPending?.id ?? push(ref(db, `orders/${uid}`)).key as string;
+  const raqam = validPending?.raqam ?? 100000 + Math.floor(Math.random() * 900000);
+  await saveLocal(pendingKey, { id: orderId, raqam }).catch(() => { throw new PlaceOrderError('unknown'); });
   const write = (f: CheckoutForm) => withTimeout(update(ref(db), buildOrderWrite({ uid, orderId, raqam, lines, summary, form: f, lang, platform: Platform.OS, ts: serverTimestamp() })), 20000);
   try {
     await write(form);
@@ -63,9 +79,13 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
       const saved = await withTimeout(get(ref(db, `orders/${uid}/${orderId}`)), 5000).catch(() => null);
       if (saved?.exists()) kind = null;
     }
-    if (kind) throw new PlaceOrderError(kind === 'network' ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
+    if (kind) {
+      if (kind === 'permission') await saveLocal(pendingKey, null).catch(() => {});
+      throw new PlaceOrderError(kind === 'network' ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
+    }
   }
   await saveLocal('lastOrderAt', Date.now()).catch(() => {});
+  await saveLocal(pendingKey, null).catch(() => {});
   return { id: orderId, uid, raqam };
 }
 
