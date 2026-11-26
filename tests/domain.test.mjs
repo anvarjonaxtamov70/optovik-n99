@@ -326,4 +326,7 @@ test('checkout rejects stale totals, duplicate items and invalid quantity', () =
   assert.throws(() => buildOrderWrite({ ...args, lines: [...lines, ...lines] }), /duplicate/);
   assert.throws(() => buildOrderWrite({ ...args, lines: [{ ...lines[0], qty: 1.5 }] }), /Invalid order item/);
   assert.throws(() => buildOrderWrite({ ...args, lines: [] }), /totals changed/);
+  assert.throws(() => buildOrderWrite({ ...args, summary: { ...summary, lines: 2 } }), /totals changed/);
+  assert.throws(() => buildOrderWrite({ ...args, lines: [{ ...lines[0], id: 'dvigatel/oil/extra' }] }), /Invalid/);
+  assert.throws(() => buildOrderWrite({ ...args, summary: { ...summary, delivery: Number.MAX_SAFE_INTEGER, total: Number.MAX_SAFE_INTEGER + summary.subtotal } }), /totals changed/);
 });
