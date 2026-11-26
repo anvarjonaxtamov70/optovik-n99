@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import {
-  cartLines, clampToStock, emptyCart, pruneMissing, removeLines, restoreCart, setAllSelected, setQty, summarize, toggleLine,
+  applyOrderReceipt, cartLines, clampToStock, emptyCart, pruneMissing, removeLines, restoreCart, setAllSelected, setQty, summarize, toggleLine,
   type CartState, type DeliveryKind,
 } from '../domain/cart';
 import type { Product } from '../domain/products';
@@ -58,16 +58,7 @@ export const cart = {
   /** Buyurtma muvaffaqiyatli yuborilgach, faqat buyurtmaga kirgan miqdorlarni ayiradi. */
   async ordered(receipt: string, items: Record<string, number>) {
     if (!cartStore.get().hydrated) throw new Error('Cart not ready');
-    cartStore.set((c) => {
-      if (c.receipts.includes(receipt)) return c;
-      const next = { ...c.items };
-      const off = { ...c.off };
-      for (const [id, q] of Object.entries(items)) {
-        const left = (next[id] ?? 0) - q;
-        if (left > 0) next[id] = left; else { delete next[id]; delete off[id]; }
-      }
-      return { ...c, items: next, off, receipts: [...c.receipts, receipt].slice(-20) };
-    });
+    cartStore.set((c) => applyOrderReceipt(c, receipt, items));
     // Store cart and receipt in one local write before clearing the pending order.
     const current = cartStore.get();
     await saveLocal('cart', { items: current.items, off: current.off, receipts: current.receipts });

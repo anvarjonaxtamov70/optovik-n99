@@ -34,6 +34,19 @@ export function restoreCart(value: unknown): CartState {
   return { items, off };
 }
 
+/** Apply a confirmed checkout receipt once, preserving unrelated cart lines. */
+export function applyOrderReceipt<T extends CartState & { receipts: string[] }>(cart: T, receipt: string, ordered: Record<string, number>): T {
+  if (cart.receipts.includes(receipt)) return cart;
+  const items = { ...cart.items };
+  const off = { ...cart.off };
+  for (const [id, qty] of Object.entries(ordered)) {
+    if (!validId(id) || !Number.isSafeInteger(qty) || qty <= 0) throw new Error('Invalid receipt quantity');
+    const left = (items[id] ?? 0) - qty;
+    if (left > 0) items[id] = left; else { delete items[id]; delete off[id]; }
+  }
+  return { ...cart, items, off, receipts: [...cart.receipts, receipt].slice(-20) };
+}
+
 export function setQty(cart: CartState, id: string, qty: number, stock: number): CartState {
   const limit = Math.max(0, Math.min(stock, MAX_QTY));
   const next = Math.max(0, Math.min(Math.floor(qty), limit));

@@ -89,7 +89,12 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
       throw new PlaceOrderError(kind === 'network' ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
     }
   }
-  const ordered = Object.fromEntries(lines.filter((line) => line.selected && line.product).map((line) => [line.id, Math.min(line.qty, line.product!.qoldiq)]).filter(([, qty]) => Number(qty) > 0));
+  const ordered: Record<string, number> = {};
+  for (const line of lines) {
+    if (!line.selected || !line.product) continue;
+    const qty = Math.min(line.qty, line.product.qoldiq);
+    if (qty > 0) ordered[line.id] = qty;
+  }
   return finish(orderId, raqam, form.telefon, ordered, false);
 }
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { cartLines, cartSuggestions, clampToStock, emptyCart, MAX_LINES, pruneMissing, restoreCart, setQty, summarize, toggleLine } from '../src/domain/cart.ts';
+import { applyOrderReceipt, cartLines, cartSuggestions, clampToStock, emptyCart, MAX_LINES, pruneMissing, restoreCart, setQty, summarize, toggleLine } from '../src/domain/cart.ts';
 import { bannerHasContent, DEFAULT_SETTINGS, isSafeLink, LEGACY_PUBLIC_MEDIA_FIELDS, legalErrors, readBanners, readMediaKey, readSettings } from '../src/domain/content.ts';
 import { ofertaSections, RETURN_DAYS } from '../src/content/oferta.ts';
 import { composeAddress, distanceKm, formatKm, isValidLatLng, mapUrl, roundCoord, SAMARQAND } from '../src/domain/geo.ts';
@@ -329,4 +329,18 @@ test('checkout rejects stale totals, duplicate items and invalid quantity', () =
   assert.throws(() => buildOrderWrite({ ...args, summary: { ...summary, lines: 2 } }), /totals changed/);
   assert.throws(() => buildOrderWrite({ ...args, lines: [{ ...lines[0], id: 'dvigatel/oil/extra' }] }), /Invalid/);
   assert.throws(() => buildOrderWrite({ ...args, summary: { ...summary, delivery: Number.MAX_SAFE_INTEGER, total: Number.MAX_SAFE_INTEGER + summary.subtotal } }), /totals changed/);
+});
+
+test('confirmed checkout receipt is applied only once, including after serialization', () => {
+  const initial = { items: { 'dvigatel/oil': 5, 'aksessuarlar/holder': 2 }, off: { 'aksessuarlar/holder': true }, receipts: [] };
+  const ordered = { 'dvigatel/oil': 3 };
+  const once = applyOrderReceipt(initial, 'user/order', ordered);
+  assert.deepEqual(once.items, { 'dvigatel/oil': 2, 'aksessuarlar/holder': 2 });
+  assert.deepEqual(once.off, initial.off);
+  assert.deepEqual(initial.items, { 'dvigatel/oil': 5, 'aksessuarlar/holder': 2 });
+  const restored = JSON.parse(JSON.stringify(once));
+  assert.equal(applyOrderReceipt(restored, 'user/order', ordered), restored);
+  const next = applyOrderReceipt(restored, 'user/next', { 'dvigatel/oil': 2 });
+  assert.deepEqual(next.items, { 'aksessuarlar/holder': 2 });
+  assert.throws(() => applyOrderReceipt(initial, 'user/bad', { 'dvigatel/oil': -1 }));
 });

@@ -52,6 +52,8 @@ export default function AdminProductEdit() {
 function Editor({ existing, initial, copied }: { existing?: Product; initial: ProductForm; copied: boolean }) {
   const [form, setForm] = useState<ProductForm>(initial);
   const [baseline, setBaseline] = useState<ProductForm>(initial);
+  // Keep the revision that the form was actually populated from, not the live subscription's later revision.
+  const [originalProduct] = useState(existing);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   // Shu kenglikdan boshlab forma ikki ustunga bo'linadi (noutbuk).
@@ -95,7 +97,8 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
     }
     setBusy(true);
     try {
-      await saveProduct(form, existing);
+      if (existing && originalProduct?.revision !== existing.revision) throw Object.assign(new Error('Product changed'), { code: 'permission-denied' });
+      await saveProduct(form, originalProduct);
       haptic.success();
       showToast(t('admin.product.saved'), { kind: 'success' });
       if (mode === 'next') {
