@@ -74,11 +74,9 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
         kind = classifyError(e2);
       }
     }
-    if (kind === 'network') {
-      // A timed-out write may already have committed. Check the same ID before reporting failure.
-      const saved = await withTimeout(get(ref(db, `orders/${uid}/${orderId}`)), 5000).catch(() => null);
-      if (saved?.exists()) kind = null;
-    }
+    // A local Firebase snapshot can contain an unacknowledged write. Never
+    // report checkout success from a cached read after a network timeout.
+    // Retain the pending ID for reconciliation instead.
     if (kind) {
       if (kind === 'permission' && !validPending) await saveLocal(pendingKey, null).catch(() => {});
       throw new PlaceOrderError(kind === 'network' ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
