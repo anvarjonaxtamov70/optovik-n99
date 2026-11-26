@@ -186,14 +186,24 @@ export const MAX_UPLOAD_BYTES = 32 * 1024 * 1024;
  * `image` — brauzerda File/Blob, telefonda base64 matn (RN FormData Blob'ni ImgBB ga to'g'ri yubormaydi).
  */
 export async function uploadToImgbb(image: Blob | string, key: string): Promise<string> {
-  if (typeof image !== 'string' && image.size > MAX_UPLOAD_BYTES) throw new UploadError('tooBig', 'too big');
+  if (!key.trim()) throw new UploadError('badKey', 'Missing upload key');
+  const bytes = typeof image === 'string'
+    ? Math.floor(image.length * 3 / 4) - (image.endsWith('==') ? 2 : image.endsWith('=') ? 1 : 0)
+    : image.size;
+  if (bytes > MAX_UPLOAD_BYTES) throw new UploadError('tooBig', 'too big');
+  if (bytes <= 0) throw new UploadError('server', 'Empty image');
   const body = new FormData();
   body.append('image', image);
   let res: Response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90000);
   try {
-    res = await withTimeout(fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(key)}`, { method: 'POST', body }), 90000);
-  } catch (e) {
-    throw new UploadError('network', String((e as Error)?.message ?? e));
+    res = await withTimeout(fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(key)}`, { method: 'POST', body, signal: controller.signal }), 90000);
+  } catch {
+    controller.abort();
+    throw new UploadError('network', 'Image upload failed');
+  } finally {
+    clearTimeout(timer);
   }
   const json = (await res.json().catch(() => ({}))) as { data?: { url?: string }; error?: { message?: string; code?: number } };
   const url = json.data?.url;
