@@ -24,6 +24,10 @@ void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Do not expose raw exceptions, customer data or credentials in the recovery UI.
 export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    // Fixed diagnostic code only; never log exception messages or customer data.
+    console.warn('[N99] UI_RECOVERY');
+  }, []);
   return (
     <View style={styles.recovery}>
       <Text accessibilityRole="header" style={styles.recoveryTitle}>Xatolik yuz berdi / Произошла ошибка</Text>
@@ -47,7 +51,10 @@ export default function RootLayout() {
   const blocked = WEB_ADMIN_ONLY && !isWebAllowedPath(pathname);
 
   useEffect(() => {
-    void Promise.allSettled([hydratePrefs(), hydrateCart()]).then(() => setBooted(true));
+    void Promise.allSettled([hydratePrefs(), hydrateCart()]).then((results) => {
+      if (results.some((result) => result.status === 'rejected')) console.warn('[N99] LOCAL_HYDRATION_FAILED');
+      setBooted(true);
+    });
     void startCatalog();
     void startAccount();
     startKeyboard();
