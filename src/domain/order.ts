@@ -1,4 +1,4 @@
-import type { CartLine, CartSummary, DeliveryKind } from './cart.ts';
+import { MAX_LINES, MAX_QTY, validId, type CartLine, type CartSummary, type DeliveryKind } from './cart.ts';
 import { isValidLatLng, roundCoord } from './geo.ts';
 
 export type OrderStatus = 'yangi' | 'tasdiqlandi' | 'yolda' | 'tayyor' | 'yetkazildi' | 'bekor';
@@ -154,11 +154,12 @@ export function buildOrderWrite(args: {
   const items: Record<string, Record<string, { nomi: string; narxi: number; soni: number; eskiNarx?: number }>> = {};
   let soni = 0;
   let summa = 0;
+  let lineCount = 0;
   for (const l of lines) {
     if (!l.selected || !l.product) continue;
     const qty = Math.min(l.qty, l.product.qoldiq);
     if (qty <= 0) continue;
-    if (!Number.isSafeInteger(qty) || !Number.isSafeInteger(l.product.narxi) || l.product.narxi < 0) throw new Error('Invalid order item');
+    if (++lineCount > MAX_LINES || qty > MAX_QTY || !validId(l.id) || !Number.isSafeInteger(qty) || !Number.isSafeInteger(l.product.narxi) || l.product.narxi < 0) throw new Error('Invalid order item');
     const [cat, pid] = l.id.split('/');
     if (!cat || !pid || l.id !== l.product.id || items[cat]?.[pid]) throw new Error('Invalid or duplicate order item');
     items[cat] ??= {};
@@ -166,7 +167,7 @@ export function buildOrderWrite(args: {
     soni += qty;
     summa += qty * l.product.narxi;
   }
-  if (!soni || !Number.isSafeInteger(summa) || !Number.isSafeInteger(summary.delivery) || summary.delivery < 0 || summa !== summary.subtotal || soni !== summary.count || summa + summary.delivery !== summary.total) throw new Error('Checkout totals changed');
+  if (!soni || lineCount !== summary.lines || !Number.isSafeInteger(summa + summary.delivery) || !Number.isSafeInteger(summa) || !Number.isSafeInteger(summary.delivery) || summary.delivery < 0 || summa !== summary.subtotal || soni !== summary.count || summa + summary.delivery !== summary.total) throw new Error('Checkout totals changed');
   const point = { lat: form.lat, lng: form.lng };
   const yetkazish = form.turi === 'kuryer'
     ? {
