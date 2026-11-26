@@ -229,3 +229,18 @@ test('reservation: stale stock revision and independent flag changes are rejecte
   denied(await req('tovarlar/filtrlar/q1', { method: 'PATCH', auth: OWNER, body: { qoldiq: 1, revision: before.revision + 1 } }), 'stale stock writer');
   assert.equal((await req('tovarlar/filtrlar/q1/qoldiq')).body, 2);
 });
+
+test('delivery: configured fees, enabled modes and index metadata are enforced', async () => {
+  const uid = 'delivery-test';
+  const auth = token(uid);
+  const courier = { order: { yetkazish: { turi: 'kuryer', manzil: 'Registon 12' } }, index: { turi: 'kuryer' } };
+  denied(await place(auth, uid, 'fee1', courier), 'courier fee cannot be omitted');
+  denied(await place(auth, uid, 'fee2', { yetkazishNarxi: 25000 }), 'pickup must be free');
+  denied(await place(auth, uid, 'idx1', { index: { soni: 99 } }), 'incorrect index quantity');
+  denied(await place(auth, uid, 'idx2', { index: { ism: 'Other' } }), 'incorrect index name');
+  ok(await req('settings/shop', { method: 'PATCH', auth: OWNER, body: { courierEnabled: false } }), 'disable courier');
+  denied(await place(auth, uid, 'fee3', { ...courier, yetkazishNarxi: 25000 }), 'disabled courier');
+  ok(await req('settings/shop', { method: 'PATCH', auth: OWNER, body: { courierEnabled: true, freeDeliveryFrom: 90000 } }), 'free threshold');
+  denied(await place(auth, uid, 'fee4', { ...courier, yetkazishNarxi: 25000 }), 'free delivery must not charge');
+  ok(await place(auth, uid, 'fee5', courier), 'free delivery at threshold');
+});
