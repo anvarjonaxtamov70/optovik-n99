@@ -58,16 +58,19 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
       if (!order || order.raqam !== validPending.raqam || !order.items.length) throw new PlaceOrderError('unknown');
       return finish(order.id, order.raqam, order.mijoz.telefon, Object.fromEntries(order.items.map((item) => [item.id, item.soni])), true);
     }
-    // Reuse the same key even if an earlier queued write has not reached the server yet.
+    // Reuse the same key even if an earlier request is still being processed.
   } else {
     const last = (await readLocalStrict<number>('lastOrderAt').catch(() => { throw new PlaceOrderError('unknown'); })) ?? 0;
     if (Date.now() - last < RATE_MS) throw new PlaceOrderError('rate');
   }
   const orderId = validPending?.id ?? push(ref(db, `orders/${uid}`)).key as string;
   const raqam = validPending?.raqam ?? 100000 + Math.floor(Math.random() * 900000);
+  let writes: ReturnType<typeof buildOrderWrite>;
+  try { writes = buildOrderWrite({ uid, orderId, raqam, lines, summary, form, lang, platform: Platform.OS, ts: serverTimestamp() }); }
+  catch { throw new PlaceOrderError('rules'); }
   await saveLocal(pendingKey, { id: orderId, raqam }).catch(() => { throw new PlaceOrderError('unknown'); });
   try {
-    await writeServerJson(buildOrderWrite({ uid, orderId, raqam, lines, summary, form, lang, platform: Platform.OS, ts: serverTimestamp() }), uid);
+    await writeServerJson(writes, uid);
   } catch (e) {
     const kind = classifyError(e);
     // A timeout or a lost response may still mean the server committed the order.

@@ -369,3 +369,12 @@ test('inventory rejects malformed legacy stock instead of rounding it', () => {
   assert.throws(() => readStockSnapshot({ qoldiq: -1 }));
   assert.throws(() => readStockSnapshot({ qoldiq: 1, revision: '2' }));
 });
+
+test('cart rejects invalid quantities and IDs without corrupting state', () => {
+  for (const [id, qty, stock] of [['a/b', NaN, 5], ['a/b', 1, Infinity], ['invalid', 1, 5], ['a/b', 1, -1]]) assert.equal(setQty(emptyCart, id, qty, stock), emptyCart);
+});
+test('authoritative empty catalog removes missing cart lines, cached empty does not', () => {
+  const cart = { items: { 'a/b': 2 }, off: { 'a/b': true } };
+  assert.equal(pruneMissing(cart, new Map()).removed, 0);
+  assert.deepEqual(pruneMissing(cart, new Map(), true), { cart: emptyCart, removed: 1 });
+});

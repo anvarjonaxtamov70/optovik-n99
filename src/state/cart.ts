@@ -15,7 +15,12 @@ export type CartStore = CartState & { hydrated: boolean; notice: CartNotice; rec
 export const cartStore = createStore<CartStore>({ ...emptyCart, hydrated: false, notice: null, receipts: [] });
 const save = debouncedSaver('cart', 250);
 
-export async function hydrateCart() {
+let hydration: Promise<void> | undefined;
+export function hydrateCart() {
+  return hydration ??= hydrateCartOnce();
+}
+
+async function hydrateCartOnce() {
   const raw = await readLocal<{ receipts?: unknown }>('cart');
   const saved = restoreCart(raw);
   const receipts = Array.isArray(raw?.receipts) ? raw.receipts.filter((v): v is string => typeof v === 'string').slice(-20) : [];
@@ -25,14 +30,16 @@ export async function hydrateCart() {
     save({ items, off, receipts });
   });
   let lastVersion = -1;
-  catalogStore.subscribe(() => {
+  const reconcile = () => {
     const c = catalogStore.get();
-    if (!c.live || c.version === lastVersion) return;
+    if (!c.live || !c.connected || c.status !== 'ready' || c.version === lastVersion) return;
     lastVersion = c.version;
-    const pruned = pruneMissing(cartStore.get(), c.byId);
+    const pruned = pruneMissing(cartStore.get(), c.byId, true);
     const { cart, changed } = clampToStock(pruned.cart, c.byId);
     if (pruned.removed || changed) cartStore.set((s) => ({ ...s, ...cart, notice: pruned.removed ? 'removed' : 'adjusted' }));
-  });
+  };
+  catalogStore.subscribe(reconcile);
+  reconcile();
 }
 
 function update(fn: (c: CartState) => CartState) {
@@ -50,7 +57,16 @@ export const cart = {
   remove(ids: string[]) { update((c) => removeLines(c, ids)); },
   /** «Qaytarish»: o'chirilgan qatorlar avvalgi miqdori va belgisi (tanlangan/tanlanmagan) bilan qaytadi. */
   restore(entries: Record<string, number>, off: string[] = []) {
-    update((c) => ({ items: { ...c.items, ...entries }, off: { ...c.off, ...Object.fromEntries(off.map((id) => [id, true as const])) } }));
+    update((c) => {
+      let next = c;
+      const catalog = catalogStore.get();
+      for (const [id, qty] of Object.entries(entries)) {
+        const product = catalog.byId.get(id);
+        if (!product) continue;
+        next = setQty(next, id, qty, product.qoldiq);
+      }
+      return { ...next, off: { ...next.off, ...Object.fromEntries(off.filter((id) => next.items[id]).map((id) => [id, true as const])) } };
+    });
   },
   toggle(id: string) { update((c) => toggleLine(c, id)); },
   selectAll(selected: boolean) { update((c) => setAllSelected(c, selected)); },
