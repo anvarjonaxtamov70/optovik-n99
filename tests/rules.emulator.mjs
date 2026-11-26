@@ -268,3 +268,9 @@ test('order audit: admin cannot delete orders or corrupt index metadata', async 
   denied(await req('orders/bob/b1/yetkazish/turi', { method: 'PUT', auth: OWNER, body: 'olib' }), 'delivery mutation');
   ok(await req('orders/bob/b1/adminIzoh', { method: 'PUT', auth: OWNER, body: 'Audit test' }), 'admin note remains editable');
 });
+
+test('order audit: lifecycle timestamps cannot be erased', async () => {
+  denied(await req('orders/bob/b1/tarix/yangi', { method: 'DELETE', auth: OWNER }), 'initial timestamp deletion');
+  denied(await req('orders/bob/b1/tarix/tasdiqlandi', { method: 'DELETE', auth: OWNER }), 'confirmation timestamp deletion');
+  denied(await req('orders/bob/b1/tarix', { method: 'PUT', auth: OWNER, body: { yangi: { '.sv': 'timestamp' } } }), 'history replacement');
+});
