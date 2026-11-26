@@ -1,4 +1,4 @@
-import { increment, limitToLast, onValue, orderByChild, push, query, ref, serverTimestamp, update } from 'firebase/database';
+import { get, limitToLast, onValue, orderByChild, push, query, ref, serverTimestamp, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -45,6 +45,11 @@ export async function placeOrder(lines: CartLine[], summary: CartSummary, form: 
       } catch (e2) {
         kind = classifyError(e2);
       }
+    }
+    if (kind === 'network') {
+      // A timed-out write may already have committed. Check the same ID before reporting failure.
+      const saved = await withTimeout(get(ref(db, `orders/${uid}/${orderId}`)), 5000).catch(() => null);
+      if (saved?.exists()) kind = null;
     }
     if (kind) throw new PlaceOrderError(kind === 'network' ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
   }
@@ -127,9 +132,13 @@ export async function adminSetStatus(o: Order, next: OrderStatus) {
   const release = next === 'bekor' && o.zaxira;
   if (reserve || release) {
     for (const item of o.items) {
-      if (!byId.has(item.id)) throw new Error('Order product missing');
-      writes[`tovarlar/${item.id}/qoldiq`] = increment(reserve ? -item.soni : item.soni);
-      writes[`tovarlar/${item.id}/revision`] = increment(1);
+      const product = byId.get(item.id);
+      if (!product) throw new Error('Order product missing');
+      const stock = product.qoldiq + (reserve ? -item.soni : item.soni);
+      if (stock < 0) throw new Error('Insufficient stock');
+      writes[`tovarlar/${item.id}/qoldiq`] = stock;
+      // Explicit revision acts as optimistic concurrency guard in database rules.
+      writes[`tovarlar/${item.id}/revision`] = product.revision + 1;
     }
     writes[`${base}/zaxira`] = reserve;
   }
