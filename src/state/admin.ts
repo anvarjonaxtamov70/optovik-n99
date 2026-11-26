@@ -54,7 +54,9 @@ export function validateProduct(f: ProductForm): Partial<Record<keyof ProductFor
 
 /** Tovarni saqlaydi. Kategoriya o'zgarsa — eski yo'l o'chiriladi (bitta atomar yozuvda). */
 export async function saveProduct(f: ProductForm, existing?: Product): Promise<string> {
-  if (Object.keys(validateProduct(f)).length) throw new Error('Invalid product form');\x0a  const cat = f.kategoriya.trim();\x0a  if (!cat || /[.#$\[\]\/\x00-\x1f\x7f]/.test(cat)) throw new Error('Invalid category');
+  if (Object.keys(validateProduct(f)).length) throw new Error('Invalid product form');
+  const cat = f.kategoriya.trim();
+  if (!cat || [...cat].some((ch) => '.#$[]/'.includes(ch) || ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127)) throw new Error('Invalid category');
   const key = existing && existing.kategoriya === cat ? existing.key : (existing?.key ?? (push(ref(db, `tovarlar/${cat}`)).key as string));
   const opt = (v: string) => (v.trim() ? v.trim() : null);
   const value = {
