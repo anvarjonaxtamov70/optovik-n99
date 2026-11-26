@@ -18,7 +18,19 @@ export class PlaceOrderError extends Error {
 
 const RATE_MS = 30_000;
 
+let placingOrder = false;
+
 export async function placeOrder(lines: CartLine[], summary: CartSummary, form: CheckoutForm, lang: 'uz' | 'ru') {
+  if (placingOrder) throw new PlaceOrderError('rate');
+  placingOrder = true;
+  try {
+    return await placeOrderInternal(lines, summary, form, lang);
+  } finally {
+    placingOrder = false;
+  }
+}
+
+async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form: CheckoutForm, lang: 'uz' | 'ru') {
   if (summary.lines === 0) throw new PlaceOrderError('empty');
   let uid: string;
   try {
