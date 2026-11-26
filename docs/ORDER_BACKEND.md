@@ -35,3 +35,5 @@ Cart startup reconciliation now runs after hydration even if the catalog arrived
 Checkout now compares each displayed price, quantity and delivery total with fresh authenticated database reads before sending a new order. This is a client preflight, not an authoritative backend: rules remain the final write gate and cross-device idempotency remains unresolved. It adds up to 51 reads per checkout (50 products plus settings).
 
 Pending-order metadata is now validated by one shared strict parser. Recovery waits for cart hydration; a malformed local cooldown fails closed, while a future local clock value does not indefinitely block checkout (server rate rules remain in force).
+
+Admin fulfillment validates stored line identities, uniqueness, integer quantities and prices, delivery fee and safe aggregate arithmetic on every non-cancellation transition. This is defense in depth in the admin client, not a substitute for a trusted backend. Cancellation remains available for inconsistent totals, subject to stock validation when releasing reservations.

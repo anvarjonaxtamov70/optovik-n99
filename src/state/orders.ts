@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 import { MAX_LINES, validId, type CartLine, type CartSummary } from '../domain/cart';
 import {
-  buildOrderWrite, readOrder, readOrderIndex, isActive, nextStatus, recomputeTotals, planStockChanges, readStockSnapshot, type CheckoutForm, type Order, type OrderIndex, type OrderStatus,
+  buildOrderWrite, readOrder, readOrderIndex, isActive, nextStatus, assertFulfillableOrder, planStockChanges, readStockSnapshot, type CheckoutForm, type Order, type OrderIndex, type OrderStatus,
 } from '../domain/order';
 import { auth, classifyError, db, readServerJson, writeServerJson, withTimeout } from '../lib/firebase';
 import { readLocalStrict, saveLocal } from '../lib/storage';
@@ -197,8 +197,7 @@ export async function adminSetStatus(o: Order, next: OrderStatus) {
   if (!latest || latest.holat !== o.holat || latest.zaxira !== o.zaxira) throw Object.assign(new Error('Order changed'), { code: 'permission-denied' });
   o = latest;
   if (!isActive(o.holat) || (next !== 'bekor' && next !== nextStatus(o))) throw new Error('Invalid order transition');
-  const totals = recomputeTotals(o);
-  if (next !== 'bekor' && (!o.items.length || totals.jami !== o.jami || totals.summa !== o.summa || totals.soni !== o.soni)) throw new Error('Order totals mismatch');
+  if (next !== 'bekor') assertFulfillableOrder(o);
   const base = `orders/${o.uid}/${o.id}`;
   const ts = serverTimestamp();
   const writes: Record<string, unknown> = {

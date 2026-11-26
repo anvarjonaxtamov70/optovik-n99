@@ -217,3 +217,15 @@ export function readStockSnapshot(value: unknown): { qoldiq: number; revision: n
   if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 0) throw new Error('Invalid stock revision');
   return { qoldiq: value.qoldiq, revision };
 }
+
+/** Reject inconsistent stored orders before an administrator commits a fulfillment transition. */
+export function assertFulfillableOrder(o: Pick<Order, 'items' | 'yetkazishNarxi' | 'summa' | 'jami' | 'soni'>) {
+  if (!o.items.length || o.items.length > MAX_LINES || !Number.isSafeInteger(o.yetkazishNarxi) || o.yetkazishNarxi < 0) throw new Error('Invalid order totals');
+  const seen = new Set<string>();
+  for (const item of o.items) {
+    if (!validId(item.id) || seen.has(item.id) || !Number.isSafeInteger(item.narxi) || item.narxi < 0 || !Number.isSafeInteger(item.soni) || item.soni < 1 || item.soni > MAX_QTY) throw new Error('Invalid order item');
+    seen.add(item.id);
+  }
+  const totals = recomputeTotals(o);
+  if (!Number.isSafeInteger(totals.jami) || totals.summa > 1_000_000_000_000 || totals.jami !== o.jami || totals.summa !== o.summa || totals.soni !== o.soni) throw new Error('Order totals mismatch');
+}
