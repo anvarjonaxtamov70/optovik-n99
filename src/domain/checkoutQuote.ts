@@ -25,7 +25,7 @@ export function checkoutQuote(request: unknown, catalog: ReadonlyMap<string, Cat
   const free = settings.freeDeliveryFrom > 0 && subtotal >= settings.freeDeliveryFrom;
   const delivery = kind === 'kuryer' && !free ? settings.courierFee : 0;
   const total = subtotal + delivery;
-  if (!Number.isSafeInteger(total) || subtotal > 1_000_000_000_000) throw new Error('total-out-of-range');
+  if (!Number.isSafeInteger(total) || !Number.isSafeInteger(count) || subtotal > 1_000_000_000_000) throw new Error('total-out-of-range');
   return { items, subtotal, count, delivery, total };
 }
 
@@ -37,6 +37,6 @@ export function assertQuoteMatches(quote: ReturnType<typeof checkoutQuote>, disp
 export function readQuoteProduct(raw: unknown): CatalogPrice {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('stock-unavailable');
   const p = raw as Record<string, unknown>;
-  if (typeof p.narxi !== 'number' || typeof p.qoldiq !== 'number' || !Number.isSafeInteger(p.narxi) || p.narxi < 0 || !Number.isSafeInteger(p.qoldiq) || p.qoldiq < 0) throw new Error('invalid-product');
+  if ((p.archived !== undefined && typeof p.archived !== 'boolean') || typeof p.narxi !== 'number' || typeof p.qoldiq !== 'number' || !Number.isSafeInteger(p.narxi) || p.narxi < 0 || !Number.isSafeInteger(p.qoldiq) || p.qoldiq < 0) throw new Error('invalid-product');
   return { narxi: p.narxi, qoldiq: p.qoldiq, archived: p.archived === true };
 }

@@ -37,3 +37,6 @@ Checkout now compares each displayed price, quantity and delivery total with fre
 Pending-order metadata is now validated by one shared strict parser. Recovery waits for cart hydration; a malformed local cooldown fails closed, while a future local clock value does not indefinitely block checkout (server rate rules remain in force).
 
 Admin fulfillment validates stored line identities, uniqueness, integer quantities and prices, delivery fee and safe aggregate arithmetic on every non-cancellation transition. This is defense in depth in the admin client, not a substitute for a trusted backend. Cancellation remains available for inconsistent totals, subject to stock validation when releasing reservations.
+
+## Phase 1 release boundary
+Client preflight and admin fulfillment checks are not a trusted server. RTDB rules enforce per-item and transition constraints, but independent aggregate calculation, durable cross-device idempotency and server-owned stock mutations remain release blockers for a fully trusted checkout. Do not represent the current client as a payment-authoritative backend. No paid service or production deployment is enabled by this PR.

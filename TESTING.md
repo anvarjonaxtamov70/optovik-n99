@@ -63,3 +63,10 @@ Open the Metro QR with a compatible Expo Go version. Staging configuration is ma
 Test checkout on a synthetic product with known stock: submit, interrupt the connection, reopen the app and visit order history; retry only with the original pending ID; verify that one order exists and the cart receipt is applied at most once. Confirm from two admin sessions, verify one stale revision fails; archive an item and confirm or cancel its existing order without losing the inventory record. Do not test these operations on production.
 
 Emulator builds now use the synthetic `demo-n99` Firebase identity and a separate local storage namespace. Only local/private-network emulator hosts are accepted. Existing emulator-only local carts are intentionally not migrated.
+
+## Phase 1 release gate
+- [ ] All CI jobs pass on final PR head.
+- [ ] Separate Spark staging project provisioned and synthetic catalog seeded.
+- [ ] iPhone checkout, interruption/recovery, and admin stock transitions verified in staging.
+- [ ] Encrypted backup taken and isolated restore rehearsed (docs/BACKUP_RECOVERY.md).
+- [ ] Trusted aggregate pricing, cross-device idempotency and server-owned inventory architecture resolved before claiming full backend security.

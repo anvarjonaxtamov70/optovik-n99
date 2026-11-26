@@ -151,6 +151,8 @@ export function buildOrderWrite(args: {
   lang: 'uz' | 'ru'; platform: string; ts: object;
 }) {
   const { uid, orderId, raqam, lines, summary, form, ts } = args;
+  if (Object.keys(validateCheckout(form)).length || (form.turi !== 'olib' && form.turi !== 'kuryer')) throw new Error('Invalid checkout form');
+  if (!Number.isInteger(raqam) || raqam < 100000 || raqam > 999999) throw new Error('Invalid order number');
   const items: Record<string, Record<string, { nomi: string; narxi: number; soni: number; eskiNarx?: number }>> = {};
   let soni = 0;
   let summa = 0;
