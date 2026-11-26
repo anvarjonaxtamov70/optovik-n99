@@ -315,3 +315,15 @@ test('tarjima: o‘zbekcha va ruscha kalitlar va {o‘zgaruvchilar} bir xil', ()
   const vars = (s) => [...new Set(s.match(/\{\w+\}/g) ?? [])].sort().join(',');
   for (const k of Object.keys(uz)) assert.equal(vars(ru[k]), vars(uz[k]), `kalit: ${k}`);
 });
+
+test('checkout rejects stale totals, duplicate items and invalid quantity', () => {
+  const lines = cartLines(setQty(emptyCart, 'dvigatel/oil', 2, 12), byId);
+  const summary = summarize(lines, { courierEnabled: true, courierFee: 20000, freeDeliveryFrom: 0 });
+  const args = { uid: 'u', orderId: 'o', raqam: 123456, lines, summary, form: { ism: 'Ali', telefon: '+998901234567', turi: 'olib', manzil: '', moljal: '', izoh: '' }, lang: 'uz', platform: 'ios', ts: {} };
+  assert.equal(buildOrderWrite(args)['orders/u/o'].jami, 90000);
+  assert.throws(() => buildOrderWrite({ ...args, summary: { ...summary, subtotal: 1, total: 1 } }), /totals changed/);
+  assert.throws(() => buildOrderWrite({ ...args, summary: { ...summary, count: 1 } }), /totals changed/);
+  assert.throws(() => buildOrderWrite({ ...args, lines: [...lines, ...lines] }), /duplicate/);
+  assert.throws(() => buildOrderWrite({ ...args, lines: [{ ...lines[0], qty: 1.5 }] }), /Invalid order item/);
+  assert.throws(() => buildOrderWrite({ ...args, lines: [] }), /totals changed/);
+});
