@@ -194,21 +194,26 @@ export async function uploadToImgbb(image: Blob | string, key: string): Promise<
   if (bytes <= 0) throw new UploadError('server', 'Empty image');
   const body = new FormData();
   body.append('image', image);
+  body.append('key', key.trim());
   let res: Response;
+  let json: { data?: { url?: string }; error?: { message?: string; code?: number } };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 90000);
   try {
-    res = await withTimeout(fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(key)}`, { method: 'POST', body, signal: controller.signal }), 90000);
+    ({ res, json } = await withTimeout((async () => {
+      const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body, signal: controller.signal });
+      const payload = await response.json().catch(() => ({}));
+      return { res: response, json: payload };
+    })(), 90000));
   } catch {
     controller.abort();
     throw new UploadError('network', 'Image upload failed');
   } finally {
     clearTimeout(timer);
   }
-  const json = (await res.json().catch(() => ({}))) as { data?: { url?: string }; error?: { message?: string; code?: number } };
-  const url = json.data?.url;
-  if (res.ok && url && /^https:\/\/\S+$/.test(url)) return url;
-  const message = json.error?.message ?? `HTTP ${res.status}`;
+  const url = json?.data?.url;
+  if (res.ok && typeof url === 'string' && /^https:\/\/\S+$/.test(url)) return url;
+  const message = typeof json?.error?.message === 'string' ? json.error.message : `HTTP ${res.status}`;
   if (/key/i.test(message) || res.status === 401 || res.status === 403) throw new UploadError('badKey', message);
   if (res.status === 413 || /size|large/i.test(message)) throw new UploadError('tooBig', message);
   throw new UploadError('server', message);
