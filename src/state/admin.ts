@@ -44,17 +44,17 @@ const int = (s: string) => (/^\d{1,10}$/.test(s.replace(/\s/g, '')) ? parseInt(s
 
 export function validateProduct(f: ProductForm): Partial<Record<keyof ProductForm, string>> {
   const e: Partial<Record<keyof ProductForm, string>> = {};
-  if (f.nomi.trim().length < 2) e.nomi = 'name';
-  if (!Number.isSafeInteger(int(f.narxi))) e.narxi = 'price';
-  if (!Number.isSafeInteger(int(f.qoldiq))) e.qoldiq = 'stock';
-  if (f.eskiNarx.trim() && !(int(f.eskiNarx) > int(f.narxi))) e.eskiNarx = 'oldPrice';
+  if (f.nomi.trim().length < 2 || f.nomi.trim().length > 160) e.nomi = 'name';
+  if (!Number.isSafeInteger(int(f.narxi)) || int(f.narxi) > 1_000_000_000) e.narxi = 'price';
+  if (!Number.isSafeInteger(int(f.qoldiq)) || int(f.qoldiq) > 1_000_000) e.qoldiq = 'stock';
+  if (f.eskiNarx.trim() && (!(int(f.eskiNarx) > int(f.narxi)) || int(f.eskiNarx) > 1_000_000_000)) e.eskiNarx = 'oldPrice';
   if (f.rasmlar.some((u) => !/^https:\/\/\S+$/.test(u))) e.rasmlar = 'url';
   return e;
 }
 
 /** Tovarni saqlaydi. Kategoriya o'zgarsa — eski yo'l o'chiriladi (bitta atomar yozuvda). */
 export async function saveProduct(f: ProductForm, existing?: Product): Promise<string> {
-  const cat = f.kategoriya.trim();
+  if (Object.keys(validateProduct(f)).length) throw new Error('Invalid product form');\x0a  const cat = f.kategoriya.trim();\x0a  if (!cat || /[.#$\[\]\/\x00-\x1f\x7f]/.test(cat)) throw new Error('Invalid category');
   const key = existing && existing.kategoriya === cat ? existing.key : (existing?.key ?? (push(ref(db, `tovarlar/${cat}`)).key as string));
   const opt = (v: string) => (v.trim() ? v.trim() : null);
   const value = {
@@ -85,6 +85,9 @@ export async function deleteProduct(p: Product) {
  * tovar boshqa joyda o'zgargan bo'lsa, qoidalar rad etadi.
  */
 export async function quickUpdate(p: Product, patch: { narxi?: number; qoldiq?: number }) {
+  for (const [value, max] of [[patch.narxi, 1_000_000_000], [patch.qoldiq, 1_000_000]] as const) {
+    if (value !== undefined && (!Number.isSafeInteger(value) || value < 0 || value > max)) throw new Error('Invalid price or stock');
+  }
   const value: Record<string, unknown> = { revision: p.revision + 1, updatedAt: serverTimestamp() };
   if (patch.qoldiq !== undefined) value.qoldiq = Math.max(0, Math.floor(patch.qoldiq));
   if (patch.narxi !== undefined) {
