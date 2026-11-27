@@ -101,3 +101,6 @@ Three additional unit tests cover immutable order-index snapshots and out-of-ord
 
 ### Concurrent SQLite prototype acceptance
 `node --test tests/transactionConcurrency.test.mjs` runs three multi-connection tests with six worker threads per scenario, each on a disposable synthetic SQLite file. These complement the sequential workload and emulator restoration. The next real-device gate is to deploy staging Worker v3 after CI and repeat checkout, cancellation and recovery on the existing isolated staging project; do not deploy the SQLite prototype into Cloudflare. Production remains blocked until hosting, durable identity, migration and live acceptance are resolved.
+
+### Foreground pending-order recovery
+After the operator reported successful v3 staging checkout, confirmation and cancellation, automatic pending-order reconciliation was extended to foreground activation and bounded retry (up to eight attempts per recovery cycle, 15 seconds between attempts). It only reads an existing order, checks its number and active account, and applies the existing cart receipt. No automatic replacement order is submitted. Missing or malformed pending data never causes a server write. This does not freeze an edited checkout payload on manual retry, establish cross-device identity or prove live interruption recovery; those remain separate gates.

@@ -21,3 +21,6 @@ Operator reported iPhone checkout N159084 succeeded after deploying v2, and conf
 Version 3 (not deployed yet): shared 24-second upstream budget, capped per-call timeouts, short randomized backoff on explicit ETag conflicts, four-attempt ceiling and no implicit retries of ambiguous writes. Request-body parsing is still bounded by bytes, not an independent hard time limit; this is not a strict end-to-end latency guarantee. Mobile retry and reconciliation continue to use the original pending order ID. See `SCALE_PLAN.md` for production architecture decision and migration gates.
 
 The separate `prototype/transaction-store.mjs` is a local architecture experiment only. Do not copy it into Cloudflare or Expo. Existing staging Worker and Firebase configuration are unchanged.
+
+## Observed v3 staging acceptance (2026-11-27)
+Operator screenshot showed active Cloudflare deployment 4d88636a returning version 3; operator subsequently reported successful device checkout, admin confirmation, cancellation and stock restoration. This is operator-reported functional acceptance, not independent verification of live concurrency or network interruption. No production deployment occurred.

@@ -1,6 +1,6 @@
 import { limitToLast, onValue, orderByChild, push, query, ref, serverTimestamp, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import { MAX_LINES, validId, type CartLine, type CartSummary } from '../domain/cart';
 import {
@@ -12,7 +12,7 @@ import { ensureCustomer, useUid } from './account';
 import { useCatalogLive } from './catalog';
 import { cart, cartStore } from './cart';
 import { useStore } from '../lib/store';
-import { parsePendingOrder } from '../domain/pendingOrder';
+import { parsePendingOrder, recoverConfirmedPending } from '../domain/pendingOrder';
 import { checkoutQuote, assertQuoteMatches, readQuoteProduct } from '../domain/checkoutQuote';
 import { readSettings } from '../domain/content';
 import { orderBackend, usesOrderBackend } from '../lib/orderBackend';
@@ -25,6 +25,7 @@ export class PlaceOrderError extends Error {
 const RATE_MS = 30_000;
 
 let placingOrder = false;
+const recoveryListeners = new Set<() => void>();
 
 export async function placeOrder(lines: CartLine[], summary: CartSummary, form: CheckoutForm, lang: 'uz' | 'ru') {
   if (placingOrder) throw new PlaceOrderError('rate');
@@ -33,6 +34,7 @@ export async function placeOrder(lines: CartLine[], summary: CartSummary, form: 
     return await placeOrderInternal(lines, summary, form, lang);
   } finally {
     placingOrder = false;
+    for (const notify of recoveryListeners) notify();
   }
 }
 
@@ -50,6 +52,7 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   const validPending = parsePendingOrder(pending);
   if (pending !== null && !validPending) throw new PlaceOrderError('unknown');
   const finish = async (id: string, raqam: number, phone: string, ordered: Record<string, number>, recovered: boolean) => {
+    if (auth.currentUser?.uid !== uid) throw new PlaceOrderError('auth');
     await cart.ordered(`${uid}/${id}`, ordered);
     await saveLocal('lastOrderAt', Date.now());
     await saveLocal(pendingKey, null);
@@ -124,19 +127,54 @@ export function usePendingOrderRecovery() {
   const live = useCatalogLive();
   const hydrated = useStore(cartStore, s => s.hydrated);
   useEffect(() => {
-    if (!uid || !live || !hydrated || placingOrder) return;
-    placingOrder = true;
-    void (async () => {
-      const key = `pendingOrder:${uid}`;
-      const pending = parsePendingOrder(await readLocalStrict(key));
-      if (!pending) return;
-      const raw = await readServerJson(`orders/${uid}/${pending.id}`, uid);
-      const order = readOrder(uid, pending.id, raw);
-      if (!order || order.raqam !== pending.raqam || !order.items.length) return;
-      await cart.ordered(`${uid}/${order.id}`, Object.fromEntries(order.items.map((item) => [item.id, item.soni])));
-      await saveLocal('lastOrderAt', Date.now());
-      await saveLocal(key, null);
-    })().catch(() => {}).finally(() => { placingOrder = false; });
+    if (!uid || !live || !hydrated) return;
+    let disposed = false;
+    let running = false;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const active = () => !disposed && AppState.currentState === 'active' && auth.currentUser?.uid === uid;
+    const clear = () => { if (timer !== undefined) clearTimeout(timer); timer = undefined; };
+    const schedule = () => {
+      clear();
+      if (active() && attempts < 8) timer = setTimeout(() => { timer = undefined; void run(); }, 15000);
+    };
+    const run = async () => {
+      if (!active() || running) return;
+      if (placingOrder) { attempts++; schedule(); return; }
+      running = true;
+      placingOrder = true;
+      attempts++;
+      let retry = false;
+      try {
+        const key = `pendingOrder:${uid}`;
+        const result = await recoverConfirmedPending({
+          active,
+          load: () => readLocalStrict(key),
+          read: async id => {
+            const order = readOrder(uid, id, await readServerJson(`orders/${uid}/${id}`, uid));
+            return order?.items.length ? order : null;
+          },
+          apply: async order => {
+            await cart.ordered(`${uid}/${order.id}`, Object.fromEntries(order.items.map(item => [item.id, item.soni])));
+            await saveLocal('lastOrderAt', Date.now());
+            await saveLocal(key, null);
+          },
+        });
+        retry = result === 'unresolved';
+      } catch { retry = true; }
+      finally {
+        running = false;
+        placingOrder = false;
+        if (retry) schedule();
+      }
+    };
+    const restart = () => { attempts = 0; clear(); if (active()) void run(); };
+    recoveryListeners.add(restart);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') restart(); else clear();
+    });
+    restart();
+    return () => { disposed = true; clear(); subscription.remove(); recoveryListeners.delete(restart); };
   }, [uid, live, hydrated]);
 }
 
