@@ -81,3 +81,5 @@ See backend/README.md for the isolated deployment and test sequence. Keep produc
 
 ### Dependency remediation candidate
 The phase-one PR runs a read-only candidate job: move local ngrok tooling to devDependencies, apply compatible npm audit fixes without --force, then audit, typecheck, lint, run tests and export both mobile bundles. The candidate package and lockfile are artifacts only until reviewed and committed. Production deployment is not triggered. A passing candidate does not imply zero vulnerabilities; inspect its audit report.
+
+The targeted dependency candidate replaces the broad audit-fix experiment: only ngrok classification and exact same-major overrides for Firestore's grpc-js and Expo fingerprint's minimatch may change the manifest. Registry metadata selects stable candidates; audit and compatibility tests must pass before adoption. Candidate lockfile deltas are checksummed and emitted in numbered chunks as well as an artifact; never include runtime secrets in these files.

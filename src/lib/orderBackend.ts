@@ -17,7 +17,7 @@ export async function orderBackend(path: '/v1/orders' | '/v1/transition', body: 
     const response = await fetch(endpoint + path, { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
     if (!response.ok) throw Object.assign(new Error('Order service rejected request'), { code: response.status === 429 ? 'too-many-requests' : response.status < 500 ? 'permission-denied' : 'network' });
     const result: unknown = await response.json();
-    if (!result || typeof result !== 'object' || (path === '/v1/transition' && (result as {ok?: unknown}).ok !== true) || (path === '/v1/orders' && typeof (result as {id?: unknown}).id !== 'string')) throw new Error('Invalid acknowledgement');
+    if (!result || typeof result !== 'object' || (path === '/v1/transition' && (result as {ok?: unknown}).ok !== true) || (path === '/v1/orders' && ((result as {id?: unknown}).id !== (body as {id?: unknown})?.id || (result as {raqam?: unknown}).raqam !== (body as {raqam?: unknown})?.raqam || typeof (result as {recovered?: unknown}).recovered !== 'boolean'))) throw new Error('Invalid acknowledgement');
     if (auth.currentUser?.uid !== uid) throw Object.assign(new Error('Account changed'), { code: 'permission-denied' });
   } catch (error) {
     const code = (error as { code?: string })?.code;

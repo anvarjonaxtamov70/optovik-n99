@@ -44,14 +44,8 @@ jobs:
           mkdir -p candidate-report
           cp package.json candidate-report/original-package.json
           cp package-lock.json candidate-report/original-lock.json
-          # ngrok is used only by the local Expo CLI, not the deployed application.
-          node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("package.json","utf8"));p.devDependencies["@expo/ngrok"]=p.dependencies["@expo/ngrok"];delete p.dependencies["@expo/ngrok"];fs.writeFileSync("package.json",JSON.stringify(p,null,2)+"\n")'
+          node scripts/prepare-dependency-candidate.mjs
           npm install --package-lock-only --ignore-scripts --no-audit
-          set +e
-          npm audit fix --package-lock-only --ignore-scripts --omit=dev --json > candidate-report/audit-fix.json
-          status=$?
-          set -e
-          if [ "$status" -gt 1 ]; then exit "$status"; fi
           cp package.json package-lock.json candidate-report/
           node scripts/dependency-candidate.mjs
       - name: Audit candidate
