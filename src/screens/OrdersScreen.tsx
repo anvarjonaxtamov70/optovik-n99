@@ -9,7 +9,11 @@ import { Header } from '../components/ui/Header';
 import { Skeleton } from '../components/ui/Skeleton';
 import { isActive } from '../domain/order';
 import { useT } from '../i18n';
-import { useMyOrders, usePendingOrderRecovery } from '../state/orders';
+import { useMyOrders, usePendingOrderRecovery, closePendingAttempt } from '../state/orders';
+import { Button } from '../components/ui/Button';
+import { confirmAsync } from '../lib/confirm';
+import { usesOrderBackend } from '../lib/orderBackend';
+import { showToast } from '../state/toast';
 import { colors, radius } from '../theme/tokens';
 
 export default function OrdersScreen() {
@@ -17,6 +21,17 @@ export default function OrdersScreen() {
   usePendingOrderRecovery();
   const { orders, loading, error } = useMyOrders();
   const [tab, setTab] = useState<'active' | 'done'>('active');
+  const [closing,setClosing]=useState(false);
+  const closeAttempt=async()=>{
+    if(closing)return;
+    if(!await confirmAsync(t('orders.closeAttempt'),t('orders.closeAttemptConfirm'),{ok:t('orders.closeAttempt'),cancel:t('common.cancel'),destructive:true}))return;
+    setClosing(true);
+    try{
+      const outcome=await closePendingAttempt();
+      showToast(t(outcome==='abandoned'?'orders.attemptClosed':outcome==='exists'?'orders.attemptExists':'orders.attemptNone'));
+    }catch{showToast(t('common.error'),{kind:'error'});}
+    finally{setClosing(false);}
+  };
   const list = orders.filter((o) => (tab === 'active' ? isActive(o.holat) : !isActive(o.holat)));
   return (
     <View style={styles.root}>
@@ -28,6 +43,7 @@ export default function OrdersScreen() {
         ]} />
       </View>
       <FlatList
+        ListHeaderComponent={usesOrderBackend?<Button title={t('orders.closeAttempt')} variant="outline" loading={closing} onPress={()=>{void closeAttempt();}}/>:undefined}
         data={list}
         keyExtractor={(o) => o.id}
         contentContainerStyle={styles.list}

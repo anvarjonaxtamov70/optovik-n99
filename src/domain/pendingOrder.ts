@@ -30,7 +30,7 @@ export async function recoverConfirmedPending<T extends { raqam: number }>(optio
 }
 
 /** Stable serialization of the original JSON order; no hash collisions or object-key-order dependence.
- * The snapshot is device-local pending state only, not a log or server field.
+ * The snapshot stays in session memory for new attempts, not a log or server field.
  */
 export function checkoutIntent(value: unknown): string {
   function canonical(v: unknown): unknown {

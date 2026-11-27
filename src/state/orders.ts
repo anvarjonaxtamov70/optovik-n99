@@ -15,7 +15,7 @@ import { useStore } from '../lib/store';
 import { parsePendingOrder, recoverConfirmedPending, checkoutIntent, canRetryPending } from '../domain/pendingOrder';
 import { checkoutQuote, assertQuoteMatches, readQuoteProduct } from '../domain/checkoutQuote';
 import { readSettings } from '../domain/content';
-import { orderBackend, usesOrderBackend } from '../lib/orderBackend';
+import { orderBackend, usesOrderBackend, abandonOrderBackend } from '../lib/orderBackend';
 
 export type PlaceError = 'auth' | 'rules' | 'rate' | 'network' | 'empty' | 'pending-changed' | 'unknown';
 export class PlaceOrderError extends Error {
@@ -26,6 +26,43 @@ const RATE_MS = 30_000;
 
 let placingOrder = false;
 const recoveryListeners = new Set<() => void>();
+// One active attempt only; full contact/address snapshots never persist in new local records.
+let sessionIntent: {uid:string;id:string;intent:string} | undefined;
+function forgetIntent(uid:string,id:string){if(sessionIntent?.uid===uid&&sessionIntent.id===id)sessionIntent=undefined;}
+async function loadPending(uid:string):Promise<unknown>{
+  const key=`pendingOrder:${uid}`;
+  const raw=await readLocalStrict(key);
+  const p=parsePendingOrder(raw);
+  if(!p)return raw;
+  if(p.intent){
+    await saveLocal(key,{id:p.id,raqam:p.raqam});
+    sessionIntent={uid,id:p.id,intent:p.intent};
+  }
+  return {...p,intent:sessionIntent?.uid===uid&&sessionIntent.id===p.id?sessionIntent.intent:undefined};
+}
+/** Close an unconfirmed attempt only after a positive server acknowledgement. */
+export async function closePendingAttempt():Promise<'idle'|'exists'|'abandoned'>{
+  if(!usesOrderBackend||placingOrder)throw new PlaceOrderError('rate');
+  const uid=auth.currentUser?.uid;
+  if(!uid)throw new PlaceOrderError('auth');
+  placingOrder=true;
+  try{
+    const raw=await loadPending(uid);
+    if(raw===null)return 'idle';
+    const p=parsePendingOrder(raw);
+    if(!p)throw new PlaceOrderError('unknown');
+    const outcome=await abandonOrderBackend({id:p.id,raqam:p.raqam},uid);
+    if(auth.currentUser?.uid!==uid)throw new PlaceOrderError('auth');
+    if(outcome==='abandoned'){
+      await saveLocal(`pendingOrder:${uid}`,null);
+      forgetIntent(uid,p.id);
+    }
+    return outcome;
+  }finally{
+    placingOrder=false;
+    for(const notify of recoveryListeners)notify();
+  }
+}
 
 export async function placeOrder(lines: CartLine[], summary: CartSummary, form: CheckoutForm, lang: 'uz' | 'ru') {
   if (placingOrder) throw new PlaceOrderError('rate');
@@ -48,7 +85,7 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
     throw new PlaceOrderError(kind === 'network' ? 'network' : 'auth');
   }
   const pendingKey = `pendingOrder:${uid}`;
-  const pending = await readLocalStrict(pendingKey).catch(() => { throw new PlaceOrderError('unknown'); });
+  const pending = await loadPending(uid).catch(() => { throw new PlaceOrderError('unknown'); });
   const validPending = parsePendingOrder(pending);
   if (pending !== null && !validPending) throw new PlaceOrderError('unknown');
   const finish = async (id: string, raqam: number, phone: string, ordered: Record<string, number>, recovered: boolean) => {
@@ -56,6 +93,7 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
     await cart.ordered(`${uid}/${id}`, ordered);
     await saveLocal('lastOrderAt', Date.now());
     await saveLocal(pendingKey, null);
+    forgetIntent(uid,id);
     return { id, uid, raqam, phone, recovered };
   };
   if (validPending) {
@@ -97,7 +135,8 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
     throw new PlaceOrderError(classifyError(error) === 'network' ? 'network' : 'rules');
   }
   if (auth.currentUser?.uid !== uid) throw new PlaceOrderError('auth');
-  await saveLocal(pendingKey, { id: orderId, raqam, intent }).catch(() => { throw new PlaceOrderError('unknown'); });
+  await saveLocal(pendingKey, { id: orderId, raqam }).catch(() => { throw new PlaceOrderError('unknown'); });
+  sessionIntent={uid,id:orderId,intent};
   try {
     if (usesOrderBackend) {
       await orderBackend('/v1/orders', { id: orderId, raqam, order: writes[`orders/${uid}/${orderId}`] }, uid);
@@ -115,7 +154,10 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
       if (!order || order.raqam !== raqam || !order.items.length) throw new PlaceOrderError('unknown');
       return finish(order.id, order.raqam, order.mijoz.telefon, Object.fromEntries(order.items.map((item) => [item.id, item.soni])), true);
     }
-    if ((kind === 'permission' || kind === 'rate') && existing === null && !validPending) await saveLocal(pendingKey, null).catch(() => {});
+    if ((kind === 'permission' || kind === 'rate') && existing === null && !validPending) {
+      await saveLocal(pendingKey, null).catch(() => {});
+      forgetIntent(uid,orderId);
+    }
     throw new PlaceOrderError(kind === 'network' || existing === undefined ? 'network' : kind === 'permission' ? 'rules' : kind === 'rate' ? 'rate' : 'unknown');
   }
   const ordered: Record<string, number> = {};
@@ -155,7 +197,7 @@ export function usePendingOrderRecovery() {
         const key = `pendingOrder:${uid}`;
         const result = await recoverConfirmedPending({
           active,
-          load: () => readLocalStrict(key),
+          load: () => loadPending(uid),
           read: async id => {
             const order = readOrder(uid, id, await readServerJson(`orders/${uid}/${id}`, uid));
             return order?.items.length ? order : null;
@@ -164,6 +206,7 @@ export function usePendingOrderRecovery() {
             await cart.ordered(`${uid}/${order.id}`, Object.fromEntries(order.items.map(item => [item.id, item.soni])));
             await saveLocal('lastOrderAt', Date.now());
             await saveLocal(key, null);
+            forgetIntent(uid,order.id);
           },
         });
         retry = result === 'unresolved';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createOrder, transition, transact, remainingBudget } from '../backend/staging-worker.mjs';
+import { createOrder, transition, transact, remainingBudget, abandonOrder } from '../backend/staging-worker.mjs';
 const id='-AAAAAAAAAAAAAAAAAAA', uid='customer1', admin='admin1', now=1800000000000;
 const fixture=()=>({admins:{[admin]:true},tovarlar:{optika:{fara:{nomi:'Fara',narxi:100,qoldiq:2,revision:1}}},settings:{shop:{courierEnabled:true,pickupEnabled:true,courierFee:10,freeDeliveryFrom:1000}}});
 const request=()=>({id,raqam:123456,order:{mijoz:{ism:'Test',telefon:'+998900000000'},yetkazish:{turi:'olib'},tolov:'naqd',til:'uz',platforma:'ios',items:{optika:{fara:{nomi:'Ignored',narxi:100,soni:1}}},summa:100,soni:1,jami:100,yetkazishNarxi:0}});
@@ -10,7 +10,7 @@ test('conditional transaction retries on concurrent write',async()=>{let reads=0
 test('staging rules disallow direct order creation and transitions',async()=>{const {readFile}=await import('node:fs/promises');const {rules}=JSON.parse(await readFile(new URL('../backend/database.staging.rules.json',import.meta.url)));assert.equal(rules.orders.$uid.$oid['.write'],undefined);assert.equal(rules.orders.$uid.$oid.holat['.write'],undefined);assert.equal(rules.orderIndex.$oid['.write'],undefined);assert.equal(rules.customers.$uid.lastOrderAt['.write'],undefined);});
 test('staging transaction cannot reserve beyond available stock',()=>{const root=fixture();createOrder(root,uid,request(),now);const second=request();second.id='-BBBBBBBBBBBBBBBBBBB';second.order.items.optika.fara.soni=2;second.order.summa=200;second.order.soni=2;second.order.jami=200;createOrder(root,'customer2',second,now);transition(root,admin,{uid,id,expected:'yangi',next:'tasdiqlandi'},now+1);assert.throws(()=>transition(root,admin,{uid:'customer2',id:second.id,expected:'yangi',next:'tasdiqlandi'},now+2),/stock-unavailable/);assert.equal(root.tovarlar.optika.fara.qoldiq,1);assert.equal(root.orders.customer2[second.id].holat,'yangi');});
 test('staging service rejects outdated displayed quote without writing',()=>{const root=fixture();const b=request();b.order.summa=99;b.order.jami=99;assert.throws(()=>createOrder(root,uid,b,now),/quote-changed/);assert.equal(root.orders,undefined);});
-test('public status endpoint is static and does not need privileged access',async()=>{const {default:worker}=await import('../backend/staging-worker.mjs');const res=await worker.fetch(new Request('https://example.test/'),{});assert.equal(res.status,200);assert.equal((await res.json()).version,3);});
+test('public status endpoint is static and does not need privileged access',async()=>{const {default:worker}=await import('../backend/staging-worker.mjs');const res=await worker.fetch(new Request('https://example.test/'),{});assert.equal(res.status,200);assert.equal((await res.json()).version,4);});
 
 // A shared in-memory ETag store models competing writes without real customer data.
 function sharedStore(initial) {
@@ -72,4 +72,38 @@ test('unknown write outcome propagates without an automatic second write',async(
   let writes=0;
   await assert.rejects(transact(async()=>({root:fixture(),etag:'1'}),async()=>{writes++;throw new Error('transport failed');},root=>createOrder(root,uid,request(),now)),/transport failed/);
   assert.equal(writes,1);
+});
+
+test('closed pending key cannot create a late order; closing is idempotent',()=>{
+ const root=fixture(),b=request();
+ assert.equal(abandonOrder(root,uid,b,now).value.outcome,'abandoned');
+ assert.equal(abandonOrder(root,uid,b,now+1).changed,false);
+ assert.throws(()=>createOrder(root,uid,b,now+2),/order-abandoned/);
+ assert.equal(root.orders,undefined);
+});
+test('closing a committed key reports existing order and never cancels it',()=>{
+ const root=fixture(),b=request();createOrder(root,uid,b,now);
+ assert.equal(abandonOrder(root,uid,b,now+1).value.outcome,'exists');
+ assert.equal(root.orders[uid][id].holat,'yangi');
+ assert.equal(root.abandonedOrders,undefined);
+});
+test('concurrent creation and closure converge to one outcome',async()=>{
+ const store=sharedStore(fixture()),b=request();
+ const results=await Promise.allSettled([
+   transact(store.get,store.put,root=>abandonOrder(root,uid,b,now)),
+   transact(store.get,store.put,root=>createOrder(root,uid,b,now)),
+ ]);
+ assert.equal(results[0].status,'fulfilled');
+ const state=store.snapshot();
+ assert.equal(Boolean(state.orders?.[uid]?.[id]),!Boolean(state.abandonedOrders?.[uid]?.[id]));
+ if(state.abandonedOrders?.[uid]?.[id])assert.equal(results[1].status,'rejected');
+ else assert.equal(results[0].value.outcome,'exists');
+});
+test('closed-key markers are account scoped and bounded',()=>{
+ const root=fixture(),b=request();
+ abandonOrder(root,uid,b,now);
+ assert.equal(createOrder(root,'other',b,now+1).changed,true);
+ assert.throws(()=>abandonOrder(root,uid,{id:'-BBBBBBBBBBBBBBBBBBB',raqam:123456},now+1),/rate-limit/);
+ for(let i=1;i<20;i++)abandonOrder(root,uid,{id:'-'+String(i).padStart(19,'0'),raqam:123456},now+i*30000);
+ assert.throws(()=>abandonOrder(root,uid,{id:'-'+String(20).padStart(19,'0'),raqam:123456},now+20*30000),/abandon-limit/);
 });

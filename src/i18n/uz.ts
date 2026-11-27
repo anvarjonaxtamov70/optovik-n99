@@ -241,6 +241,11 @@ export const uz = {
   'success.track': 'Buyurtmani kuzatish',
   'success.continue': 'Xaridni davom ettirish',
 
+  'orders.closeAttempt': 'Noaniq urinishni yopish',
+  'orders.closeAttemptConfirm': 'Server buyurtma yaratilmaganini tasdiqlasa, eski urinish yopiladi. Mavjud buyurtma bekor qilinmaydi.',
+  'orders.attemptClosed': 'Eski urinish yopildi. Savatdan yangi buyurtma berishingiz mumkin.',
+  'orders.attemptExists': 'Buyurtma allaqachon mavjud. Buyurtmalarim ro‘yxatini tekshiring.',
+  'orders.attemptNone': 'Yopiladigan urinish yo‘q.',
   'orders.title': 'Buyurtmalarim',
   'orders.active': 'Faol',
   'orders.done': 'Yakunlangan',

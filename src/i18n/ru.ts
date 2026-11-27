@@ -242,6 +242,11 @@ export const ru: Dict = {
   'success.track': 'Отследить заказ',
   'success.continue': 'Продолжить покупки',
 
+  'orders.closeAttempt': 'Закрыть неопределённую попытку',
+  'orders.closeAttemptConfirm': 'Если заказ не создан, сервер закроет прежнюю попытку. Существующий заказ не отменяется.',
+  'orders.attemptClosed': 'Попытка закрыта. Можно оформить новый заказ из корзины.',
+  'orders.attemptExists': 'Заказ уже существует. Проверьте список заказов.',
+  'orders.attemptNone': 'Нет попытки для закрытия.',
   'orders.title': 'Мои заказы',
   'orders.active': 'Активные',
   'orders.done': 'Завершённые',

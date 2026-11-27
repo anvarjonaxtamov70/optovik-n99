@@ -5,7 +5,7 @@ The Worker verifies a Firebase ID token with Identity Toolkit before using a sep
 
 Deployment (staging project only):
 1. Add FIREBASE_WEB_API_KEY (the public web config apiKey) to the existing staging Worker variables; keep FIREBASE_SERVICE_ACCOUNT secret. Do not upload credentials to GitHub.
-2. Copy backend/staging-worker.mjs into the Worker editor and deploy; public root should return version 3.
+2. Copy backend/staging-worker.mjs into the Worker editor and deploy; public root should return version 4.
 3. Stop Metro, publish backend/database.staging.rules.json in the staging Firebase console only. These rules deny direct order creation/transition/index writes and preserve admin note editing and catalog/profile reads/writes. Existing production rules remain unchanged.
 4. Add EXPO_PUBLIC_N99_BACKEND=worker to .env.local and restart Metro. No fallback to direct order writes when enabled. Verify staging checkout, admin confirmation/cancellation and retry behavior. No production deployment.
 5. Before any production design, replace root-wide CAS with bounded transactional storage architecture and establish persistent customer identities if cross-device deduplication across anonymous UIDs is required. Anonymous devices cannot be reliably identified as the same customer; do not use unverified phone numbers as identity. No blanket dedup claim.
@@ -24,3 +24,6 @@ The separate `prototype/transaction-store.mjs` is a local architecture experimen
 
 ## Observed v3 staging acceptance (2026-11-27)
 Operator screenshot showed active Cloudflare deployment 4d88636a returning version 3; operator subsequently reported successful device checkout, admin confirmation, cancellation and stock restoration. This is operator-reported functional acceptance, not independent verification of live concurrency or network interruption. No production deployment occurred.
+
+## Staging v4 (not deployed)
+Authenticated `/v1/abandon` closes an unconfirmed key by writing an account-scoped marker in the same conditional root transaction as order creation. An already committed order returns `exists` without changing status or stock. A closed key never creates a late order. Markers have a 30-second per-UID interval, a 20-key per-UID ceiling and no automatic expiration; never prune without a migration protocol that prevents late writes. Existing root-deny rules cover the new node; no direct client access is needed. The root capacity limitation remains. Deploy only to staging, then test through the updated client. The relational prototype does not implement this endpoint and must not be treated as feature-equivalent.

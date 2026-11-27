@@ -98,6 +98,7 @@ export function createOrder(root,uid,b,now) {
     requireOk(existing.raqam===b.raqam,'id-conflict',409);
     return {changed:false,value:{id:b.id,raqam:existing.raqam,recovered:true}};
   }
+  requireOk(!own(own(root.abandonedOrders,uid),b.id),'order-abandoned',409);
   requireOk(!own(root.orderIndex,b.id),'id-conflict',409);
   const c=own(root.customers,uid);
   requireOk(!c?.lastOrderAt || (integer(c.lastOrderAt,0,now) && now-c.lastOrderAt>=30000),'rate-limit',429);
@@ -139,6 +140,26 @@ export function createOrder(root,uid,b,now) {
   node(root,'orderIndex')[b.id]={uid,raqam:b.raqam,createdAt:now,holat:'yangi',jami:order.jami,ism:order.mijoz.ism,telefon:order.mijoz.telefon,soni:count,turi:y.turi};
   node(node(root,'customers'),uid).lastOrderAt=now;
   return {changed:true,value:{id:b.id,raqam:b.raqam,recovered:false}};
+}
+// Same root CAS as creation: either the order exists or a permanent closed-key marker wins.
+export function abandonOrder(root,uid,b,now) {
+  requireOk(record(root)&&key(uid)&&record(b)&&oid(b.id)&&integer(b.raqam,100000,999999),'invalid-request');
+  const existing=own(own(root.orders,uid),b.id);
+  if(existing){
+    requireOk(existing.raqam===b.raqam,'id-conflict',409);
+    return {changed:false,value:{id:b.id,raqam:b.raqam,outcome:'exists'}};
+  }
+  const marker=own(own(root.abandonedOrders,uid),b.id);
+  if(marker){
+    requireOk(marker.raqam===b.raqam,'id-conflict',409);
+    return {changed:false,value:{id:b.id,raqam:b.raqam,outcome:'abandoned'}};
+  }
+  const marks=own(root.abandonedOrders,uid);
+  requireOk(!marks||record(marks),'invalid-data',503);
+  requireOk(!marks||Object.keys(marks).length<20,'abandon-limit',429);
+  requireOk(!marks||Object.values(marks).every(m=>integer(m?.at,0,now)&&now-m.at>=30000),'rate-limit',429);
+  node(node(root,'abandonedOrders'),uid)[b.id]={raqam:b.raqam,at:now};
+  return {changed:true,value:{id:b.id,raqam:b.raqam,outcome:'abandoned'}};
 }
 export function transition(root,actor,b,now) {
   requireOk(key(actor)&&record(root)&&record(b)&&key(b.uid)&&oid(b.id)&&statuses.includes(b.expected)&&statuses.includes(b.next),'invalid-request');
@@ -219,15 +240,15 @@ async function databaseMutation(env,mutate,deadline) {
 export default {async fetch(request,env){
   const path=new URL(request.url).pathname;
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, GET, OPTIONS','Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Max-Age':'600'}});
-  if(request.method==='GET'&&path==='/')return json({app:'OPTOVIK N99',environment:'staging',version:3});
-  if(request.method!=='POST'||!['/v1/orders','/v1/transition'].includes(path))return json({error:'not-found'},404);
+  if(request.method==='GET'&&path==='/')return json({app:'OPTOVIK N99',environment:'staging',version:4});
+  if(request.method!=='POST'||!['/v1/orders','/v1/transition','/v1/abandon'].includes(path))return json({error:'not-found'},404);
   const deadline=Date.now()+REQUEST_BUDGET_MS;
   try {
     const uid=await atStage('identity',()=>identity(request,env,deadline));
     const b=await boundedJson(request,MAX_BODY);
     remainingBudget(deadline,REQUEST_BUDGET_MS);
     const value=await atStage('transaction',()=>databaseMutation(env,root=>{
-      try { return path==='/v1/orders'?createOrder(root,uid,b,ts()):transition(root,uid,b,ts()); }
+      try { return path==='/v1/orders'?createOrder(root,uid,b,ts()):path==='/v1/abandon'?abandonOrder(root,uid,b,ts()):transition(root,uid,b,ts()); }
       catch(error) {
         if(error?.status>=500) console.warn('n99-stage','order-data-validation',error.message==='invalid-settings'?'invalid-settings':'invalid-data');
         throw error;
