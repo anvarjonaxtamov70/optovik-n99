@@ -78,3 +78,6 @@ See backend/README.md for the isolated deployment and test sequence. Keep produc
 - `npm test`: synthetic competing transaction tests and backup roundtrip.
 - `N99_STRICT_AUDIT=1 node scripts/audit-dependencies.mjs`: release gate fails on high or critical findings; routine dependency CI retains the existing critical-only gate and reports strict release status. Failed/malformed audits are errors, not empty reports.
 - `node scripts/verify-restore.mjs <local-export.json>`: offline relationship checks, no network writes. Actual encrypted backup and isolated restore still required.
+
+### Dependency remediation candidate
+The phase-one PR runs a read-only candidate job: move local ngrok tooling to devDependencies, apply compatible npm audit fixes without --force, then audit, typecheck, lint, run tests and export both mobile bundles. The candidate package and lockfile are artifacts only until reviewed and committed. Production deployment is not triggered. A passing candidate does not imply zero vulnerabilities; inspect its audit report.
