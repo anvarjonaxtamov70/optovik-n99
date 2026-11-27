@@ -18,7 +18,7 @@ export async function abandonOrderBackend(body: {id:string;raqam:number},uid:str
   return (result as {outcome:'exists'|'abandoned'}).outcome;
 }
 
-export type CandidateRoute='/v1/catalog/list'|'/v1/orders/list'|'/v1/admin/orders/list'|'/v1/orders/get'|'/v1/admin/product'|'/v1/admin/note'|'/v1/admin/shop'|'/v1/shop/get'|'/v1/account/role'|'/v1/profile/get'|'/v1/profile/save'|'/v1/quote';
+export type CandidateRoute='/v1/catalog/list'|'/v1/orders/list'|'/v1/admin/orders/list'|'/v1/orders/get'|'/v1/admin/product'|'/v1/admin/note'|'/v1/admin/shop'|'/v1/shop/get'|'/v1/account/role'|'/v1/profile/get'|'/v1/profile/save'|'/v1/quote'|'/v1/banners/list'|'/v1/admin/banners/list'|'/v1/admin/banner';
 export async function candidateRequest<T>(path:CandidateRoute,body:unknown,uid:string):Promise<T>{
  if(!usesFirestoreCandidate)throw new Error('Candidate disabled');
  return await requestBackend(path,body,uid) as T;

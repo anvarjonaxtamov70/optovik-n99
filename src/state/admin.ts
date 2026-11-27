@@ -1,9 +1,9 @@
 import { get, onValue, push, ref, remove, serverTimestamp, set, update } from 'firebase/database';
 
-import { LEGACY_PUBLIC_MEDIA_FIELDS, readMediaKey, type Banner, type ShopSettings } from '../domain/content';
+import { LEGACY_PUBLIC_MEDIA_FIELDS, readBanners, readMediaKey, type Banner, type ShopSettings } from '../domain/content';
 import type { Product } from '../domain/products';
 import { candidateAck } from '../lib/candidateData';
-import { usesFirestoreCandidate } from '../lib/orderBackend';
+import { candidateRequest, usesFirestoreCandidate } from '../lib/orderBackend';
 import { retryCatalog } from './catalog';
 import { auth, db, withTimeout } from '../lib/firebase';
 import { createStore, useStore } from '../lib/store';
@@ -114,6 +114,7 @@ export async function quickUpdate(p: Product, patch: { narxi?: number; qoldiq?: 
 
 export async function saveBanner(b: Omit<Banner, 'id'>, id?: string) {
   const key = id ?? (push(ref(db, 'bannerlar')).key as string);
+  if(usesFirestoreCandidate){const uid=auth.currentUser?.uid;if(!uid)throw new Error('Not authenticated');await candidateAck('/v1/admin/banner',{id:key,action:'save',banner:{title:b.title,text:b.text,cta:b.cta,link:b.link,theme:b.theme,order:b.order,active:b.active,...(b.image?{image:b.image}:{}),...(b.art?{art:b.art}:{})}},uid);retryCatalog();return key;}
   await withTimeout(set(ref(db, `bannerlar/${key}`), {
     title: b.title, text: b.text, cta: b.cta, link: b.link, theme: b.theme, order: b.order, active: b.active,
     ...(b.image ? { image: b.image } : {}), ...(b.art ? { art: b.art } : {}),
@@ -122,6 +123,7 @@ export async function saveBanner(b: Omit<Banner, 'id'>, id?: string) {
 }
 
 export async function deleteBanner(id: string) {
+  if(usesFirestoreCandidate){const uid=auth.currentUser?.uid;if(!uid)throw new Error('Not authenticated');await candidateAck('/v1/admin/banner',{id,action:'delete'},uid);retryCatalog();return;}
   await withTimeout(remove(ref(db, `bannerlar/${id}`)), 15000);
 }
 
@@ -149,6 +151,8 @@ export const useMediaKey = () => useStore(mediaStore, (s) => s);
 
 /** Admin bo'limi ochiq turganda kalitni kuzatadi. Qaytgan funksiya kuzatishni to'xtatadi. */
 export function watchMediaKey(): () => void {
+  // No legacy media credentials or external uploads in the synthetic candidate.
+  if(usesFirestoreCandidate){mediaStore.set({key:'',ready:true,secure:true});return ()=>{};}
   let offLegacy: (() => void) | null = null;
   const offPrivate = onValue(ref(db, 'settings/private/imgbbApiKey'), (snap) => {
     offLegacy?.();
@@ -164,6 +168,7 @@ export function watchMediaKey(): () => void {
 }
 
 export async function saveMediaKey(key: string) {
+  if(usesFirestoreCandidate)throw new Error('Media upload disabled in synthetic candidate');
   const clean = key.trim();
   await withTimeout(set(ref(db, 'settings/private/imgbbApiKey'), clean ? clean : null), 15000);
 }
@@ -174,6 +179,7 @@ export async function saveMediaKey(key: string) {
  * Yangi qoidalar joylanmagan bo'lsa, hech narsa o'zgarmaydi.
  */
 export async function migrateMediaKey(): Promise<'moved' | 'nothing'> {
+  if(usesFirestoreCandidate)return 'nothing';
   const shop = (await withTimeout(get(ref(db, 'settings/shop')), 15000)).val() as Record<string, unknown> | null;
   const legacy = LEGACY_PUBLIC_MEDIA_FIELDS.filter((k) => shop && k in shop);
   if (!shop || !legacy.length) return 'nothing';
@@ -230,4 +236,9 @@ export async function uploadToImgbb(image: Blob | string, key: string): Promise<
   if (/key/i.test(message) || res.status === 401 || res.status === 403) throw new UploadError('badKey', message);
   if (res.status === 413 || /size|large/i.test(message)) throw new UploadError('tooBig', message);
   throw new UploadError('server', message);
+}
+
+export async function loadCandidateAdminBanners(uid:string){
+ const result=await candidateRequest<{banners:unknown}>('/v1/admin/banners/list',{},uid);
+ return readBanners(result.banners,true);
 }

@@ -5,6 +5,7 @@ import {localFirestoreRunner,isLocalFirestoreHost} from '../backend/firestore-re
 import {executeFirestoreOrder,paths} from '../backend/firestore-orders.mjs';
 import {mutateFirestoreProduct,saveFirestoreOrderNote,readFirestoreOrder,updateFirestoreDelivery} from '../backend/firestore-admin.mjs';
 import {listFirestoreOrders,listFirestoreProducts} from '../backend/firestore-readers.mjs';
+import {syntheticDatasetRunner,listBanners,mutateBanner} from '../backend/firestore-isolation.mjs';
 import {createFirestoreApi} from '../backend/firestore-api.mjs';
 import {planFirestoreImport} from '../backend/firestore-migration.mjs';
 import {createOrder,transition} from '../backend/staging-worker.mjs';
@@ -59,5 +60,14 @@ test('local Firestore imports synthetic reserved order and continues fulfillment
  assert.equal((await call('/v1/admin/orders/list',{})).status,403);
  assert.equal((await call('/v1/admin/product',{cat:'optika',id:'new-a',action:'quick',expectedRevision:1,patch:{narxi:130}},admin)).status,200);
  assert.equal((await run(tx=>tx.get(paths.product('optika','new-a')))).narxi,130);
+
+ await run(async tx=>tx.set(paths.dataset,{kind:'synthetic-only',version:1}));
+ const isolated=syntheticDatasetRunner(run);
+ const bannerId='-CCCCCCCCCCCCCCCCCCC';
+ await mutateBanner(isolated,admin,{id:bannerId,action:'save',banner:{title:{uz:'Test',ru:'Test'},text:{uz:'',ru:''},cta:{uz:'Go',ru:'Go'},link:'catalog',theme:'brand',order:0,active:false}});
+ assert.equal((await listBanners(isolated,admin,true)).banners[bannerId].active,false);
+ assert.equal(Object.keys((await listBanners(isolated,'second')).banners).length,0);
+ await mutateBanner(isolated,admin,{id:bannerId,action:'delete'});
+ assert.equal(Object.keys((await listBanners(isolated,admin,true)).banners).length,0);
 
 });

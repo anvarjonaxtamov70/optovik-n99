@@ -35,7 +35,7 @@ export async function candidateHasOrders(uid:string):Promise<boolean>{
  if(!Array.isArray(page.items)||page.items.length>1||page.items.some(r=>r.uid!==uid)||page.next===undefined)throw new Error('Invalid history');
  return page.items.length>0;
 }
-export async function candidateAck(path:'/v1/admin/product'|'/v1/admin/note'|'/v1/admin/shop'|'/v1/profile/save',body:unknown,uid:string){
+export async function candidateAck(path:'/v1/admin/product'|'/v1/admin/note'|'/v1/admin/shop'|'/v1/profile/save'|'/v1/admin/banner',body:unknown,uid:string){
  const result=await candidateRequest<{ok?:boolean;revision?:number}>(path,body,uid);
  if(path==='/v1/admin/product'?(!Number.isSafeInteger(result.revision)||Number(result.revision)<1):result.ok!==true)throw new Error('Invalid acknowledgement');
 }

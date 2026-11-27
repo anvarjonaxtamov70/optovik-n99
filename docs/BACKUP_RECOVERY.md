@@ -28,3 +28,12 @@ CI runs `npx --yes firebase-tools@14 emulators:exec --only database --project de
 
 ## Firestore candidate offline report
 `node scripts/plan-firestore-migration.mjs <local-export.json>` validates and reports counts and excluded root names only. No files or remote data are written. Do not run against actual exports in CI. The current candidate has not been deployed; real encrypted exports, Auth user exports, image backup and restoration need operator access. Never merge or publish as a substitute for these checks.
+
+## Offline encrypted RTDB backup (new)
+Use an encrypted, access-restricted directory outside the repository. Example PowerShell commands after exporting JSON from the correct Firebase console:
+```powershell
+node scripts/encrypted-backup.mjs keygen D:\\secure-keys\\n99.key
+node scripts/encrypted-backup.mjs seal D:\\secure-keys\\n99.key D:\\private\\n99-export.json D:\\private\\n99.n99backup
+node scripts/encrypted-backup.mjs verify D:\\secure-keys\\n99.key D:\\private\\n99.n99backup
+```
+Replace paths with existing private directories. Never upload key or export to GitHub or chat. The key is random and must be backed up separately; losing it loses recovery access. Windows ACLs must be set by the operator (Unix mode flags do not ensure Windows permissions). Verification authenticates ciphertext and checks order/index structure, not completeness. The original plaintext remains on disk: protect it and remove it under your retention policy after successful verification and redundant backup. The optional open command writes to a new *-export.json file; it never uploads to Firebase. 32 MiB limit; Auth users and images require separate backup. No actual user export processed by CI.

@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { KeyboardAvoidingView, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,10 +20,25 @@ import { CATEGORIES, CAR_MODELS } from '../../domain/taxonomy';
 import { useT, type TKey } from '../../i18n';
 import { confirmAsync } from '../../lib/confirm';
 import { haptic } from '../../lib/haptics';
-import { deleteBanner, saveBanner } from '../../state/admin';
+import { deleteBanner, saveBanner, loadCandidateAdminBanners } from '../../state/admin';
+import { usesFirestoreCandidate } from '../../lib/orderBackend';
+import { useUid } from '../../state/account';
 import { useBanners } from '../../state/catalog';
 import { showToast } from '../../state/toast';
 import { colors, layout, radius, shadow } from '../../theme/tokens';
+
+function useAdminBannerSource(){
+ const legacy=useBanners();
+ const uid=useUid();
+ const [state,setState]=useState<{uid:string;items:Banner[]}|null>(null);
+ useFocusEffect(useCallback(()=>{
+  if(!usesFirestoreCandidate||!uid)return;
+  let active=true;
+  void loadCandidateAdminBanners(uid).then(items=>{if(active)setState({uid,items});}).catch(()=>{if(active)setState(null);});
+  return ()=>{active=false;};
+ },[uid]));
+ return usesFirestoreCandidate?(state?.uid===uid?state?.items??null:null):legacy;
+}
 
 export function AdminBannerList() {
   const insets = useSafeAreaInsets();
@@ -30,7 +46,7 @@ export function AdminBannerList() {
   const { sidebar } = useAdminShell();
   const { width } = useWindowDimensions();
   const wide = width >= layout.wide;
-  const remote = useBanners();
+  const remote = useAdminBannerSource();
   const list = remote ?? [];
   const add = () => router.push('/admin/banner');
   return (
@@ -64,8 +80,9 @@ const empty: Draft = { title: { uz: '', ru: '' }, text: { uz: '', ru: '' }, cta:
 
 export function AdminBannerEdit() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const remote = useBanners();
+  const remote = useAdminBannerSource();
   const existing = remote?.find((b) => b.id === id);
+  if(usesFirestoreCandidate&&id&&!existing)return <View style={styles.root}><Header title="Banner"/><Txt>Banner unavailable / Banner mavjud emas</Txt></View>;
   return <BannerEditor key={existing?.id ?? 'new'} id={existing?.id} initial={existing ?? { ...empty, order: (remote?.length ?? 0) }} />;
 }
 

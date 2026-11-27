@@ -17,6 +17,8 @@ export const paths={
   admin:uid=>'n99Admins/'+encodeURIComponent(key(uid)),
   product:(cat,id)=>'n99Categories/'+encodeURIComponent(key(cat))+'/products/'+encodeURIComponent(key(id)),
   settings:'n99Settings/shop',
+  banners:'n99Settings/banners',
+  dataset:'n99Settings/dataset',
 };
 function emptyRoot(){return {orders:map(),orderIndex:map(),tovarlar:map(),customers:map(),admins:map(),abandonedOrders:map()};}
 async function loadOrder(tx,root,uid,id){

@@ -54,3 +54,8 @@ reports/
 *-backup.json
 *-export.json
 backups/
+
+# Encrypted recovery files and synthetic bootstrap requests
+*.n99backup
+*-seed.json
+firestore-debug.log

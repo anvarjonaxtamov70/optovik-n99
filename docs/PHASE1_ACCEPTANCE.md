@@ -10,3 +10,6 @@
 8. Remaining moderate dependencies: keep audit gate, review stable compatible updates; no forced Expo downgrade. A green CI result does not prove absence of security bugs.
 
 No production migration, release, paid services or real backup performed by this PR.
+
+## Updated candidate setup prerequisites
+Prepare a synthetic create-only seed body offline: `node scripts/prepare-firestore-seed.mjs <test-admin-uid> <outside-repo-path>-seed.json`. The UID is from the staging test admin account, not a password or token. The tool sends no network requests. Operator must verify the separate Firestore database is empty, deploy default-deny rules and indexes, then submit the seed body once via authorized staging-only REST access. Never run against production. The candidate checks the dataset marker on every transaction; flags alone are insufficient. Banner reads/writes are now isolated; media uploads and legacy media-key edits are disabled in candidate, use test image URLs. See BACKUP_RECOVERY.md for offline encryption. Real encrypted backup and actual phone/cloud acceptance are operator tasks. Keep the current RTDB authoritative. No automatic production release.

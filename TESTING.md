@@ -134,3 +134,6 @@ Five unit tests cover disabled routes, authentication/invalid body, admin actor 
 
 ### Candidate client integration
 New opt-in staging mode routes order/quote, catalog and admin inventory, shop and profile operations to the Firestore API, checks response backend marker, isolates local caches and uses bounded foreground polling. Four unit tests exercise environment selection, paging, settings redaction and quote/profile behavior. Actual iOS and web acceptance and live authentication are still required. Candidate flag is additionally gated on synthetic-only dataset. Production web deploy now requires manual explicit approval. Existing RTDB remains the live authority.
+
+### Release and recovery tools
+Five unit tests cover authenticated encrypted backup roundtrip, wrong key/tamper rejection, synthetic seed create-only body, dataset marker enforcement and isolated banner behavior. Emulator extends existing fulfillment test with marker and banner operations. No real backup, external image upload or remote database operation is performed. New CI pending.

@@ -117,19 +117,18 @@ function subscribeCandidate(){
   if(!uid)return;
   running=true;
   try{
-   const [products,shop]=await Promise.all([candidateCatalog(uid),candidateRequest<{settings:unknown}>('/v1/shop/get',{},uid)]);
+   const [products,shop,content]=await Promise.all([candidateCatalog(uid),candidateRequest<{settings:unknown}>('/v1/shop/get',{},uid),candidateRequest<{banners:unknown}>('/v1/banners/list',{},uid)]);
    if(disposed||auth.currentUser?.uid!==uid)return;
-   catalogStore.set(s=>({...s,settings:readSettings(shop.settings),connected:true}));
+   catalogStore.set(s=>({...s,settings:readSettings(shop.settings),banners:readBanners(content.banners),connected:true}));
    setProducts(products,true);
    void saveLocal('catalog',toCache(products)).catch(()=>{});
    void saveLocal('settings',shop.settings).catch(()=>{});
+   void saveLocal('banners',content.banners).catch(()=>{});
   }catch{if(!disposed)catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'error'}));}
   finally{running=false;if(!disposed)timer=setTimeout(()=>{void refresh();},60000);}
  };
  const off=onAuthStateChanged(auth,()=>{catalogStore.set(s=>({...s,connected:false}));void refresh();});
  const sub=AppState.addEventListener('change',s=>{if(s==='active')void refresh();else clear();});
- // Banner/media content stays in RTDB during isolated staging evaluation, not stock or prices.
- const banners=onValue(ref(db,'bannerlar'),snap=>{if(!disposed)catalogStore.set(s=>({...s,banners:snap.exists()?readBanners(snap.val()):null}));});
- unsubs=[()=>{disposed=true;clear();off();sub.remove();banners();}];
+ unsubs=[()=>{disposed=true;clear();off();sub.remove();}];
  void refresh();
 }

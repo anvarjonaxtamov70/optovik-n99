@@ -41,7 +41,7 @@ export function isSafeLink(link: string): boolean {
     || /^https:\/\/\S{4,500}$/.test(link);
 }
 
-export function readBanners(value: unknown): Banner[] {
+export function readBanners(value: unknown, includeInactive = false): Banner[] {
   if (!isRecord(value)) return [];
   const out: Banner[] = [];
   for (const [id, b] of Object.entries(value)) {
@@ -62,7 +62,7 @@ export function readBanners(value: unknown): Banner[] {
       active: b.active !== false,
     });
   }
-  return out.filter((b) => b.active).sort((a, b) => a.order - b.order);
+  return out.filter((b) => includeInactive || b.active).sort((a, b) => a.order - b.order);
 }
 
 /**
