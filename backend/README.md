@@ -5,7 +5,7 @@ The Worker verifies a Firebase ID token with Identity Toolkit before using a sep
 
 Deployment (staging project only):
 1. Add FIREBASE_WEB_API_KEY (the public web config apiKey) to the existing staging Worker variables; keep FIREBASE_SERVICE_ACCOUNT secret. Do not upload credentials to GitHub.
-2. Copy backend/staging-worker.mjs into the Worker editor and deploy; public root should return version 2.
+2. Copy backend/staging-worker.mjs into the Worker editor and deploy; public root should return version 3.
 3. Stop Metro, publish backend/database.staging.rules.json in the staging Firebase console only. These rules deny direct order creation/transition/index writes and preserve admin note editing and catalog/profile reads/writes. Existing production rules remain unchanged.
 4. Add EXPO_PUBLIC_N99_BACKEND=worker to .env.local and restart Metro. No fallback to direct order writes when enabled. Verify staging checkout, admin confirmation/cancellation and retry behavior. No production deployment.
 5. Before any production design, replace root-wide CAS with bounded transactional storage architecture and establish persistent customer identities if cross-device deduplication across anonymous UIDs is required. Anonymous devices cannot be reliably identified as the same customer; do not use unverified phone numbers as identity. No blanket dedup claim.
@@ -17,3 +17,5 @@ Version 2 diagnostics: search Worker logs for `n99-stage` and `n99-upstream`. On
 
 ## Observed staging acceptance (2026-11-27)
 Operator reported iPhone checkout N159084 succeeded after deploying v2, and confirmation/cancellation changed the sample Cobalt stock 6 → 5 → 6. The earlier v1 503 cause was not isolated; this is observed functional success, not a comprehensive security or load test. Parallel tests use a synthetic in-memory ETag store; live concurrency is still a release gate.
+
+Version 3 (not deployed yet): shared 24-second upstream budget, capped per-call timeouts, short randomized backoff on explicit ETag conflicts, four-attempt ceiling and no implicit retries of ambiguous writes. Request-body parsing is still bounded by bytes, not an independent hard time limit; this is not a strict end-to-end latency guarantee. Mobile retry and reconciliation continue to use the original pending order ID. See `SCALE_PLAN.md` for production architecture decision and migration gates.

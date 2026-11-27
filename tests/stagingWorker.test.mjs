@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createOrder, transition, transact } from '../backend/staging-worker.mjs';
+import { createOrder, transition, transact, remainingBudget } from '../backend/staging-worker.mjs';
 const id='-AAAAAAAAAAAAAAAAAAA', uid='customer1', admin='admin1', now=1800000000000;
 const fixture=()=>({admins:{[admin]:true},tovarlar:{optika:{fara:{nomi:'Fara',narxi:100,qoldiq:2,revision:1}}},settings:{shop:{courierEnabled:true,pickupEnabled:true,courierFee:10,freeDeliveryFrom:1000}}});
 const request=()=>({id,raqam:123456,order:{mijoz:{ism:'Test',telefon:'+998900000000'},yetkazish:{turi:'olib'},tolov:'naqd',til:'uz',platforma:'ios',items:{optika:{fara:{nomi:'Ignored',narxi:100,soni:1}}},summa:100,soni:1,jami:100,yetkazishNarxi:0}});
@@ -10,7 +10,7 @@ test('conditional transaction retries on concurrent write',async()=>{let reads=0
 test('staging rules disallow direct order creation and transitions',async()=>{const {readFile}=await import('node:fs/promises');const {rules}=JSON.parse(await readFile(new URL('../backend/database.staging.rules.json',import.meta.url)));assert.equal(rules.orders.$uid.$oid['.write'],undefined);assert.equal(rules.orders.$uid.$oid.holat['.write'],undefined);assert.equal(rules.orderIndex.$oid['.write'],undefined);assert.equal(rules.customers.$uid.lastOrderAt['.write'],undefined);});
 test('staging transaction cannot reserve beyond available stock',()=>{const root=fixture();createOrder(root,uid,request(),now);const second=request();second.id='-BBBBBBBBBBBBBBBBBBB';second.order.items.optika.fara.soni=2;second.order.summa=200;second.order.soni=2;second.order.jami=200;createOrder(root,'customer2',second,now);transition(root,admin,{uid,id,expected:'yangi',next:'tasdiqlandi'},now+1);assert.throws(()=>transition(root,admin,{uid:'customer2',id:second.id,expected:'yangi',next:'tasdiqlandi'},now+2),/stock-unavailable/);assert.equal(root.tovarlar.optika.fara.qoldiq,1);assert.equal(root.orders.customer2[second.id].holat,'yangi');});
 test('staging service rejects outdated displayed quote without writing',()=>{const root=fixture();const b=request();b.order.summa=99;b.order.jami=99;assert.throws(()=>createOrder(root,uid,b,now),/quote-changed/);assert.equal(root.orders,undefined);});
-test('public status endpoint is static and does not need privileged access',async()=>{const {default:worker}=await import('../backend/staging-worker.mjs');const res=await worker.fetch(new Request('https://example.test/'),{});assert.equal(res.status,200);assert.equal((await res.json()).version,2);});
+test('public status endpoint is static and does not need privileged access',async()=>{const {default:worker}=await import('../backend/staging-worker.mjs');const res=await worker.fetch(new Request('https://example.test/'),{});assert.equal(res.status,200);assert.equal((await res.json()).version,3);});
 
 // A shared in-memory ETag store models competing writes without real customer data.
 function sharedStore(initial) {
@@ -51,4 +51,25 @@ test('conditional retry preserves concurrent catalog edits',async()=>{
   },data=>transition(data,admin,{uid,id,expected:'yangi',next:'tasdiqlandi'},now+1));
   assert.equal(store.snapshot().tovarlar.optika.fara.nomi,'Updated');
   assert.equal(store.snapshot().tovarlar.optika.fara.qoldiq,1);
+});
+
+test('shared request budget caps per-call time and rejects expired work',()=>{
+  assert.equal(remainingBudget(1000,800,500),500);
+  assert.equal(remainingBudget(1000,200,500),200);
+  assert.throws(()=>remainingBudget(1000,800,1000),/request-deadline/);
+});
+test('expired transaction does not initiate a write',async()=>{
+  let now=0,writes=0;
+  await assert.rejects(transact(async()=>{now=10;return {root:fixture(),etag:'1'};},async()=>{writes++;return true;},root=>createOrder(root,uid,request(),0),{deadline:10,clock:()=>now}),/request-deadline/);
+  assert.equal(writes,0);
+});
+test('conditional conflict retries stop at the documented attempt limit',async()=>{
+  let reads=0,writes=0,waits=0;
+  await assert.rejects(transact(async()=>({root:fixture(),etag:String(++reads)}),async()=>{writes++;return false;},root=>createOrder(root,uid,request(),now),{wait:async()=>{waits++;}}),/concurrent-update/);
+  assert.deepEqual([reads,writes,waits],[4,4,3]);
+});
+test('unknown write outcome propagates without an automatic second write',async()=>{
+  let writes=0;
+  await assert.rejects(transact(async()=>({root:fixture(),etag:'1'}),async()=>{writes++;throw new Error('transport failed');},root=>createOrder(root,uid,request(),now)),/transport failed/);
+  assert.equal(writes,1);
 });

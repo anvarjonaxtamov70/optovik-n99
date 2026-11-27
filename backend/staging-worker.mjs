@@ -1,7 +1,7 @@
 // Staging only. Never bind production credentials or database to this Worker.
 const PROJECT = 'optovik-n99-staging';
 const DATABASE = 'https://optovik-n99-staging-default-rtdb.europe-west1.firebasedatabase.app';
-const MAX_BODY = 32768, MAX_DB = 1048576;
+const MAX_BODY = 32768, MAX_DB = 1048576, REQUEST_BUDGET_MS = 24000;
 const record = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const own = (v,k) => record(v) && Object.hasOwn(v,k) ? v[k] : undefined;
 const key = v => typeof v === 'string' && v.length > 0 && v.length <= 100 && !/[.#$\[\]/\x00-\x1f\x7f]/.test(v) && !['__proto__','constructor','prototype'].includes(v);
@@ -14,6 +14,14 @@ const node = (v,k) => { if(!Object.hasOwn(v,k)) v[k] = {}; requireOk(record(v[k]
 const productAt = (root,cat,id) => own(own(root.tovarlar,cat),id);
 const statuses = ['yangi','tasdiqlandi','yolda','tayyor','yetkazildi','bekor'];
 const ts = () => Date.now();
+const pause = ms => new Promise(resolve=>setTimeout(resolve,ms));
+// All upstream calls share one deadline shorter than the mobile client's 30s fetch timeout.
+export function remainingBudget(deadline, cap, now=Date.now()) {
+  const ms=Math.min(cap,deadline-now);
+  requireOk(Number.isSafeInteger(ms)&&ms>0,'request-deadline',503);
+  return ms;
+}
+const within = (deadline,cap) => AbortSignal.timeout(remainingBudget(deadline,cap));
 const json = (v,status=200) => Response.json(v,{status,headers:{'Cache-Control':'no-store','Access-Control-Allow-Origin':'*','X-Content-Type-Options':'nosniff'}});
 const b64 = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const enc = v => b64(new TextEncoder().encode(JSON.stringify(v)));
@@ -33,7 +41,7 @@ async function atStage(stage, task) {
   }
 }
 let cachedToken;
-async function accessToken(env) {
+async function accessToken(env,deadline) {
   const a=JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
   requireOk(env.FIREBASE_PROJECT_ID===PROJECT && env.FIREBASE_DATABASE_URL===DATABASE && a.project_id===PROJECT && a.client_email.endsWith('@'+PROJECT+'.iam.gserviceaccount.com'),'invalid-environment',503);
   if(cachedToken?.email===a.client_email && cachedToken?.keyId===a.private_key_id && cachedToken.until>Date.now()+60000) return cachedToken.value;
@@ -42,21 +50,21 @@ async function accessToken(env) {
   const pem=a.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g,'');
   const k=await crypto.subtle.importKey('pkcs8',Uint8Array.from(atob(pem),c=>c.charCodeAt(0)),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
   const sig=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',k,new TextEncoder().encode(input));
-  const res=await fetch('https://oauth2.googleapis.com/token',{method:'POST',body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion:input+'.'+b64(new Uint8Array(sig))}),signal:AbortSignal.timeout(8000)});
+  const res=await fetch('https://oauth2.googleapis.com/token',{method:'POST',body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion:input+'.'+b64(new Uint8Array(sig))}),signal:within(deadline,8000)});
   upstream(res,'oauth');
   const t=await res.json();
   requireOk(typeof t.access_token==='string' && integer(t.expires_in,1,86400),'auth-unavailable',503);
   cachedToken={email:a.client_email,keyId:a.private_key_id,value:t.access_token,until:Date.now()+t.expires_in*1000};
   return t.access_token;
 }
-async function identity(request,env) {
+async function identity(request,env,deadline) {
   const token=request.headers.get('Authorization')?.match(/^Bearer ([A-Za-z0-9_.-]{1,8192})$/)?.[1];
   requireOk(token,'unauthenticated',401);
   let claims;
   try { claims=decode(token.split('.')[1]); } catch { fail('unauthenticated',401); }
   requireOk(claims.aud===PROJECT && claims.iss==='https://securetoken.google.com/'+PROJECT && key(claims.sub) && claims.sub.length<=100 && integer(claims.exp,Math.floor(Date.now()/1000)+1,Number.MAX_SAFE_INTEGER),'unauthenticated',401);
   requireOk(typeof env.FIREBASE_WEB_API_KEY==='string' && env.FIREBASE_WEB_API_KEY.length>20,'invalid-environment',503);
-  const res=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key='+encodeURIComponent(env.FIREBASE_WEB_API_KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:token}),signal:AbortSignal.timeout(8000)});
+  const res=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key='+encodeURIComponent(env.FIREBASE_WEB_API_KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:token}),signal:within(deadline,8000)});
   if(res.status===400 || res.status===401 || res.status===403) fail('unauthenticated',401);
   upstream(res,'identity');
   const result=await res.json();
@@ -166,21 +174,28 @@ export function transition(root,actor,b,now) {
   o.holat=b.next;o.updatedAt=now;node(o,'tarix')[b.next]=now;i.holat=b.next;
   return {changed:true,value:{ok:true}};
 }
-export async function transact(get,put,mutate) {
+export async function transact(get,put,mutate,options={}) {
+  const {deadline=Infinity,clock=Date.now,wait=async()=>{}}=options;
   for(let attempt=0;attempt<4;attempt++){
+    requireOk(clock()<deadline,'request-deadline',503);
     const {root,etag}=await get();
     requireOk(record(root)&&typeof etag==='string'&&etag.length>0,'invalid-database',503);
+    requireOk(clock()<deadline,'request-deadline',503);
     const result=mutate(root);
-    if(!result.changed||await put(root,etag)) return result.value;
+    if(!result.changed) return result.value;
+    requireOk(clock()<deadline,'request-deadline',503);
+    // Retry only an explicit conditional-write conflict, not an unknown write outcome.
+    if(await put(root,etag)) return result.value;
+    if(attempt<3) await wait(attempt);
   }
   fail('concurrent-update',503);
 }
-async function databaseMutation(env,mutate) {
-  const token=await atStage('service-token',()=>accessToken(env));
+async function databaseMutation(env,mutate,deadline) {
+  const token=await atStage('service-token',()=>accessToken(env,deadline));
   const headers={Authorization:'Bearer '+token,'Cache-Control':'no-store'};
   return transact(async()=>{
     return atStage('database-read',async()=>{
-      const res=await fetch(DATABASE+'/.json',{cache:'no-store',headers:{...headers,'X-Firebase-ETag':'true','Accept-Encoding':'identity'},signal:AbortSignal.timeout(8000)});
+      const res=await fetch(DATABASE+'/.json',{cache:'no-store',headers:{...headers,'X-Firebase-ETag':'true','Accept-Encoding':'identity'},signal:within(deadline,8000)});
       upstream(res,'database-read');
       const etag=res.headers.get('ETag');
       requireOk(etag,'missing-etag',503);
@@ -190,28 +205,34 @@ async function databaseMutation(env,mutate) {
     const body=JSON.stringify(root);
     requireOk(new TextEncoder().encode(body).length<=MAX_DB,'database-size-limit',503);
     return atStage('database-write',async()=>{
-      const res=await fetch(DATABASE+'/.json',{method:'PUT',headers:{...headers,'If-Match':etag,'Content-Type':'application/json'},body,signal:AbortSignal.timeout(10000)});
+      const res=await fetch(DATABASE+'/.json',{method:'PUT',headers:{...headers,'If-Match':etag,'Content-Type':'application/json'},body,signal:within(deadline,10000)});
       if(res.status===412){await res.body?.cancel();return false;}
       upstream(res,'database-write');
       await res.body?.cancel();return true;
     });
-  },mutate);
+  },mutate,{deadline,wait:async attempt=>{
+    const delay=25*(2**attempt)+Math.floor(Math.random()*25);
+    requireOk(remainingBudget(deadline,delay)===delay,'request-deadline',503);
+    await pause(delay);
+  }});
 }
 export default {async fetch(request,env){
   const path=new URL(request.url).pathname;
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, GET, OPTIONS','Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Max-Age':'600'}});
-  if(request.method==='GET'&&path==='/')return json({app:'OPTOVIK N99',environment:'staging',version:2});
+  if(request.method==='GET'&&path==='/')return json({app:'OPTOVIK N99',environment:'staging',version:3});
   if(request.method!=='POST'||!['/v1/orders','/v1/transition'].includes(path))return json({error:'not-found'},404);
+  const deadline=Date.now()+REQUEST_BUDGET_MS;
   try {
-    const uid=await atStage('identity',()=>identity(request,env));
+    const uid=await atStage('identity',()=>identity(request,env,deadline));
     const b=await boundedJson(request,MAX_BODY);
+    remainingBudget(deadline,REQUEST_BUDGET_MS);
     const value=await atStage('transaction',()=>databaseMutation(env,root=>{
       try { return path==='/v1/orders'?createOrder(root,uid,b,ts()):transition(root,uid,b,ts()); }
       catch(error) {
         if(error?.status>=500) console.warn('n99-stage','order-data-validation',error.message==='invalid-settings'?'invalid-settings':'invalid-data');
         throw error;
       }
-    }));
+    },deadline));
     return json(value);
   } catch(e){
     const status=integer(e.status,400,599)?e.status:503;

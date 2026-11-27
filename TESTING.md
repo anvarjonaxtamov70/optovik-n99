@@ -89,3 +89,6 @@ Candidate job 140376970511 passed typecheck, lint, unit tests, Expo compatibilit
 
 ### Current release audit and restoration (2026-11-27)
 Commit d82a905 CI confirmed 0 critical, 0 high, 3 moderate production findings; remaining minimatch 10.2.6 and its Expo dependency chain have not been fixed. Development-only uuid is still installed; do not claim the full dependency tree is clean. The now-accepted candidate workflow is retired from routine PR runs; the strict locked audit remains. A separate disposable RTDB emulator restore rehearsal is added to CI. Production rollout remains blocked on live staging acceptance and a bounded scalable data architecture, not just green CI.
+
+### Staging v3 transaction resilience
+Unit tests cover shared deadline calculation, no write after budget expiry, four-attempt conflict exhaustion and no automatic retry after an ambiguous write. Deploy v3 only to the existing staging Worker after CI passes; re-run the previous device acceptance. v2 remains active until operator deploys. Scalable storage is still a separate implementation gate; see backend/SCALE_PLAN.md.
