@@ -70,4 +70,24 @@ test('local Firestore imports synthetic reserved order and continues fulfillment
  await mutateBanner(isolated,admin,{id:bannerId,action:'delete'});
  assert.equal(Object.keys((await listBanners(isolated,admin,true)).banners).length,0);
 
+ // Exercise the candidate dispatch wrapper with a synthetic actor in the local emulator.
+ const candidate=createFirestoreApi({enabled:()=>true,authenticate:async req=>req.headers.get('Authorization'),runner:async()=>isolated,clock:()=>now+120000});
+ const send=(path,body,actor='candidate-guest')=>candidate.fetch(new Request('https://example.test'+path,{method:'POST',headers:{Authorization:actor,'Content-Type':'application/json'},body:JSON.stringify(body)}),{});
+ const quote=await send('/v1/quote',{ids:['optika/new-a']});
+ assert.equal(quote.status,200);assert.equal((await quote.json()).products[0].data.narxi,130);
+ assert.equal(quote.headers.get('X-N99-Backend'),'firestore-candidate');
+ const third='-DDDDDDDDDDDDDDDDDDD';
+ const checkout=request(third);
+ checkout.order.items={optika:{'new-a':{narxi:130,soni:1}}};checkout.order.summa=130;checkout.order.jami=130;
+ const accepted=await send('/v1/orders',checkout);assert.equal(accepted.status,200);assert.equal((await accepted.json()).recovered,false);
+ const repeated=await send('/v1/orders',checkout);assert.equal(repeated.status,200);assert.equal((await repeated.json()).recovered,true);
+ const profile={name:'Synthetic Guest',phone:'+998900000000',address:'',apartment:'',landmark:''};
+ assert.equal((await send('/v1/profile/save',profile)).status,200);
+ assert.equal((await run(tx=>tx.get(paths.customer('candidate-guest')))).lastOrderAt,now+120000);
+ assert.equal((await (await send('/v1/profile/get',{})).json()).profile.name,'Synthetic Guest');
+ assert.equal((await send('/v1/transition',{uid:'candidate-guest',id:third,expected:'yangi',next:'tasdiqlandi'},admin)).status,200);
+ assert.equal((await run(tx=>tx.get(paths.product('optika','new-a')))).qoldiq,1);
+ assert.equal((await send('/v1/transition',{uid:'candidate-guest',id:third,expected:'tasdiqlandi',next:'bekor'},admin)).status,200);
+ assert.equal((await run(tx=>tx.get(paths.product('optika','new-a')))).qoldiq,2);
+
 });

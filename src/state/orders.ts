@@ -17,6 +17,7 @@ import { checkoutQuote, assertQuoteMatches, readQuoteProduct } from '../domain/c
 import { readSettings } from '../domain/content';
 import { candidateRequest, usesFirestoreCandidate, orderBackend, usesOrderBackend, abandonOrderBackend } from '../lib/orderBackend';
 
+import { CANDIDATE_LIST_REFRESH_MS,CANDIDATE_DETAIL_REFRESH_MS } from '../domain/candidateBackend';
 import { candidateOrder, candidateCustomerOrders, candidateAdminOrders, candidateAck } from '../lib/candidateData';
 
 const readOrderRaw=(uid:string,id:string,actor=uid)=>usesFirestoreCandidate?candidateOrder(uid,id,actor):readServerJson(`orders/${uid}/${id}`,actor);
@@ -269,7 +270,7 @@ export function useOrder(uid: string | undefined | null, id: string | undefined)
   const key = `${actor}/${uid}/${id}`;
   useEffect(() => {
     if (!uid || !id) return;
-    if(usesFirestoreCandidate){if(!actor)return;return pollCandidate(actor,async()=>readOrder(uid,id,await candidateOrder(uid,id,actor)),order=>setState({key,order,loading:false}),()=>setState({key,order:null,loading:false}));}
+    if(usesFirestoreCandidate){if(!actor)return;return pollCandidate(actor,async()=>readOrder(uid,id,await candidateOrder(uid,id,actor)),order=>setState({key,order,loading:false}),()=>setState({key,order:null,loading:false}),CANDIDATE_DETAIL_REFRESH_MS);}
     return onValue(ref(db, `orders/${uid}/${id}`), (snap) => {
       setState({ key, order: readOrder(uid, id, snap.val()), loading: false });
     }, () => setState({ key, order: null, loading: false }));
@@ -348,7 +349,7 @@ export async function adminSaveNote(o: Order, note: string) {
   await withTimeout(update(ref(db, `orders/${o.uid}/${o.id}`), { adminIzoh: note.trim().slice(0, 500) }), 10000);
 }
 
-function pollCandidate<T>(uid:string,read:()=>Promise<T>,success:(value:T)=>void,failure:()=>void){
+function pollCandidate<T>(uid:string,read:()=>Promise<T>,success:(value:T)=>void,failure:()=>void,interval=CANDIDATE_LIST_REFRESH_MS){
  let stopped=false,running=false;
  let timer:ReturnType<typeof setTimeout>|undefined;
  const tick=async()=>{
@@ -358,7 +359,7 @@ function pollCandidate<T>(uid:string,read:()=>Promise<T>,success:(value:T)=>void
   running=true;
   try{const v=await read();if(!stopped&&auth.currentUser?.uid===uid)success(v);}
   catch{if(!stopped&&auth.currentUser?.uid===uid)failure();}
-  finally{running=false;if(!stopped)timer=setTimeout(()=>{void tick();},30000);}
+  finally{running=false;if(!stopped&&AppState.currentState!=='background'&&AppState.currentState!=='inactive')timer=setTimeout(()=>{void tick();},interval);}
  };
  const sub=AppState.addEventListener('change',state=>{if(state==='active')void tick();else if(timer!==undefined)clearTimeout(timer);});
  void tick();

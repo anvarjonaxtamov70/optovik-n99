@@ -137,3 +137,6 @@ New opt-in staging mode routes order/quote, catalog and admin inventory, shop an
 
 ### Release and recovery tools
 Five unit tests cover authenticated encrypted backup roundtrip, wrong key/tamper rejection, synthetic seed create-only body, dataset marker enforcement and isolated banner behavior. Emulator extends existing fulfillment test with marker and banner operations. No real backup, external image upload or remote database operation is performed. New CI pending.
+
+### Release audit package
+One new unit test checks candidate Auth persistence name and trial catalog bounds. The local emulator extends the exact dataset-guarded HTTP path with quote, checkout/replay, profile/rate-state preservation, admin confirm/cancel and inventory restoration. CI also builds the web admin without deploying. New checks pending. Actual iOS, live staging Auth, cloud indexes, quota and encrypted backup of real data remain manual acceptance gates.

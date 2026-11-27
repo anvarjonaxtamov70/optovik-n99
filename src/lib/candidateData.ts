@@ -1,13 +1,13 @@
 import {auth} from './firebase';
 import {candidateRequest,usesFirestoreCandidate} from './orderBackend';
-import {collectPages,type Page} from '../domain/candidateBackend';
+import {CANDIDATE_CATALOG_CAP,collectPages,type Page} from '../domain/candidateBackend';
 import {readProduct,type Product,defaultOrder} from '../domain/products';
 import {readOrder,readOrderIndex,type Order,type OrderIndex} from '../domain/order';
 type Row={id:string;uid:string;data:unknown};
 type Cursor={id:string;createdAt:number};
 function active(uid:string){if(auth.currentUser?.uid!==uid)throw new Error('Account changed');}
 export async function candidateCatalog(uid:string){
- const rows=await collectPages<{cat:string;id:string;data:unknown},string>((cursor,limit)=>candidateRequest('/v1/catalog/list',{cursor,limit},uid),1000,true);
+ const rows=await collectPages<{cat:string;id:string;data:unknown},string>((cursor,limit)=>candidateRequest('/v1/catalog/list',{cursor,limit},uid),CANDIDATE_CATALOG_CAP,true);
  active(uid);
  const products:Product[]=rows.map(row=>{const p=readProduct(row.cat,row.id,row.data);if(!p||p.archived)throw new Error('Invalid catalog response');return p;});
  if(new Set(products.map(p=>p.id)).size!==products.length)throw new Error('Duplicate catalog');

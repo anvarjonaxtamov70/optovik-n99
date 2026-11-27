@@ -33,3 +33,6 @@ See SCALE_PLAN.md. The new bounded document adapter is intentionally not importe
 
 ## Separate Firestore API candidate (not deployed)
 `firestore-worker.mjs` is a separate module entrypoint; leave its candidate flag disabled. Do not deploy over the active RTDB Worker. Existing default RTDB OAuth scope unchanged. Full client parity and safe migration remain prerequisites.
+
+## Candidate deployment configuration
+`wrangler.candidate.jsonc` describes a separate Worker, disabled by default. Do not deploy or enable until the operator has verified an empty synthetic-only Firestore dataset and default-deny client rules. It must never replace the current RTDB Worker. Candidate app has separate local Auth persistence, but still shares the staging Auth project. Actual deployment, credentials, IAM, indexes, and live identity verification remain operator gates. No new service or billing was activated.

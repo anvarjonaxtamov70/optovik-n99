@@ -21,3 +21,12 @@ export async function collectPages<T,C>(read:(cursor:C|null,limit:number)=>Promi
  if(strict)throw new Error('Catalog exceeds candidate cap');
  return out;
 }
+
+// Small synthetic trial, not a production quota guarantee.
+export const CANDIDATE_CATALOG_CAP=100;
+export const CANDIDATE_CATALOG_REFRESH_MS=300000;
+export const CANDIDATE_LIST_REFRESH_MS=60000;
+export const CANDIDATE_DETAIL_REFRESH_MS=30000;
+export function stagingAppName(project:string,candidate:boolean):string{
+ return 'n99-staging-'+project+(candidate?'-firestore-candidate':'');
+}

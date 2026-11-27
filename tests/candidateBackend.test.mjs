@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {candidateBackendEnabled,collectPages} from '../src/domain/candidateBackend.ts';
+import {candidateBackendEnabled,collectPages,stagingAppName,CANDIDATE_CATALOG_CAP,CANDIDATE_CATALOG_REFRESH_MS} from '../src/domain/candidateBackend.ts';
 import {publicSettings,readQuote,saveProfile,saveShop} from '../backend/firestore-aux.mjs';
 import {paths} from '../backend/firestore-orders.mjs';
 test('candidate selection fails closed outside exact staging',()=>{
@@ -27,4 +27,11 @@ test('quote and profile preserve rate state and reject unknown fields',async()=>
  assert.equal(db.get(paths.customer('guest')).lastOrderAt,42);
  await assert.rejects(saveProfile(run,'guest',{uid:'other'},43),/invalid-request/);
  await assert.rejects(saveShop(run,'guest',settings),/forbidden/);
+});
+
+test('candidate uses a separate auth persistence name and a bounded trial catalog',()=>{
+ assert.equal(stagingAppName('optovik-n99-staging',false),'n99-staging-optovik-n99-staging');
+ assert.notEqual(stagingAppName('optovik-n99-staging',true),stagingAppName('optovik-n99-staging',false));
+ assert.equal(CANDIDATE_CATALOG_CAP,100);
+ assert.equal(CANDIDATE_CATALOG_REFRESH_MS,300000);
 });

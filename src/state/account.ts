@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import { onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { onValue, ref, set } from 'firebase/database';
 
@@ -73,8 +74,17 @@ export async function startAccount() {
     if (user && !user.isAnonymous) {
       if(usesFirestoreCandidate){
         let stopped=false;let timer:ReturnType<typeof setTimeout>|undefined;
-        const refresh=async()=>{try{const role=await candidateRequest<{admin:boolean}>('/v1/account/role',{},user.uid);if(!stopped)accountStore.set(s=>s.uid===user.uid?{...s,admin:role.admin===true,adminChecked:true}:s);}catch{if(!stopped)accountStore.set(s=>s.uid===user.uid?{...s,admin:false,adminChecked:true}:s);}finally{if(!stopped)timer=setTimeout(()=>{void refresh();},60000);}};
-        offAdmin=()=>{stopped=true;if(timer!==undefined)clearTimeout(timer);};void refresh();
+        let running=false;
+        const clear=()=>{if(timer!==undefined)clearTimeout(timer);};
+        const refresh=async()=>{
+          clear();if(stopped||running||AppState.currentState==='background'||AppState.currentState==='inactive')return;
+          running=true;
+          try{const role=await candidateRequest<{admin:boolean}>('/v1/account/role',{},user.uid);if(!stopped)accountStore.set(s=>s.uid===user.uid?{...s,admin:role.admin===true,adminChecked:true}:s);}
+          catch{if(!stopped)accountStore.set(s=>s.uid===user.uid?{...s,admin:false,adminChecked:true}:s);}
+          finally{running=false;if(!stopped&&AppState.currentState!=='background'&&AppState.currentState!=='inactive')timer=setTimeout(()=>{void refresh();},60000);}
+        };
+        const sub=AppState.addEventListener('change',state=>{if(state==='active')void refresh();else clear();});
+        offAdmin=()=>{stopped=true;clear();sub.remove();};void refresh();
       }else offAdmin = onValue(ref(db, `admins/${user.uid}`), (snap) => {
         accountStore.set((s) => (s.uid === user.uid ? { ...s, admin: snap.val() === true, adminChecked: true } : s));
       }, () => accountStore.set((s) => s.uid===user.uid?{ ...s, admin: false, adminChecked: true }:s));
