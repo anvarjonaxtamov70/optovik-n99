@@ -27,3 +27,6 @@ Operator screenshot showed active Cloudflare deployment 4d88636a returning versi
 
 ## Staging v4 (not deployed)
 Authenticated `/v1/abandon` closes an unconfirmed key by writing an account-scoped marker in the same conditional root transaction as order creation. An already committed order returns `exists` without changing status or stock. A closed key never creates a late order. Markers have a 30-second per-UID interval, a 20-key per-UID ceiling and no automatic expiration; never prune without a migration protocol that prevents late writes. Existing root-deny rules cover the new node; no direct client access is needed. The root capacity limitation remains. Deploy only to staging, then test through the updated client. The relational prototype does not implement this endpoint and must not be treated as feature-equivalent.
+
+## Firestore candidate
+See SCALE_PLAN.md. The new bounded document adapter is intentionally not imported by this Worker. Current deployed v3 and candidate v4 continue to use RTDB; do not paste Firestore modules into the Worker editor or enable a second stock authority.
