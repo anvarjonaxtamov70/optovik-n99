@@ -41,12 +41,14 @@ async function atStage(stage, task) {
   }
 }
 let cachedToken;
-async function accessToken(env,deadline) {
+export async function accessToken(env,deadline,service='rtdb') {
+  requireOk(service==='rtdb'||service==='firestore','invalid-environment',503);
+  const scope=service==='firestore'?'https://www.googleapis.com/auth/datastore':'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email';
   const a=JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
   requireOk(env.FIREBASE_PROJECT_ID===PROJECT && env.FIREBASE_DATABASE_URL===DATABASE && a.project_id===PROJECT && a.client_email.endsWith('@'+PROJECT+'.iam.gserviceaccount.com'),'invalid-environment',503);
-  if(cachedToken?.email===a.client_email && cachedToken?.keyId===a.private_key_id && cachedToken.until>Date.now()+60000) return cachedToken.value;
+  if(cachedToken?.scope===scope && cachedToken?.email===a.client_email && cachedToken?.keyId===a.private_key_id && cachedToken.until>Date.now()+60000) return cachedToken.value;
   const now=Math.floor(Date.now()/1000);
-  const input=enc({alg:'RS256',typ:'JWT'})+'.'+enc({iss:a.client_email,scope:'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+300});
+  const input=enc({alg:'RS256',typ:'JWT'})+'.'+enc({iss:a.client_email,scope,aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+300});
   const pem=a.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g,'');
   const k=await crypto.subtle.importKey('pkcs8',Uint8Array.from(atob(pem),c=>c.charCodeAt(0)),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
   const sig=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',k,new TextEncoder().encode(input));
@@ -54,10 +56,10 @@ async function accessToken(env,deadline) {
   upstream(res,'oauth');
   const t=await res.json();
   requireOk(typeof t.access_token==='string' && integer(t.expires_in,1,86400),'auth-unavailable',503);
-  cachedToken={email:a.client_email,keyId:a.private_key_id,value:t.access_token,until:Date.now()+t.expires_in*1000};
+  cachedToken={scope,email:a.client_email,keyId:a.private_key_id,value:t.access_token,until:Date.now()+t.expires_in*1000};
   return t.access_token;
 }
-async function identity(request,env,deadline) {
+export async function identity(request,env,deadline) {
   const token=request.headers.get('Authorization')?.match(/^Bearer ([A-Za-z0-9_.-]{1,8192})$/)?.[1];
   requireOk(token,'unauthenticated',401);
   let claims;
@@ -72,7 +74,7 @@ async function identity(request,env,deadline) {
   requireOk(user?.localId===claims.sub && !user.disabled && (!user.validSince || Number(claims.auth_time)>=Number(user.validSince)),'unauthenticated',401);
   return claims.sub;
 }
-async function boundedJson(response,limit) {
+export async function boundedJson(response,limit) {
   const reader=response.body?.getReader();
   requireOk(reader,'invalid-body');
   let bytes=0, out='';

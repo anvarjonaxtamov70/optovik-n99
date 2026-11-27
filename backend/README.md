@@ -30,3 +30,6 @@ Authenticated `/v1/abandon` closes an unconfirmed key by writing an account-scop
 
 ## Firestore candidate
 See SCALE_PLAN.md. The new bounded document adapter is intentionally not imported by this Worker. Current deployed v3 and candidate v4 continue to use RTDB; do not paste Firestore modules into the Worker editor or enable a second stock authority.
+
+## Separate Firestore API candidate (not deployed)
+`firestore-worker.mjs` is a separate module entrypoint; leave its candidate flag disabled. Do not deploy over the active RTDB Worker. Existing default RTDB OAuth scope unchanged. Full client parity and safe migration remain prerequisites.

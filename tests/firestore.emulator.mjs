@@ -5,6 +5,7 @@ import {localFirestoreRunner,isLocalFirestoreHost} from '../backend/firestore-re
 import {executeFirestoreOrder,paths} from '../backend/firestore-orders.mjs';
 import {mutateFirestoreProduct,saveFirestoreOrderNote,readFirestoreOrder,updateFirestoreDelivery} from '../backend/firestore-admin.mjs';
 import {listFirestoreOrders,listFirestoreProducts} from '../backend/firestore-readers.mjs';
+import {createFirestoreApi} from '../backend/firestore-api.mjs';
 import {planFirestoreImport} from '../backend/firestore-migration.mjs';
 import {createOrder,transition} from '../backend/staging-worker.mjs';
 const host=process.env.FIRESTORE_EMULATOR_HOST;
@@ -51,4 +52,12 @@ test('local Firestore imports synthetic reserved order and continues fulfillment
  for(const key of ['new-a','new-b'])await mutateFirestoreProduct(run,admin,{cat:'optika',id:key,action:'create',expectedRevision:null,patch:{nomi:'Synthetic',narxi:120,qoldiq:2}},now+30006);
  const catalog=await listFirestoreProducts(run,{limit:1});assert.equal(catalog.items[0].id,'new-a');assert.ok(catalog.next);
  const nextProduct=await listFirestoreProducts(run,{limit:1,cursor:catalog.next});assert.equal(nextProduct.items[0].id,'new-b');assert.equal(nextProduct.next,null);
+ const api=createFirestoreApi({enabled:()=>true,authenticate:async req=>req.headers.get('Authorization'),runner:async()=>run,clock:()=>now+60000});
+ const call=(path,body,actor='second')=>api.fetch(new Request('https://example.test'+path,{method:'POST',headers:{Authorization:actor,'Content-Type':'application/json'},body:JSON.stringify(body)}),{});
+ const page=await call('/v1/catalog/list',{limit:1});assert.equal(page.status,200);assert.equal((await page.json()).items[0].id,'new-a');
+ const history=await call('/v1/orders/list',{uid,admin:true});assert.equal(history.status,200);assert.equal((await history.json()).items[0].id,second);
+ assert.equal((await call('/v1/admin/orders/list',{})).status,403);
+ assert.equal((await call('/v1/admin/product',{cat:'optika',id:'new-a',action:'quick',expectedRevision:1,patch:{narxi:130}},admin)).status,200);
+ assert.equal((await run(tx=>tx.get(paths.product('optika','new-a')))).narxi,130);
+
 });

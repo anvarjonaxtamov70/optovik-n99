@@ -128,3 +128,6 @@ Six unit tests cover revision conflicts, role/field validation, archived reserve
 
 ### Firestore paginated read service
 Three new unit tests cover owner filtering and cursor, admin guard/index-only response, and catalog archived filtering/cursor limits. The emulator test now exercises order and catalog pagination after the existing migration and admin operations. No active client routes switched. Candidate index definitions are not deployed.
+
+### Firestore candidate HTTP dispatch
+Five unit tests cover disabled routes, authentication/invalid body, admin actor boundary, checkout/read integration and generic upstream errors. The local emulator exercises HTTP dispatch with synthetic authenticated actors and actual transactions. New CI pending. Existing RTDB public version and client behavior unchanged.
