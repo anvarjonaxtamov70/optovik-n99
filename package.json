@@ -5,7 +5,6 @@
   "dependencies": {
     "@expo-google-fonts/manrope": "^0.4.3",
     "@expo-google-fonts/unbounded": "^0.4.1",
-    "@expo/ngrok": "^4.1.3",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~58.1.0",
@@ -42,7 +41,8 @@
     "@types/react": "~19.3.0",
     "eslint": "9",
     "eslint-config-expo": "~58.0.4",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "@expo/ngrok": "^4.1.3"
   },
   "scripts": {
     "start": "expo start",
@@ -56,5 +56,13 @@
     "firebase:setup": "node scripts/firebase-setup.mjs",
     "audit": "node scripts/audit-dependencies.mjs"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "@firebase/firestore": {
+      "@grpc/grpc-js": "1.14.7"
+    },
+    "@expo/fingerprint": {
+      "minimatch": "10.2.6"
+    }
+  }
 }
