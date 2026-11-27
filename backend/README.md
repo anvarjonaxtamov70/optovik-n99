@@ -19,3 +19,5 @@ Version 2 diagnostics: search Worker logs for `n99-stage` and `n99-upstream`. On
 Operator reported iPhone checkout N159084 succeeded after deploying v2, and confirmation/cancellation changed the sample Cobalt stock 6 → 5 → 6. The earlier v1 503 cause was not isolated; this is observed functional success, not a comprehensive security or load test. Parallel tests use a synthetic in-memory ETag store; live concurrency is still a release gate.
 
 Version 3 (not deployed yet): shared 24-second upstream budget, capped per-call timeouts, short randomized backoff on explicit ETag conflicts, four-attempt ceiling and no implicit retries of ambiguous writes. Request-body parsing is still bounded by bytes, not an independent hard time limit; this is not a strict end-to-end latency guarantee. Mobile retry and reconciliation continue to use the original pending order ID. See `SCALE_PLAN.md` for production architecture decision and migration gates.
+
+The separate `prototype/transaction-store.mjs` is a local architecture experiment only. Do not copy it into Cloudflare or Expo. Existing staging Worker and Firebase configuration are unchanged.

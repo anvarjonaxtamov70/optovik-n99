@@ -92,3 +92,6 @@ Commit d82a905 CI confirmed 0 critical, 0 high, 3 moderate production findings; 
 
 ### Staging v3 transaction resilience
 Unit tests cover shared deadline calculation, no write after budget expiry, four-attempt conflict exhaustion and no automatic retry after an ambiguous write. Deploy v3 only to the existing staging Worker after CI passes; re-run the previous device acceptance. v2 remains active until operator deploys. Scalable storage is still a separate implementation gate; see backend/SCALE_PLAN.md.
+
+### Bounded transaction architecture prototype
+`node --test tests/transactionPrototype.test.mjs` exercises the isolated in-memory relational prototype with Node 24+, including duplicate recovery, reservation/release and rejected-order rollback. It does not measure distributed concurrency or establish cloud service readiness.

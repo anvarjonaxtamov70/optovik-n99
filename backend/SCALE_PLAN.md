@@ -16,3 +16,6 @@ Evaluate a transactional database with row/document-level conflict isolation (e.
 5. Obtain owner approval before any production data movement or traffic switch. Never dual-write stock without a single transactional authority.
 ## Acceptance criteria
 No negative inventory; no duplicate order for the same persistent idempotency key; no stock/index divergence after retry or crash; bounded transaction scope; measured latency and contention at an agreed workload; documented backup/restore and rollback. Set quantitative load targets after measuring actual workload. No claim of production scalability until implemented and measured.
+
+## Local architecture prototype (implemented, not deployed)
+`backend/prototype/transaction-store.mjs` uses Node's built-in SQLite and an in-memory synthetic database. It reuses existing order validation and loads only the target order, affected products, settings and customer rate gate. It uses a unique order key and commits order, stock, and outbox marker in one SQL transaction. It is a feasibility test, not a cloud service or production migration: no concurrent connections, persistent storage, identity linking, full catalog writer, event projection, auth adapter or load benchmark is implemented. The current staging Worker is unchanged.
