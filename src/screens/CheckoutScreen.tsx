@@ -91,7 +91,7 @@ export default function CheckoutScreen() {
       haptic.warning();
       const reason = e instanceof PlaceOrderError ? e.reason : 'unknown';
       const msg = reason === 'auth' ? t('checkout.err.auth') : reason === 'rules' ? t('checkout.err.rules') : reason === 'rate' ? t('checkout.err.rate')
-        : reason === 'network' ? t('checkout.err.network') : reason === 'empty' ? t('checkout.err.empty') : t('common.error');
+        : reason === 'pending-changed' ? t('checkout.err.pendingChanged') : reason === 'network' ? t('checkout.err.network') : reason === 'empty' ? t('checkout.err.empty') : t('common.error');
       setError(msg);
       showToast(msg, { kind: 'error' });
     } finally {

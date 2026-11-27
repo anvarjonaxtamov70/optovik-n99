@@ -207,6 +207,7 @@ export const uz = {
   'checkout.err.rules': 'Buyurtma qabul qilinmadi. Narx yoki qoldiq o‘zgargan bo‘lishi mumkin — savatni tekshirib, qayta urinib ko‘ring. Takrorlansa, do‘kon bilan bog‘laning.',
   'checkout.err.rate': 'Buyurtmalar orasida biroz kuting va qayta urinib ko‘ring.',
   'checkout.err.network': 'Buyurtma natijasi hali noma’lum. Internetga ulanib, qayta urinib ko‘ring yoki Buyurtmalarim bo‘limini tekshiring.',
+  'checkout.err.pendingChanged': 'Oldingi buyurtma natijasi hali noma’lum. Buyurtmalarim bo‘limini tekshiring yoki avvalgi savat va yetkazish ma’lumotlarini tiklab qayta urining. Muammo qolsa, do‘kon bilan bog‘laning.',
   'checkout.err.empty': 'Savatda buyurtma uchun tovar yo‘q',
   'checkout.remember': 'Ma’lumotlar keyingi safar uchun eslab qolinadi',
   'address.title': 'Yetkazish manzili',

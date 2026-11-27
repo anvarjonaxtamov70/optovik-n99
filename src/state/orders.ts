@@ -12,12 +12,12 @@ import { ensureCustomer, useUid } from './account';
 import { useCatalogLive } from './catalog';
 import { cart, cartStore } from './cart';
 import { useStore } from '../lib/store';
-import { parsePendingOrder, recoverConfirmedPending } from '../domain/pendingOrder';
+import { parsePendingOrder, recoverConfirmedPending, checkoutIntent, canRetryPending } from '../domain/pendingOrder';
 import { checkoutQuote, assertQuoteMatches, readQuoteProduct } from '../domain/checkoutQuote';
 import { readSettings } from '../domain/content';
 import { orderBackend, usesOrderBackend } from '../lib/orderBackend';
 
-export type PlaceError = 'auth' | 'rules' | 'rate' | 'network' | 'empty' | 'unknown';
+export type PlaceError = 'auth' | 'rules' | 'rate' | 'network' | 'empty' | 'pending-changed' | 'unknown';
 export class PlaceOrderError extends Error {
   constructor(public reason: PlaceError) { super(reason); }
 }
@@ -77,6 +77,11 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   let writes: ReturnType<typeof buildOrderWrite>;
   try { writes = buildOrderWrite({ uid, orderId, raqam, lines, summary, form, lang, platform: Platform.OS, ts: serverTimestamp() }); }
   catch { throw new PlaceOrderError('rules'); }
+  let intent: string;
+  try { intent = checkoutIntent(writes[`orders/${uid}/${orderId}`]); }
+  catch { throw new PlaceOrderError('rules'); }
+  // An ambiguous earlier submission must never be reused for a different checkout.
+  if (!canRetryPending(validPending, intent)) throw new PlaceOrderError('pending-changed');
   // Fresh server reads reduce stale checkout errors; rules remain the final write gate.
   const selected = lines.filter(line => line.selected && line.product && Math.min(line.qty, line.product.qoldiq) > 0);
   const request = selected.map(line => ({ id: line.id, qty: Math.min(line.qty, line.product!.qoldiq) }));
@@ -91,7 +96,8 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   } catch (error) {
     throw new PlaceOrderError(classifyError(error) === 'network' ? 'network' : 'rules');
   }
-  await saveLocal(pendingKey, { id: orderId, raqam }).catch(() => { throw new PlaceOrderError('unknown'); });
+  if (auth.currentUser?.uid !== uid) throw new PlaceOrderError('auth');
+  await saveLocal(pendingKey, { id: orderId, raqam, intent }).catch(() => { throw new PlaceOrderError('unknown'); });
   try {
     if (usesOrderBackend) {
       await orderBackend('/v1/orders', { id: orderId, raqam, order: writes[`orders/${uid}/${orderId}`] }, uid);
