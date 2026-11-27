@@ -1,5 +1,7 @@
 import { EmailAuthProvider, linkWithCredential, reload, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, app, readServerJson } from '../lib/firebase';
+import { usesFirestoreCandidate } from '../lib/orderBackend';
+import { candidateHasOrders } from '../lib/candidateData';
 import { IS_WEB } from '../lib/platform';
 import { readLocalStrict } from '../lib/storage';
 import { accountStore, replaceCustomerProfile, clearCustomerProfile } from './account';
@@ -37,7 +39,7 @@ export async function signInCustomerEmail(email:string,password:string){
     if(!user?.isAnonymous)throw new Error('Guest required');
     const uid=user.uid;
     const pending=await readLocalStrict(`pendingOrder:${uid}`);
-    const orders=await readServerJson(`orders/${uid}`,uid);
+    const orders=usesFirestoreCandidate?(await candidateHasOrders(uid)?{exists:true}:null):await readServerJson(`orders/${uid}`,uid);
     if(!maySwitchGuest(pending,orders))throw Object.assign(new Error('Guest history must be preserved'),{code:'guest-history'});
     if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
     // Failed credentials must not erase the current guest profile.

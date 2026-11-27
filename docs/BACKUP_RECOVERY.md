@@ -25,3 +25,6 @@ After exporting, run `node scripts/verify-restore.mjs <local-export.json>` in ad
 
 ### Disposable emulator rehearsal
 CI runs `npx --yes firebase-tools@14 emulators:exec --only database --project demo-n99-restore "node --test tests/restore.emulator.mjs"` against a dedicated local demo namespace. Synthetic JSON is exported, the disposable namespace is emptied, restored, compared, and cancellation is checked after restore. This never opens a production or staging database, and does not verify Auth users, real backups or images. Run real backup export separately and retain it outside GitHub.
+
+## Firestore candidate offline report
+`node scripts/plan-firestore-migration.mjs <local-export.json>` validates and reports counts and excluded root names only. No files or remote data are written. Do not run against actual exports in CI. The current candidate has not been deployed; real encrypted exports, Auth user exports, image backup and restoration need operator access. Never merge or publish as a substitute for these checks.

@@ -131,3 +131,6 @@ Three new unit tests cover owner filtering and cursor, admin guard/index-only re
 
 ### Firestore candidate HTTP dispatch
 Five unit tests cover disabled routes, authentication/invalid body, admin actor boundary, checkout/read integration and generic upstream errors. The local emulator exercises HTTP dispatch with synthetic authenticated actors and actual transactions. New CI pending. Existing RTDB public version and client behavior unchanged.
+
+### Candidate client integration
+New opt-in staging mode routes order/quote, catalog and admin inventory, shop and profile operations to the Firestore API, checks response backend marker, isolates local caches and uses bounded foreground polling. Four unit tests exercise environment selection, paging, settings redaction and quote/profile behavior. Actual iOS and web acceptance and live authentication are still required. Candidate flag is additionally gated on synthetic-only dataset. Production web deploy now requires manual explicit approval. Existing RTDB remains the live authority.

@@ -5,7 +5,8 @@ import { app } from './firebase';
 const staging = process.env.EXPO_PUBLIC_N99_ENV === 'staging';
 const emulator = !!process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST;
 const testProject = staging ? app.options.projectId : '';
-const PREFIX = staging ? `n99:staging:${testProject}:v2:` : emulator ? 'n99:emulator:demo-n99:v2:' : 'n99:v2:';
+const candidate=process.env.EXPO_PUBLIC_N99_BACKEND==='firestore-candidate';
+const PREFIX = staging ? `n99:staging:${testProject}:${candidate?'firestore:':''}v2:` : emulator ? 'n99:emulator:demo-n99:v2:' : 'n99:v2:';
 let queue = Promise.resolve();
 
 export function saveLocal(key: string, value: unknown): Promise<void> {

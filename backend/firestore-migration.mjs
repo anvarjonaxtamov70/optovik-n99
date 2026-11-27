@@ -1,6 +1,7 @@
 // Offline, pure migration planning. No network, no writes to a live database.
 import {verifyRestore} from '../scripts/restore-integrity.mjs';
 import {paths} from './firestore-orders.mjs';
+import {publicSettings} from './firestore-aux.mjs';
 import {documentFields} from './firestore-rest.mjs';
 const rec=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const requireOk=(v)=>{if(!v)throw new Error('Invalid migration snapshot');};
@@ -15,7 +16,7 @@ export function planFirestoreImport(root){
     docs.set(path,structuredClone(value));
   }
   requireOk(rec(root.settings?.shop));
-  add(paths.settings,root.settings.shop);
+  add(paths.settings,publicSettings(root.settings.shop));
   for(const [cat,group] of Object.entries(root.tovarlar))for(const [id,p] of Object.entries(group)){
     requireOk(p.qoldiq<=1000000&&p.narxi<=1000000000&&Number.isSafeInteger(p.revision??0)&&(p.revision??0)>=0);
     add(paths.product(cat,id),p);

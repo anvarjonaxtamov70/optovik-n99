@@ -78,13 +78,14 @@ export async function updateFirestoreDelivery(run,actor,patch){
     return {ok:true};
   });
 }
-export async function readFirestoreOrder(run,actor,id){
+export async function readFirestoreOrder(run,actor,id,expectedUid){
   const path=paths.order(id);
   return run(async tx=>{
     const entry=await tx.get(path);
     if(entry===null)return null;
     ok(rec(entry)&&rec(entry.order)&&rec(entry.index),'invalid-data',503);
     ok(entry.index.uid===actor||await tx.get(paths.admin(actor))===true,'forbidden',403);
+    if(expectedUid!==undefined&&entry.index.uid!==expectedUid)fail('order-missing',409);
     return entry.order;
   });
 }

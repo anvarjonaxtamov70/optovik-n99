@@ -2,7 +2,10 @@ import { get, onValue, push, ref, remove, serverTimestamp, set, update } from 'f
 
 import { LEGACY_PUBLIC_MEDIA_FIELDS, readMediaKey, type Banner, type ShopSettings } from '../domain/content';
 import type { Product } from '../domain/products';
-import { db, withTimeout } from '../lib/firebase';
+import { candidateAck } from '../lib/candidateData';
+import { usesFirestoreCandidate } from '../lib/orderBackend';
+import { retryCatalog } from './catalog';
+import { auth, db, withTimeout } from '../lib/firebase';
 import { createStore, useStore } from '../lib/store';
 
 export type ProductForm = {
@@ -73,6 +76,7 @@ export async function saveProduct(f: ProductForm, existing?: Product): Promise<s
     ommabop: f.ommabop || null, yangi: f.yangi || null, tartib: f.tartib.trim() ? int(f.tartib) || 0 : null,
     revision: (existing?.revision ?? 0) + 1, updatedAt: serverTimestamp(),
   };
+  if(usesFirestoreCandidate){const uid=auth.currentUser?.uid;if(!uid)throw new Error('Not authenticated');const {revision: _revision,updatedAt: _updatedAt,...patch}=value;await candidateAck('/v1/admin/product',{cat,id:key,action:existing?'edit':'create',expectedRevision:existing?existing.revision:null,patch},uid);retryCatalog();return `${cat}/${key}`;}
   const writes: Record<string, unknown> = {};
   if (existing && existing.kategoriya === cat) {
     for (const [k, v] of Object.entries(value)) writes[`tovarlar/${cat}/${key}/${k}`] = v;
@@ -84,6 +88,7 @@ export async function saveProduct(f: ProductForm, existing?: Product): Promise<s
 }
 
 export async function deleteProduct(p: Product) {
+  if(usesFirestoreCandidate){const uid=auth.currentUser?.uid;if(!uid)throw new Error('Not authenticated');await candidateAck('/v1/admin/product',{cat:p.kategoriya,id:p.key,action:'archive',expectedRevision:p.revision},uid);retryCatalog();return;}
   // Keep the physical record for existing orders and stock releases.
   await withTimeout(update(ref(db, `tovarlar/${p.id}`), { archived: true, revision: p.revision + 1, updatedAt: serverTimestamp() }), 15000);
 }
@@ -96,6 +101,7 @@ export async function quickUpdate(p: Product, patch: { narxi?: number; qoldiq?: 
   for (const [value, max] of [[patch.narxi, 1_000_000_000], [patch.qoldiq, 1_000_000]] as const) {
     if (value !== undefined && (!Number.isSafeInteger(value) || value < 0 || value > max)) throw new Error('Invalid price or stock');
   }
+  if(usesFirestoreCandidate){const uid=auth.currentUser?.uid;if(!uid)throw new Error('Not authenticated');await candidateAck('/v1/admin/product',{cat:p.kategoriya,id:p.key,action:'quick',expectedRevision:p.revision,patch},uid);retryCatalog();return;}
   const value: Record<string, unknown> = { revision: p.revision + 1, updatedAt: serverTimestamp() };
   if (patch.qoldiq !== undefined) value.qoldiq = Math.max(0, Math.floor(patch.qoldiq));
   if (patch.narxi !== undefined) {
@@ -120,6 +126,7 @@ export async function deleteBanner(id: string) {
 }
 
 export async function saveSettings(s: ShopSettings) {
+  if(usesFirestoreCandidate){const uid=auth.currentUser?.uid;if(!uid)throw new Error('Not authenticated');await candidateAck('/v1/admin/shop',s,uid);retryCatalog();return;}
   // `set` butun tugunni almashtiradi — eski ochiq kalit maydonlari ham shu bilan o'chadi.
   await withTimeout(set(ref(db, 'settings/shop'), {
     ...s,

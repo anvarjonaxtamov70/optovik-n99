@@ -7,6 +7,8 @@ import { IS_WEB, WEB_ADMIN_ONLY } from '../lib/platform';
 import { app, auth, classifyError, db, readServerJson, withTimeout, type FirebaseProblem } from '../lib/firebase';
 import { createStore, useStore } from '../lib/store';
 import { readLocal, saveLocal } from '../lib/storage';
+import { candidateRequest,usesFirestoreCandidate } from '../lib/orderBackend';
+import { candidateAck } from '../lib/candidateData';
 import { ownedProfile } from '../domain/customerIdentity';
 import { resetDeliveryDraft } from './delivery';
 
@@ -69,7 +71,11 @@ export async function startAccount() {
     }));
     if(scopedProfile&&changed&&user)void hydrateOwnedProfile(user.uid);
     if (user && !user.isAnonymous) {
-      offAdmin = onValue(ref(db, `admins/${user.uid}`), (snap) => {
+      if(usesFirestoreCandidate){
+        let stopped=false;let timer:ReturnType<typeof setTimeout>|undefined;
+        const refresh=async()=>{try{const role=await candidateRequest<{admin:boolean}>('/v1/account/role',{},user.uid);if(!stopped)accountStore.set(s=>s.uid===user.uid?{...s,admin:role.admin===true,adminChecked:true}:s);}catch{if(!stopped)accountStore.set(s=>s.uid===user.uid?{...s,admin:false,adminChecked:true}:s);}finally{if(!stopped)timer=setTimeout(()=>{void refresh();},60000);}};
+        offAdmin=()=>{stopped=true;if(timer!==undefined)clearTimeout(timer);};void refresh();
+      }else offAdmin = onValue(ref(db, `admins/${user.uid}`), (snap) => {
         accountStore.set((s) => (s.uid === user.uid ? { ...s, admin: snap.val() === true, adminChecked: true } : s));
       }, () => accountStore.set((s) => s.uid===user.uid?{ ...s, admin: false, adminChecked: true }:s));
     }
@@ -106,7 +112,8 @@ export async function saveProfile(profile: Profile, expectedUid=auth.currentUser
     // Bazada bo'sh nuqta saqlanmaydi (qoidalar raqam kutadi).
     const { lat, lng, ...rest } = clean;
     const body = { ...rest, ...(lat != null && lng != null ? { lat, lng } : {}), updatedAt: Date.now() };
-    await withTimeout(set(ref(db, `customers/${uid}/profile`), body), 8000).catch(() => {});
+    if(usesFirestoreCandidate){const {updatedAt: _updatedAt,...profileBody}=body;await candidateAck('/v1/profile/save',profileBody,uid);}
+    else await withTimeout(set(ref(db, `customers/${uid}/profile`), body), 8000).catch(() => {});
   }
 }
 
@@ -131,7 +138,7 @@ async function hydrateOwnedProfile(uid:string){
   if(!active())return;
   if(cached)accountStore.set(s=>({...s,profile:readProfile(cached)}));
   try{
-    const raw=await readServerJson(`customers/${uid}/profile`,uid);
+    const raw=usesFirestoreCandidate?(await candidateRequest<{profile:unknown}>('/v1/profile/get',{},uid)).profile:await readServerJson(`customers/${uid}/profile`,uid);
     if(!active()||raw===null)return;
     const clean=readProfile(raw);
     accountStore.set(s=>({...s,profile:clean}));

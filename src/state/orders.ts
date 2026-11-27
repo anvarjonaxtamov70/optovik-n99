@@ -15,7 +15,11 @@ import { useStore } from '../lib/store';
 import { parsePendingOrder, recoverConfirmedPending, checkoutIntent, canRetryPending } from '../domain/pendingOrder';
 import { checkoutQuote, assertQuoteMatches, readQuoteProduct } from '../domain/checkoutQuote';
 import { readSettings } from '../domain/content';
-import { orderBackend, usesOrderBackend, abandonOrderBackend } from '../lib/orderBackend';
+import { candidateRequest, usesFirestoreCandidate, orderBackend, usesOrderBackend, abandonOrderBackend } from '../lib/orderBackend';
+
+import { candidateOrder, candidateCustomerOrders, candidateAdminOrders, candidateAck } from '../lib/candidateData';
+
+const readOrderRaw=(uid:string,id:string,actor=uid)=>usesFirestoreCandidate?candidateOrder(uid,id,actor):readServerJson(`orders/${uid}/${id}`,actor);
 
 export type PlaceError = 'auth' | 'rules' | 'rate' | 'network' | 'empty' | 'pending-changed' | 'unknown';
 export class PlaceOrderError extends Error {
@@ -106,7 +110,7 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   };
   if (validPending) {
     // Only an actual server response can resolve an ambiguous earlier write.
-    const existing = await readServerJson(`orders/${uid}/${validPending.id}`, uid).catch(() => { throw new PlaceOrderError('network'); });
+    const existing = await readOrderRaw(uid,validPending.id).catch(() => { throw new PlaceOrderError('network'); });
     if (existing !== null) {
       const order = readOrder(uid, validPending.id, existing);
       if (!order || order.raqam !== validPending.raqam || !order.items.length) throw new PlaceOrderError('unknown');
@@ -133,7 +137,11 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   const request = selected.map(line => ({ id: line.id, qty: Math.min(line.qty, line.product!.qoldiq) }));
   const prices = new Map(selected.map(line => [line.id, line.product!.narxi]));
   try {
-    const [rawSettings, entries] = await Promise.all([
+    const [rawSettings, entries] = usesFirestoreCandidate?await (async()=>{
+      const q=await candidateRequest<{settings:unknown;products:{id:string;data:unknown}[]}>('/v1/quote',{ids:request.map(l=>l.id)},uid);
+      if(!Array.isArray(q.products)||q.products.length!==request.length||q.products.some((p,i)=>p.id!==request[i].id))throw new Error('Invalid quote');
+      return [q.settings,q.products.map(p=>[p.id,readQuoteProduct(p.data)] as const)] as const;
+    })():await Promise.all([
       readServerJson('settings/shop', uid),
       Promise.all(request.map(async line => [line.id, readQuoteProduct(await readServerJson(`tovarlar/${line.id}`, uid))] as const)),
     ]);
@@ -148,7 +156,7 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   try {
     if (usesOrderBackend) {
       await orderBackend('/v1/orders', { id: orderId, raqam, order: writes[`orders/${uid}/${orderId}`] }, uid);
-      const confirmed = readOrder(uid, orderId, await readServerJson(`orders/${uid}/${orderId}`, uid));
+      const confirmed = readOrder(uid, orderId, await readOrderRaw(uid,orderId));
       if (!confirmed || confirmed.raqam !== raqam || !confirmed.items.length) throw new PlaceOrderError('unknown');
       return finish(confirmed.id, confirmed.raqam, confirmed.mijoz.telefon, Object.fromEntries(confirmed.items.map(item => [item.id, item.soni])), !!validPending);
     }
@@ -156,7 +164,7 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   } catch (e) {
     const kind = classifyError(e);
     // A timeout or a lost response may still mean the server committed the order.
-    const existing = await readServerJson(`orders/${uid}/${orderId}`, uid).catch(() => undefined);
+    const existing = await readOrderRaw(uid,orderId).catch(() => undefined);
     if (existing !== undefined && existing !== null) {
       const order = readOrder(uid, orderId, existing);
       if (!order || order.raqam !== raqam || !order.items.length) throw new PlaceOrderError('unknown');
@@ -207,7 +215,7 @@ export function usePendingOrderRecovery() {
           active,
           load: () => loadPending(uid),
           read: async id => {
-            const order = readOrder(uid, id, await readServerJson(`orders/${uid}/${id}`, uid));
+            const order = readOrder(uid, id, await readOrderRaw(uid,id));
             return order?.items.length ? order : null;
           },
           apply: async order => {
@@ -240,6 +248,7 @@ export function useMyOrders() {
   const [state, setState] = useState<{ uid: string | null; orders: Order[]; loading: boolean; error: boolean }>({ uid: null, orders: [], loading: true, error: false });
   useEffect(() => {
     if (!uid) return;
+    if(usesFirestoreCandidate)return pollCandidate(uid,()=>candidateCustomerOrders(uid),list=>setState({uid,orders:list,loading:false,error:false}),()=>setState({uid,orders:[],loading:false,error:true}));
     return onValue(query(ref(db, `orders/${uid}`), orderByChild('createdAt'), limitToLast(100)), (snap) => {
       const list: Order[] = [];
       snap.forEach((child) => {
@@ -256,13 +265,15 @@ export function useMyOrders() {
 
 export function useOrder(uid: string | undefined | null, id: string | undefined) {
   const [state, setState] = useState<{ key: string; order: Order | null; loading: boolean }>({ key: '', order: null, loading: true });
-  const key = `${uid}/${id}`;
+  const actor=useUid();
+  const key = `${actor}/${uid}/${id}`;
   useEffect(() => {
     if (!uid || !id) return;
+    if(usesFirestoreCandidate){if(!actor)return;return pollCandidate(actor,async()=>readOrder(uid,id,await candidateOrder(uid,id,actor)),order=>setState({key,order,loading:false}),()=>setState({key,order:null,loading:false}));}
     return onValue(ref(db, `orders/${uid}/${id}`), (snap) => {
       setState({ key, order: readOrder(uid, id, snap.val()), loading: false });
     }, () => setState({ key, order: null, loading: false }));
-  }, [uid, id, key]);
+  }, [uid, id, key,actor]);
   return state.key === key ? state : { key, order: null, loading: !!uid && !!id };
 }
 
@@ -281,7 +292,11 @@ export async function cancelMyOrder(o: Order) {
 
 export function useAdminOrders(limit = 300) {
   const [state, setState] = useState<{ orders: OrderIndex[]; loading: boolean; error: boolean }>({ orders: [], loading: true, error: false });
-  useEffect(() => onValue(query(ref(db, 'orderIndex'), orderByChild('createdAt'), limitToLast(limit)), (snap) => {
+  const actor=useUid();
+  const [owner,setOwner]=useState<string|null>(null);
+  useEffect(() => {
+    if(usesFirestoreCandidate){if(!actor)return;return pollCandidate(actor,()=>candidateAdminOrders(actor,limit),list=>{setOwner(actor);setState({orders:list,loading:false,error:false});},()=>{setOwner(actor);setState({orders:[],loading:false,error:true});});}
+    return onValue(query(ref(db, 'orderIndex'), orderByChild('createdAt'), limitToLast(limit)), (snap) => {
     const list: OrderIndex[] = [];
     snap.forEach((child) => {
       const o = readOrderIndex(child.key as string, child.val());
@@ -289,8 +304,9 @@ export function useAdminOrders(limit = 300) {
     });
     list.sort((a, b) => b.createdAt - a.createdAt);
     setState({ orders: list, loading: false, error: false });
-  }, () => setState({ orders: [], loading: false, error: true })), [limit]);
-  return state;
+  }, () => setState({ orders: [], loading: false, error: true }));
+  },[limit,actor]);
+  return usesFirestoreCandidate&&owner!==actor?{orders:[],loading:!!actor,error:false}:state;
 }
 
 export async function adminSetStatus(o: Order, next: OrderStatus) {
@@ -328,5 +344,23 @@ export async function adminSetStatus(o: Order, next: OrderStatus) {
 }
 
 export async function adminSaveNote(o: Order, note: string) {
+  if(usesFirestoreCandidate){const uid=auth.currentUser?.uid;if(!uid)throw new Error('Not authenticated');return candidateAck('/v1/admin/note',{uid:o.uid,id:o.id,note:note.trim().slice(0,500)},uid);}
   await withTimeout(update(ref(db, `orders/${o.uid}/${o.id}`), { adminIzoh: note.trim().slice(0, 500) }), 10000);
+}
+
+function pollCandidate<T>(uid:string,read:()=>Promise<T>,success:(value:T)=>void,failure:()=>void){
+ let stopped=false,running=false;
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ const tick=async()=>{
+  if(stopped||running||auth.currentUser?.uid!==uid)return;
+  if(timer!==undefined)clearTimeout(timer);
+  if(AppState.currentState==='background'||AppState.currentState==='inactive')return;
+  running=true;
+  try{const v=await read();if(!stopped&&auth.currentUser?.uid===uid)success(v);}
+  catch{if(!stopped&&auth.currentUser?.uid===uid)failure();}
+  finally{running=false;if(!stopped)timer=setTimeout(()=>{void tick();},30000);}
+ };
+ const sub=AppState.addEventListener('change',state=>{if(state==='active')void tick();else if(timer!==undefined)clearTimeout(timer);});
+ void tick();
+ return ()=>{stopped=true;if(timer!==undefined)clearTimeout(timer);sub.remove();};
 }

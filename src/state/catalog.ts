@@ -1,8 +1,12 @@
+import { onAuthStateChanged } from 'firebase/auth';
+import { AppState } from 'react-native';
+import { candidateRequest, usesFirestoreCandidate } from '../lib/orderBackend';
+import { candidateCatalog } from '../lib/candidateData';
 import { onValue, ref } from 'firebase/database';
 
 import { DEFAULT_SETTINGS, readBanners, readSettings, type Banner, type ShopSettings } from '../domain/content';
 import { isPlaceholderCatalog, readCachedProducts, readProducts, toCache, type Product } from '../domain/products';
-import { db } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { createStore, useStore } from '../lib/store';
 import { readLocal, saveLocal } from '../lib/storage';
 
@@ -57,6 +61,7 @@ export async function startCatalog() {
 
 function subscribe() {
   unsubs.forEach((u) => u());
+  if(usesFirestoreCandidate){subscribeCandidate();return;}
   const slow = setTimeout(() => {
     if (!catalogStore.get().live) catalogStore.set((s) => ({ ...s, status: s.products.length ? 'offline' : 'error' }));
   }, 12000);
@@ -100,3 +105,31 @@ export const useBanners = () => useStore(catalogStore, (s) => s.banners);
 export const useCatalogLive = () => useStore(catalogStore, (s) => s.live && s.connected);
 export const usePlaceholderCatalog = () => useStore(catalogStore, (s) => s.placeholder);
 export const useCatalogVersion = () => useStore(catalogStore, (s) => s.version);
+
+function subscribeCandidate(){
+ let disposed=false,running=false;
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ const clear=()=>{if(timer!==undefined)clearTimeout(timer);};
+ const refresh=async()=>{
+  clear();
+  if(disposed||running||AppState.currentState==='background'||AppState.currentState==='inactive')return;
+  const uid=auth.currentUser?.uid;
+  if(!uid)return;
+  running=true;
+  try{
+   const [products,shop]=await Promise.all([candidateCatalog(uid),candidateRequest<{settings:unknown}>('/v1/shop/get',{},uid)]);
+   if(disposed||auth.currentUser?.uid!==uid)return;
+   catalogStore.set(s=>({...s,settings:readSettings(shop.settings),connected:true}));
+   setProducts(products,true);
+   void saveLocal('catalog',toCache(products)).catch(()=>{});
+   void saveLocal('settings',shop.settings).catch(()=>{});
+  }catch{if(!disposed)catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'error'}));}
+  finally{running=false;if(!disposed)timer=setTimeout(()=>{void refresh();},60000);}
+ };
+ const off=onAuthStateChanged(auth,()=>{catalogStore.set(s=>({...s,connected:false}));void refresh();});
+ const sub=AppState.addEventListener('change',s=>{if(s==='active')void refresh();else clear();});
+ // Banner/media content stays in RTDB during isolated staging evaluation, not stock or prices.
+ const banners=onValue(ref(db,'bannerlar'),snap=>{if(!disposed)catalogStore.set(s=>({...s,banners:snap.exists()?readBanners(snap.val()):null}));});
+ unsubs=[()=>{disposed=true;clear();off();sub.remove();banners();}];
+ void refresh();
+}
