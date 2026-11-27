@@ -125,3 +125,6 @@ Four new unit tests cover offline migration consistency, invalid snapshot reject
 
 ### Firestore admin parity
 Six unit tests cover revision conflicts, role/field validation, archived reserved stock restoration, creation, note access and delivery settings. The existing emulator rehearsal additionally checks stale admin writes, archive followed by cancellation, note readback and delivery settings. This is server module parity, not an integrated mobile/admin client. CI result for the new commit is pending.
+
+### Firestore paginated read service
+Three new unit tests cover owner filtering and cursor, admin guard/index-only response, and catalog archived filtering/cursor limits. The emulator test now exercises order and catalog pagination after the existing migration and admin operations. No active client routes switched. Candidate index definitions are not deployed.

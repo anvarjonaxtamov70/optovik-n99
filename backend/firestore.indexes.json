@@ -1,0 +1,68 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "n99Orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "products",
+      "fieldPath": "archived",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "fieldPath": "payload",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "n99Orders",
+      "fieldPath": "payload",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "n99Customers",
+      "fieldPath": "payload",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "n99Admins",
+      "fieldPath": "payload",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "n99Abandoned",
+      "fieldPath": "payload",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "n99Settings",
+      "fieldPath": "payload",
+      "indexes": []
+    }
+  ]
+}

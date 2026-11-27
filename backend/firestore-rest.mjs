@@ -63,6 +63,35 @@ function makeRunner({token,deadline,fetcher,clock,database,origin}){
         const value=await task({
           get:async path=>(await getAll([path]))[0],
           getAll,
+          // Internal structured query only. Never forward arbitrary client queries.
+          query:async (structuredQuery)=>{
+            if(writes.size)fail('read-after-write');
+            const limit=structuredQuery?.limit;
+            if(!Number.isSafeInteger(limit)||limit<1||reads+limit>56)fail('read-limit');
+            reads+=limit;
+            const res=await request(BASE+':runQuery',{structuredQuery,transaction});
+            if(!res.ok){
+              if(res.status===409)fail('transaction-conflict',409);
+              fail('query-read');
+            }
+            const rows=await res.json();
+            if(!Array.isArray(rows)||rows.length>limit+1)fail('invalid-query-response');
+            const seen=new Set(),out=[];
+            for(const row of rows){
+              if(!row?.document){
+                if(row?.readTime&&!row?.document)continue;
+                fail('invalid-query-response');
+              }
+              const doc=row.document;
+              if(typeof doc.name!=='string'||!doc.name.startsWith(database+'/documents/')||seen.has(doc.name)||typeof doc.fields?.payload?.stringValue!=='string')fail('invalid-query-response');
+              const path=doc.name.slice((database+'/documents/').length);
+              documentPath(path);seen.add(doc.name);
+              out.push({path,value:JSON.parse(doc.fields.payload.stringValue)});
+            }
+            if(out.length>limit)fail('invalid-query-response');
+            return out;
+          },
+          reference:path=>{documentPath(path);return name(path);},
           set:(path,value)=>{
             documentPath(path);
             const payload=JSON.stringify(value);
