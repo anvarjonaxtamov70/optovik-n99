@@ -23,6 +23,7 @@ export class PlaceOrderError extends Error {
 }
 
 const RATE_MS = 30_000;
+const rateKey=(uid:string)=>`lastOrderAt:${uid}`;
 
 let placingOrder = false;
 const recoveryListeners = new Set<() => void>();
@@ -98,7 +99,7 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   const finish = async (id: string, raqam: number, phone: string, ordered: Record<string, number>, recovered: boolean) => {
     if (auth.currentUser?.uid !== uid) throw new PlaceOrderError('auth');
     await cart.ordered(`${uid}/${id}`, ordered);
-    await saveLocal('lastOrderAt', Date.now());
+    await saveLocal(rateKey(uid), Date.now());
     await saveLocal(pendingKey, null);
     forgetIntent(uid,id);
     return { id, uid, raqam, phone, recovered };
@@ -113,7 +114,7 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
     }
     // Reuse the same key even if an earlier request is still being processed.
   } else {
-    const last = (await readLocalStrict<number>('lastOrderAt').catch(() => { throw new PlaceOrderError('unknown'); })) ?? 0;
+    const last = (await readLocalStrict<number>(rateKey(uid)).catch(() => { throw new PlaceOrderError('unknown'); })) ?? 0;
     if (typeof last !== 'number' || !Number.isFinite(last) || last < 0) throw new PlaceOrderError('unknown');
     if (last <= Date.now() && Date.now() - last < RATE_MS) throw new PlaceOrderError('rate');
   }
@@ -211,7 +212,7 @@ export function usePendingOrderRecovery() {
           },
           apply: async order => {
             await cart.ordered(`${uid}/${order.id}`, Object.fromEntries(order.items.map(item => [item.id, item.soni])));
-            await saveLocal('lastOrderAt', Date.now());
+            await saveLocal(rateKey(uid), Date.now());
             await saveLocal(key, null);
             forgetIntent(uid,order.id);
           },

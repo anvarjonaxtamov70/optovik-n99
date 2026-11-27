@@ -21,7 +21,7 @@ import { fullAddress, PAYMENTS_SOON, SHOW_SOON_PAYMENTS, validateCheckout, type 
 import { useT, type TKey } from '../i18n';
 import { haptic } from '../lib/haptics';
 import { openMap } from '../lib/links';
-import { saveProfile, useAccount, useProfile } from '../state/account';
+import { saveProfile, useAccount, useProfile, useUid } from '../state/account';
 import { useCart } from '../state/cart';
 import { useCatalogLive, useSettings } from '../state/catalog';
 import { initDeliveryDraft, useDeliveryDraft, type DeliveryDraft } from '../state/delivery';
@@ -39,6 +39,8 @@ export default function CheckoutScreen() {
   const { t, money, lang } = useT();
   const settings = useSettings();
   const profile = useProfile();
+  const uid=useUid();
+  const [owner]=useState(uid);
   const authProblem = useAccount().problem === 'auth-disabled';
   const live = useCatalogLive();
   const courierOk = settings.courierEnabled;
@@ -74,6 +76,7 @@ export default function CheckoutScreen() {
   const submit = async () => {
     setTouched(true);
     setError(null);
+    if(owner!==uid){setError(t('common.error'));return;}
     if (Object.keys(errors).length) { haptic.warning(); return; }
     setBusy(true);
     try {
@@ -85,7 +88,7 @@ export default function CheckoutScreen() {
         name: contact.ism, phone: contact.telefon,
         address: courier ? draft.manzil : profile.address, apartment: courier ? draft.xonadon : profile.apartment,
         landmark: courier ? draft.moljal : profile.landmark, lat: courier ? draft.lat : profile.lat, lng: courier ? draft.lng : profile.lng,
-      });
+      },res.uid).catch(()=>{});
       router.replace({ pathname: '/order-success', params: { id: res.id, raqam: String(res.raqam), phone: res.phone } });
     } catch (e) {
       haptic.warning();

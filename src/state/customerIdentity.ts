@@ -1,11 +1,11 @@
-import { EmailAuthProvider, linkWithCredential, reload, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
+import { EmailAuthProvider, linkWithCredential, reload, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, app, readServerJson } from '../lib/firebase';
 import { IS_WEB } from '../lib/platform';
-import { readLocalStrict, saveLocal } from '../lib/storage';
-import { accountStore, replaceCustomerProfile, emptyProfile } from './account';
+import { readLocalStrict } from '../lib/storage';
+import { accountStore, replaceCustomerProfile, clearCustomerProfile } from './account';
 import { resetDeliveryDraft } from './delivery';
 import { withCustomerIdentityChange } from './orders';
-import { maySwitchGuest, validAccountEmail, validAccountPassword } from '../domain/customerIdentity';
+import { maySwitchGuest, maySignOutCustomer, validAccountEmail, validAccountPassword } from '../domain/customerIdentity';
 
 export const customerIdentityEnabled=!IS_WEB&&process.env.EXPO_PUBLIC_N99_ENV==='staging'&&app.options.projectId==='optovik-n99-staging';
 function assertEnabled(){if(!customerIdentityEnabled)throw new Error('Unavailable');}
@@ -40,11 +40,9 @@ export async function signInCustomerEmail(email:string,password:string){
     const orders=await readServerJson(`orders/${uid}`,uid);
     if(!maySwitchGuest(pending,orders))throw Object.assign(new Error('Guest history must be preserved'),{code:'guest-history'});
     if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
-    // Clear device contact/delivery before switching; no implicit guest-history merge.
-    await saveLocal('profile',emptyProfile);
-    accountStore.set(s=>({...s,profile:emptyProfile}));
-    resetDeliveryDraft();
+    // Failed credentials must not erase the current guest profile.
     const result=await signInWithEmailAndPassword(auth,email.trim(),password);
+    resetDeliveryDraft();
     await replaceCustomerProfile(result.user.uid);
     publishIdentity();
   });
@@ -68,4 +66,20 @@ export async function resetCustomerPassword(email:string){
   assertEnabled();
   if(!validAccountEmail(email))throw new Error('Invalid email');
   await sendPasswordResetEmail(auth,email.trim());
+}
+
+export async function signOutCustomer(){
+  assertEnabled();
+  return withCustomerIdentityChange(async()=>{
+    const user=auth.currentUser;
+    if(!user||user.isAnonymous)throw new Error('Account required');
+    const uid=user.uid;
+    await reload(user);
+    publishIdentity();
+    if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
+    if(!maySignOutCustomer(user.emailVerified,await readLocalStrict(`pendingOrder:${uid}`)))throw Object.assign(new Error('Resolve account before signout'),{code:'signout-blocked'});
+    await clearCustomerProfile();
+    try{await signOut(auth);}catch(error){if(auth.currentUser?.uid===uid)await replaceCustomerProfile(uid);throw error;}
+    // Existing auth observer creates a new anonymous customer. No account is deleted.
+  });
 }

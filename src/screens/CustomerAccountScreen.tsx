@@ -8,7 +8,7 @@ import { Header } from '../components/ui/Header';
 import { Txt } from '../components/ui/Txt';
 import { useT } from '../i18n';
 import { useAccount } from '../state/account';
-import { customerIdentityEnabled, linkCustomerEmail, signInCustomerEmail, resendCustomerVerification, refreshCustomerVerification, resetCustomerPassword } from '../state/customerIdentity';
+import { customerIdentityEnabled, linkCustomerEmail, signInCustomerEmail, resendCustomerVerification, refreshCustomerVerification, resetCustomerPassword, signOutCustomer } from '../state/customerIdentity';
 import { confirmAsync } from '../lib/confirm';
 import { showToast } from '../state/toast';
 import { colors } from '../theme/tokens';
@@ -20,12 +20,15 @@ export default function CustomerAccountScreen(){
   const [password,setPassword]=useState('');
   const [busy,setBusy]=useState(false);
   const lock=useRef(false);
-  const act=async(mode:'link'|'login'|'resend'|'refresh'|'reset')=>{
+  const act=async(mode:'link'|'login'|'resend'|'refresh'|'reset'|'logout')=>{
     if(lock.current)return;
     lock.current=true;setBusy(true);
     try{
       if(mode==='login'&&!await confirmAsync(t('identity.login'),t('identity.loginConfirm'),{ok:t('identity.login'),cancel:t('common.cancel')}))return;
-      if(mode==='link'){
+      if(mode==='logout'){
+        if(!await confirmAsync(t('identity.logout'),t('identity.logoutConfirm'),{ok:t('identity.logout'),cancel:t('common.cancel'),destructive:true}))return;
+        await signOutCustomer();setEmail('');showToast(t('identity.loggedOut'));
+      }else if(mode==='link'){
         const sent=await linkCustomerEmail(email,password);
         showToast(t(sent?'identity.linked':'identity.linkedNoEmail'));
       }else if(mode==='login'){await signInCustomerEmail(email,password);showToast(t('identity.loggedIn'));}
@@ -33,7 +36,7 @@ export default function CustomerAccountScreen(){
       else if(mode==='refresh'){showToast(t(await refreshCustomerVerification()?'identity.verified':'identity.unverified'));}
       else{await resetCustomerPassword(account.email??email);showToast(t('identity.resetSent'));}
     }catch(error){
-      showToast(t((error as {code?:string})?.code==='guest-history'?'identity.guestHistory':'common.error'),{kind:'error'});
+      showToast(t((error as {code?:string})?.code==='guest-history'?'identity.guestHistory':(error as {code?:string})?.code==='signout-blocked'?'identity.logoutBlocked':'common.error'),{kind:'error'});
     }finally{setPassword('');lock.current=false;setBusy(false);}
   };
   return <View style={styles.root}>
@@ -55,6 +58,7 @@ export default function CustomerAccountScreen(){
         {!account.emailVerified?<Button title={t('identity.resend')} loading={busy} onPress={()=>{void act('resend');}}/>:null}
         <Button title={t('identity.refresh')} variant="outline" disabled={busy} onPress={()=>{void act('refresh');}}/>
         <Button title={t('identity.reset')} variant="ghost" disabled={busy} onPress={()=>{void act('reset');}}/>
+        <Button title={t('identity.logout')} variant="outline" disabled={busy} onPress={()=>{void act('logout');}}/>
       </Card>}
     </FormScroll>
   </View>;

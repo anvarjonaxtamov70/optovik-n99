@@ -12,7 +12,7 @@ import { Txt } from '../components/ui/Txt';
 import { isValidUzPhone } from '../domain/phone';
 import { useT } from '../i18n';
 import { haptic } from '../lib/haptics';
-import { saveProfile, useProfile } from '../state/account';
+import { saveProfile, useProfile, useUid } from '../state/account';
 import { showToast } from '../state/toast';
 import { colors } from '../theme/tokens';
 
@@ -20,6 +20,8 @@ export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useT();
   const profile = useProfile();
+  const uid=useUid();
+  const [owner]=useState(uid);
   const [form, setForm] = useState(profile);
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -31,8 +33,11 @@ export default function ProfileEditScreen() {
     setBusy(true);
     // Manzil matni o'zgargan bo'lsa, eski xaritadagi nuqta endi to'g'ri emas — u tashlanadi.
     const moved = form.address.trim() !== profile.address.trim();
-    await saveProfile(moved ? { ...form, lat: null, lng: null } : form);
-    setBusy(false);
+    try{
+      if(owner!==uid)throw new Error('Account changed');
+      await saveProfile(moved ? { ...form, lat: null, lng: null } : form, owner??undefined);
+    }catch{showToast(t('common.error'),{kind:'error'});return;}
+    finally{setBusy(false);}
     haptic.success();
     showToast(t('edit.saved'), { kind: 'success' });
     goBack('/profile');

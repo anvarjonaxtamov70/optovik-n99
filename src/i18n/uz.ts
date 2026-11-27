@@ -288,6 +288,10 @@ export const uz = {
   'fav.emptyText': 'Yoqqan tovar rasmidagi yurakchani bosing — u shu yerda saqlanadi.',
   'fav.count': '{n} ta tovar',
 
+  'identity.logout': "Hisobdan chiqish",
+  'identity.logoutConfirm': "Buyurtmalar hisobingizda qoladi. Telefon xotirasidagi aloqa va manzil tozalanadi. Savat va sevimlilar shu qurilmada qoladi.",
+  'identity.loggedOut': "Hisobdan chiqildi.",
+  'identity.logoutBlocked': "Avval elektron pochtani tasdiqlang va noaniq buyurtmani hal qiling.",
   'identity.title': "Hisobni saqlash",
   'identity.email': "Elektron pochta",
   'identity.password': "Parol (kamida 8 belgi)",

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validAccountEmail, validAccountPassword, maySwitchGuest } from '../src/domain/customerIdentity.ts';
+import { validAccountEmail, validAccountPassword, maySwitchGuest, ownedProfile, maySignOutCustomer } from '../src/domain/customerIdentity.ts';
 test('identity form validates bounded email and password without trimming passwords',()=>{
  assert.equal(validAccountEmail(' test@example.test '),true);
  for(const value of ['test','a@b','a b@example.test','x'.repeat(255)+'@a.test'])assert.equal(validAccountEmail(value),false);
@@ -13,4 +13,15 @@ test('guest with order history or unresolved pending state cannot switch',()=>{
  assert.equal(maySwitchGuest(null,{}),true);
  for(const pending of [{id:'pending'},undefined,false])assert.equal(maySwitchGuest(pending,null),false);
  for(const orders of [{order:{}},[],false,undefined,'invalid'])assert.equal(maySwitchGuest(null,orders),false);
+});
+
+test('profile cache is visible only to its recorded UID',()=>{
+ const profile={name:'Synthetic'};
+ assert.deepEqual(ownedProfile({uid:'a',profile},'a'),profile);
+ for(const raw of [profile,null,[],{uid:'b',profile},{uid:'a',profile:[]}])assert.equal(ownedProfile(raw,'a'),null);
+});
+test('signout requires a verified identity and definitely absent pending state',()=>{
+ assert.equal(maySignOutCustomer(true,null),true);
+ assert.equal(maySignOutCustomer(false,null),false);
+ for(const pending of [undefined,{},false,{id:'pending'}])assert.equal(maySignOutCustomer(true,pending),false);
 });
