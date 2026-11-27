@@ -48,3 +48,5 @@ jobs:
           java-version: 21
       - name: Security rules in the Realtime Database emulator
         run: npx --yes firebase-tools@14 emulators:exec --only database --project demo-n99 "node --test tests/rules.emulator.mjs"
+      - name: Synthetic backup and restore in a fresh local emulator
+        run: npx --yes firebase-tools@14 emulators:exec --only database --project demo-n99-restore "node --test tests/restore.emulator.mjs"

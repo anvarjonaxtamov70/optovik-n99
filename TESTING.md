@@ -86,3 +86,6 @@ The targeted dependency candidate replaces the broad audit-fix experiment: only 
 
 ### Accepted dependency candidate (2026-11-27)
 Candidate job 140376970511 passed typecheck, lint, unit tests, Expo compatibility and Android/iOS exports. Its SHA-256 verified lockfile delta is applied: grpc-js 1.14.7, minimatch remains 10.2.6, ngrok is development-only. Candidate production audit: 0 critical, 0 high, 3 moderate (minimatch and dependent Expo packages). Dev-only uuid remains and must not be considered fixed. Routine dependency CI now fails on high or critical findings. Re-run live staging checkout after installing the new lockfile; build checks are not device tests.
+
+### Current release audit and restoration (2026-11-27)
+Commit d82a905 CI confirmed 0 critical, 0 high, 3 moderate production findings; remaining minimatch 10.2.6 and its Expo dependency chain have not been fixed. Development-only uuid is still installed; do not claim the full dependency tree is clean. The now-accepted candidate workflow is retired from routine PR runs; the strict locked audit remains. A separate disposable RTDB emulator restore rehearsal is added to CI. Production rollout remains blocked on live staging acceptance and a bounded scalable data architecture, not just green CI.

@@ -22,3 +22,6 @@ Suggested manual cadence: daily after closing and before each release. Keep seve
 
 ### Offline consistency verification
 After exporting, run `node scripts/verify-restore.mjs <local-export.json>` in addition to the basic checker. It checks order/index links, totals and reserved inventory references and prints aggregate counts only. A synthetic JSON roundtrip is covered by unit tests; this is not an actual Firebase restore or an Auth/image backup. Keep export files outside the repository and encrypted at rest.
+
+### Disposable emulator rehearsal
+CI runs `npx --yes firebase-tools@14 emulators:exec --only database --project demo-n99-restore "node --test tests/restore.emulator.mjs"` against a dedicated local demo namespace. Synthetic JSON is exported, the disposable namespace is emptied, restored, compared, and cancellation is checked after restore. This never opens a production or staging database, and does not verify Auth users, real backups or images. Run real backup export separately and retain it outside GitHub.
