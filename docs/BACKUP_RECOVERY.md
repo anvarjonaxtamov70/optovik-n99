@@ -19,3 +19,6 @@ A passing check is not proof of a complete or consistent backup. Compare counts 
 Production restore requires owner approval, a maintenance window, a fresh pre-restore export, matching Auth identities and rules, and a documented reconciliation of orders received since the backup. Never overwrite a live database merely to test recovery.
 
 Suggested manual cadence: daily after closing and before each release. Keep seven daily and four weekly copies, subject to applicable privacy retention requirements. Actual exports, encrypted storage and restore rehearsal remain owner/operator tasks.
+
+### Offline consistency verification
+After exporting, run `node scripts/verify-restore.mjs <local-export.json>` in addition to the basic checker. It checks order/index links, totals and reserved inventory references and prints aggregate counts only. A synthetic JSON roundtrip is covered by unit tests; this is not an actual Firebase restore or an Auth/image backup. Keep export files outside the repository and encrypted at rest.

@@ -49,3 +49,8 @@ serviceAccount*.json
 firebase-debug*.log
 database-debug.log
 reports/
+
+# Local database exports and recovery working directories
+*-backup.json
+*-export.json
+backups/

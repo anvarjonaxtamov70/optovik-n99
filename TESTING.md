@@ -73,3 +73,8 @@ Emulator builds now use the synthetic `demo-n99` Firebase identity and a separat
 
 ## Staging Worker prototype
 See backend/README.md for the isolated deployment and test sequence. Keep production rules and deployments unchanged.
+
+## Release acceptance additions
+- `npm test`: synthetic competing transaction tests and backup roundtrip.
+- `N99_STRICT_AUDIT=1 node scripts/audit-dependencies.mjs`: release gate fails on high or critical findings; routine dependency CI retains the existing critical-only gate and reports strict release status. Failed/malformed audits are errors, not empty reports.
+- `node scripts/verify-restore.mjs <local-export.json>`: offline relationship checks, no network writes. Actual encrypted backup and isolated restore still required.

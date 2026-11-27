@@ -11,3 +11,44 @@ test('staging rules disallow direct order creation and transitions',async()=>{co
 test('staging transaction cannot reserve beyond available stock',()=>{const root=fixture();createOrder(root,uid,request(),now);const second=request();second.id='-BBBBBBBBBBBBBBBBBBB';second.order.items.optika.fara.soni=2;second.order.summa=200;second.order.soni=2;second.order.jami=200;createOrder(root,'customer2',second,now);transition(root,admin,{uid,id,expected:'yangi',next:'tasdiqlandi'},now+1);assert.throws(()=>transition(root,admin,{uid:'customer2',id:second.id,expected:'yangi',next:'tasdiqlandi'},now+2),/stock-unavailable/);assert.equal(root.tovarlar.optika.fara.qoldiq,1);assert.equal(root.orders.customer2[second.id].holat,'yangi');});
 test('staging service rejects outdated displayed quote without writing',()=>{const root=fixture();const b=request();b.order.summa=99;b.order.jami=99;assert.throws(()=>createOrder(root,uid,b,now),/quote-changed/);assert.equal(root.orders,undefined);});
 test('public status endpoint is static and does not need privileged access',async()=>{const {default:worker}=await import('../backend/staging-worker.mjs');const res=await worker.fetch(new Request('https://example.test/'),{});assert.equal(res.status,200);assert.equal((await res.json()).version,2);});
+
+// A shared in-memory ETag store models competing writes without real customer data.
+function sharedStore(initial) {
+  let state=structuredClone(initial), revision=0;
+  return {
+    get:async()=>({root:structuredClone(state),etag:String(revision)}),
+    put:async(root,etag)=>{if(etag!==String(revision))return false;state=structuredClone(root);revision++;return true;},
+    snapshot:()=>structuredClone(state),
+  };
+}
+test('parallel retry of one checkout converges on one persisted order',async()=>{
+  const store=sharedStore(fixture());
+  const submit=()=>transact(store.get,store.put,root=>createOrder(root,uid,request(),now));
+  const results=await Promise.all([submit(),submit()]);
+  assert.equal(results.filter(x=>x.recovered).length,1);
+  assert.equal(Object.keys(store.snapshot().orders[uid]).length,1);
+});
+test('competing confirmations preserve inventory across conditional retries',async()=>{
+  const root=fixture();root.tovarlar.optika.fara.qoldiq=1;
+  createOrder(root,uid,request(),now);
+  const b=request();b.id='-BBBBBBBBBBBBBBBBBBB';b.raqam=654321;
+  createOrder(root,'customer2',b,now);
+  const store=sharedStore(root);
+  const confirm=(u,i)=>transact(store.get,store.put,data=>transition(data,admin,{uid:u,id:i,expected:'yangi',next:'tasdiqlandi'},now+1));
+  const results=await Promise.allSettled([confirm(uid,id),confirm('customer2',b.id)]);
+  assert.equal(results.filter(x=>x.status==='fulfilled').length,1);
+  const state=store.snapshot();
+  assert.equal(state.tovarlar.optika.fara.qoldiq,0);
+  assert.equal(Object.values(state.orderIndex).filter(x=>x.holat==='tasdiqlandi').length,1);
+});
+test('conditional retry preserves concurrent catalog edits',async()=>{
+  const root=fixture();createOrder(root,uid,request(),now);
+  const store=sharedStore(root);
+  let first=true;
+  await transact(store.get,async(data,etag)=>{
+    if(first){first=false;const other=await store.get();other.root.tovarlar.optika.fara.nomi='Updated';await store.put(other.root,other.etag);}
+    return store.put(data,etag);
+  },data=>transition(data,admin,{uid,id,expected:'yangi',next:'tasdiqlandi'},now+1));
+  assert.equal(store.snapshot().tovarlar.optika.fara.nomi,'Updated');
+  assert.equal(store.snapshot().tovarlar.optika.fara.qoldiq,1);
+});

@@ -14,3 +14,6 @@ Deployment (staging project only):
 Manual and emulator security tests still required on the actual staging rules and live ETag operations. Existing unit tests are not a live deployment verification.
 
 Version 2 diagnostics: search Worker logs for `n99-stage` and `n99-upstream`. Only fixed stage labels and upstream HTTP statuses are logged; the public error response remains generic. The conditional PUT uses the documented plain JSON URL and GET requests request uncompressed data to preserve the ETag. These changes are not proof that the original 503 is fixed.
+
+## Observed staging acceptance (2026-11-27)
+Operator reported iPhone checkout N159084 succeeded after deploying v2, and confirmation/cancellation changed the sample Cobalt stock 6 → 5 → 6. The earlier v1 503 cause was not isolated; this is observed functional success, not a comprehensive security or load test. Parallel tests use a synthetic in-memory ETag store; live concurrency is still a release gate.
