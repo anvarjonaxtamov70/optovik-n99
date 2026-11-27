@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import { candidateRequest, usesFirestoreCandidate } from '../lib/orderBackend';
 import { CANDIDATE_CATALOG_REFRESH_MS } from '../domain/candidateBackend';
 import { candidateCatalog } from '../lib/candidateData';
+import { subscribeCandidateRefresh } from '../lib/candidateRefresh';
 import { onValue, ref } from 'firebase/database';
 
 import { DEFAULT_SETTINGS, readBanners, readSettings, type Banner, type ShopSettings } from '../domain/content';
@@ -108,7 +109,7 @@ export const usePlaceholderCatalog = () => useStore(catalogStore, (s) => s.place
 export const useCatalogVersion = () => useStore(catalogStore, (s) => s.version);
 
 function subscribeCandidate(){
- let disposed=false,running=false;
+ let disposed=false,running=false,queued=false,generation=0;
  let timer:ReturnType<typeof setTimeout>|undefined;
  const clear=()=>{if(timer!==undefined)clearTimeout(timer);};
  const refresh=async()=>{
@@ -116,20 +117,22 @@ function subscribeCandidate(){
   if(disposed||running||AppState.currentState==='background'||AppState.currentState==='inactive')return;
   const uid=auth.currentUser?.uid;
   if(!uid)return;
-  running=true;
+  running=true;queued=false;const current=generation;
   try{
    const [products,shop,content]=await Promise.all([candidateCatalog(uid),candidateRequest<{settings:unknown}>('/v1/shop/get',{},uid),candidateRequest<{banners:unknown}>('/v1/banners/list',{},uid)]);
-   if(disposed||auth.currentUser?.uid!==uid||AppState.currentState==='background'||AppState.currentState==='inactive')return;
+   if(disposed||current!==generation||auth.currentUser?.uid!==uid||AppState.currentState==='background'||AppState.currentState==='inactive')return;
    // Publish one consistent update; never reconcile the cart against stale products.
    catalogStore.set(s=>({...s,products,byId:new Map(products.map(p=>[p.id,p])),settings:readSettings(shop.settings),banners:readBanners(content.banners),connected:true,live:true,status:'ready',placeholder:isPlaceholderCatalog(products),version:s.version+1}));
    void saveLocal('catalog',toCache(products)).catch(()=>{});
    void saveLocal('settings',shop.settings).catch(()=>{});
    void saveLocal('banners',content.banners).catch(()=>{});
-  }catch{if(!disposed)catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'error'}));}
-  finally{running=false;if(!disposed&&AppState.currentState!=='background'&&AppState.currentState!=='inactive')timer=setTimeout(()=>{void refresh();},CANDIDATE_CATALOG_REFRESH_MS);}
+  }catch{if(!disposed&&current===generation&&auth.currentUser?.uid===uid)catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'error'}));}
+  finally{running=false;if(!disposed&&AppState.currentState!=='background'&&AppState.currentState!=='inactive'){if(queued)void refresh();else timer=setTimeout(()=>{void refresh();},CANDIDATE_CATALOG_REFRESH_MS);}}
  };
- const off=onAuthStateChanged(auth,()=>{if(disposed)return;catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'loading'}));void refresh();});
+ const invalidate=()=>{generation++;queued=true;void refresh();};
+ const offRefresh=subscribeCandidateRefresh(event=>{if(event.actor===auth.currentUser?.uid)invalidate();});
+ const off=onAuthStateChanged(auth,()=>{if(disposed)return;catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'loading'}));invalidate();});
  const sub=AppState.addEventListener('change',s=>{if(s==='active')void refresh();else{clear();catalogStore.set(v=>({...v,connected:false}));}});
- unsubs=[()=>{disposed=true;clear();off();sub.remove();}];
+ unsubs=[()=>{disposed=true;clear();off();offRefresh();sub.remove();}];
  void refresh();
 }

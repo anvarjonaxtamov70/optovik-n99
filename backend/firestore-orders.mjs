@@ -21,8 +21,8 @@ export const paths={
   dataset:'n99Settings/dataset',
 };
 function emptyRoot(){return {orders:map(),orderIndex:map(),tovarlar:map(),customers:map(),admins:map(),abandonedOrders:map()};}
-async function loadOrder(tx,root,uid,id){
-  const entry=await tx.get(paths.order(id));
+async function loadOrder(tx,root,uid,id,prefetched){
+  const entry=prefetched===undefined?await tx.get(paths.order(id)):prefetched;
   if(entry===null)return;
   if(!rec(entry)||!rec(entry.index)||!rec(entry.order)||typeof entry.index.uid!=='string'||entry.order.raqam!==entry.index.raqam||entry.order.holat!==entry.index.holat)fail('invalid-data',503);
   root.orderIndex[id]=entry.index;
@@ -52,9 +52,11 @@ export async function executeFirestoreOrder(run,operation,actor,body,now){
   const id=orderId(body.id);
   if(!['create','change','abandon'].includes(operation))fail('invalid-request');
   const uid=operation==='change'?key(body.uid):actor;
-  return run(async tx=>{
+  const initialPaths=operation==='change'?[paths.order(id),paths.admin(actor)]:[];
+  return run(async (tx,initial)=>{
     const root=emptyRoot();
-    await loadOrder(tx,root,uid,id);
+    if(operation==='change'&&!initial)initial=tx.getAll?await tx.getAll(initialPaths):await Promise.all(initialPaths.map(path=>tx.get(path)));
+    await loadOrder(tx,root,uid,id,initial?.[0]);
     if(operation==='create'){
       await loadMarkers(tx,root,uid);
       if(!own(root.orderIndex,id)&&!own(root.abandonedOrders[uid],id)){
@@ -73,14 +75,16 @@ export async function executeFirestoreOrder(run,operation,actor,body,now){
       if(result.changed)tx.set(paths.abandoned(uid),root.abandonedOrders[uid]);
       return result.value;
     }
-    if(await tx.get(paths.admin(actor))===true)root.admins[actor]=true;
+    if(initial[1]===true)root.admins[actor]=true;
     const order=own(root.orders[uid],id);
-    if(order&&(body.next==='tasdiqlandi'||(body.next==='bekor'&&order.zaxira===true)))await loadProducts(tx,root,order.items);
+    const authorized=root.admins[actor]===true||(actor===uid&&body.next==='bekor'&&body.expected==='yangi');
+    if(authorized&&order&&order.holat===body.expected&&order.holat!==body.next&&(body.next==='tasdiqlandi'||(body.next==='bekor'&&order.zaxira===true)))await loadProducts(tx,root,order.items);
     const result=transition(root,actor,body,now);
     if(result.changed){
       for(const [cat,group] of Object.entries(root.tovarlar))for(const [pid,p] of Object.entries(group))tx.set(paths.product(cat,pid),p);
       putOrder(tx,root,uid,id);
     }
-    return result.value;
-  });
+    // Snapshot is returned only to an authorized caller, after the runner commits.
+    return body.includeOrder===true?{...result.value,order:root.orders[uid][id]}:result.value;
+  },initialPaths);
 }

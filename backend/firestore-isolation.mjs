@@ -4,10 +4,12 @@ const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status
 const ok=(value,message,status)=>{if(!value)fail(message,status);};
 export const DATASET_VERSION=1;
 export function syntheticDatasetRunner(run){
- return task=>run(async tx=>{
-  const marker=await tx.get(paths.dataset);
+ return (task,initialPaths=[])=>run(async tx=>{
+  // Only server-selected paths; the marker and initial documents share one transaction read.
+  const requested=[paths.dataset,...initialPaths];
+  const [marker,...initial]=tx.getAll&&initialPaths.length?await tx.getAll(requested):[await tx.get(paths.dataset)];
   ok(record(marker)&&marker.kind==='synthetic-only'&&marker.version===DATASET_VERSION,'dataset-unavailable',503);
-  return task(tx);
+  return task(tx,initial.length?initial:undefined);
  });
 }
 const local=(v,max,required=false)=>record(v)&&['uz','ru'].every(k=>typeof v[k]==='string'&&v[k].length<=max&&(!required||v[k].trim().length>0))&&Object.keys(v).every(k=>k==='uz'||k==='ru');

@@ -18,7 +18,7 @@ export async function abandonOrderBackend(body: {id:string;raqam:number},uid:str
   return (result as {outcome:'exists'|'abandoned'}).outcome;
 }
 
-export type CandidateRoute='/v1/catalog/list'|'/v1/orders/list'|'/v1/admin/orders/list'|'/v1/orders/get'|'/v1/admin/product'|'/v1/admin/note'|'/v1/admin/shop'|'/v1/shop/get'|'/v1/account/role'|'/v1/profile/get'|'/v1/profile/save'|'/v1/quote'|'/v1/banners/list'|'/v1/admin/banners/list'|'/v1/admin/banner';
+export type CandidateRoute='/v1/transition'|'/v1/catalog/list'|'/v1/orders/list'|'/v1/admin/orders/list'|'/v1/orders/get'|'/v1/admin/product'|'/v1/admin/note'|'/v1/admin/shop'|'/v1/shop/get'|'/v1/account/role'|'/v1/profile/get'|'/v1/profile/save'|'/v1/quote'|'/v1/banners/list'|'/v1/admin/banners/list'|'/v1/admin/banner';
 export async function candidateRequest<T>(path:CandidateRoute,body:unknown,uid:string):Promise<T>{
  if(!usesFirestoreCandidate)throw new Error('Candidate disabled');
  return await requestBackend(path,body,uid) as T;
@@ -26,12 +26,15 @@ export async function candidateRequest<T>(path:CandidateRoute,body:unknown,uid:s
 async function requestBackend(path: '/v1/orders' | '/v1/transition' | '/v1/abandon' | CandidateRoute, body: unknown, uid: string): Promise<unknown> {
   const user = auth.currentUser;
   if (!enabled || !user || user.uid !== uid) throw Object.assign(new Error('Account changed'), { code: 'permission-denied' });
+  const started=Date.now();
   const token = await withTimeout(user.getIdToken(), 8000);
+  const tokenMs=Date.now()-started;
   if (auth.currentUser?.uid !== uid) throw Object.assign(new Error('Account changed'), { code: 'permission-denied' });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
     const response = await fetch(endpoint + path, { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
+    if(__DEV__&&usesFirestoreCandidate&&path==='/v1/transition')console.info('[N99 performance]',{tokenMs,httpMs:Date.now()-started-tokenMs,status:response.status,server:response.headers.get('Server-Timing')});
     if(usesFirestoreCandidate&&response.headers.get('X-N99-Backend')!=='firestore-candidate')throw new Error('Wrong backend');
     if (!response.ok) throw Object.assign(new Error('Order service rejected request'), { code: response.status === 429 ? 'too-many-requests' : response.status < 500 ? 'permission-denied' : 'network' });
     const result: unknown = await response.json();

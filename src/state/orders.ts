@@ -19,6 +19,7 @@ import { candidateRequest, usesFirestoreCandidate, orderBackend, usesOrderBacken
 
 import { CANDIDATE_LIST_REFRESH_MS,CANDIDATE_DETAIL_REFRESH_MS } from '../domain/candidateBackend';
 import { candidateOrder, candidateCustomerOrders, candidateAdminOrders, candidateAck } from '../lib/candidateData';
+import { notifyCandidateRefresh,subscribeCandidateRefresh,type CandidateRefresh } from '../lib/candidateRefresh';
 
 const readOrderRaw=(uid:string,id:string,actor=uid)=>usesFirestoreCandidate?candidateOrder(uid,id,actor):readServerJson(`orders/${uid}/${id}`,actor);
 
@@ -249,7 +250,7 @@ export function useMyOrders() {
   const [state, setState] = useState<{ uid: string | null; orders: Order[]; loading: boolean; error: boolean }>({ uid: null, orders: [], loading: true, error: false });
   useEffect(() => {
     if (!uid) return;
-    if(usesFirestoreCandidate)return pollCandidate(uid,()=>candidateCustomerOrders(uid),list=>setState({uid,orders:list,loading:false,error:false}),()=>setState({uid,orders:[],loading:false,error:true}));
+    if(usesFirestoreCandidate)return pollCandidate(uid,()=>candidateCustomerOrders(uid),list=>setState({uid,orders:list,loading:false,error:false}),()=>setState({uid,orders:[],loading:false,error:true}),CANDIDATE_LIST_REFRESH_MS,event=>{if(event.uid!==uid)return false;const order=event.order;if(order)setState(s=>s.uid===uid?{...s,orders:s.orders.map(o=>o.id===order.id?order:o)}:s);return true;});
     return onValue(query(ref(db, `orders/${uid}`), orderByChild('createdAt'), limitToLast(100)), (snap) => {
       const list: Order[] = [];
       snap.forEach((child) => {
@@ -270,7 +271,7 @@ export function useOrder(uid: string | undefined | null, id: string | undefined)
   const key = `${actor}/${uid}/${id}`;
   useEffect(() => {
     if (!uid || !id) return;
-    if(usesFirestoreCandidate){if(!actor)return;return pollCandidate(actor,async()=>readOrder(uid,id,await candidateOrder(uid,id,actor)),order=>setState({key,order,loading:false}),()=>setState({key,order:null,loading:false}),CANDIDATE_DETAIL_REFRESH_MS);}
+    if(usesFirestoreCandidate){if(!actor)return;return pollCandidate(actor,async()=>readOrder(uid,id,await candidateOrder(uid,id,actor)),order=>setState({key,order,loading:false}),()=>setState({key,order:null,loading:false}),CANDIDATE_DETAIL_REFRESH_MS,event=>{if(event.uid!==uid||event.id!==id)return false;const order=event.order;if(order)setState(s=>s.key===key&&s.order&&s.order.updatedAt>order.updatedAt?s:{key,order,loading:false});return true;});}
     return onValue(ref(db, `orders/${uid}/${id}`), (snap) => {
       setState({ key, order: readOrder(uid, id, snap.val()), loading: false });
     }, () => setState({ key, order: null, loading: false }));
@@ -279,6 +280,7 @@ export function useOrder(uid: string | undefined | null, id: string | undefined)
 }
 
 export async function cancelMyOrder(o: Order) {
+  if (usesFirestoreCandidate) return candidateTransition(o,'bekor',o.uid);
   if (usesOrderBackend) return orderBackend('/v1/transition', { uid: o.uid, id: o.id, expected: o.holat, next: 'bekor' }, o.uid);
   const base = `orders/${o.uid}/${o.id}`;
   await writeServerJson({
@@ -296,7 +298,7 @@ export function useAdminOrders(limit = 300) {
   const actor=useUid();
   const [owner,setOwner]=useState<string|null>(null);
   useEffect(() => {
-    if(usesFirestoreCandidate){if(!actor)return;return pollCandidate(actor,()=>candidateAdminOrders(actor,limit),list=>{setOwner(actor);setState({orders:list,loading:false,error:false});},()=>{setOwner(actor);setState({orders:[],loading:false,error:true});});}
+    if(usesFirestoreCandidate){if(!actor)return;return pollCandidate(actor,()=>candidateAdminOrders(actor,limit),list=>{setOwner(actor);setState({orders:list,loading:false,error:false});},()=>{setOwner(actor);setState({orders:[],loading:false,error:true});},CANDIDATE_LIST_REFRESH_MS,event=>{const order=event.order;if(order)setState(s=>({...s,orders:s.orders.map(o=>o.id===order.id&&o.uid===order.uid?{...o,holat:order.holat}:o)}));return true;});}
     return onValue(query(ref(db, 'orderIndex'), orderByChild('createdAt'), limitToLast(limit)), (snap) => {
     const list: OrderIndex[] = [];
     snap.forEach((child) => {
@@ -313,6 +315,7 @@ export function useAdminOrders(limit = 300) {
 export async function adminSetStatus(o: Order, next: OrderStatus) {
   const adminUid = auth.currentUser?.uid;
   if (!adminUid) throw new Error('Not authenticated');
+  if (usesFirestoreCandidate) return candidateTransition(o,next,adminUid);
   if (usesOrderBackend) return orderBackend('/v1/transition', { uid: o.uid, id: o.id, expected: o.holat, next }, adminUid);
   const latest = readOrder(o.uid, o.id, await readServerJson(`orders/${o.uid}/${o.id}`, adminUid));
   if (!latest || latest.holat !== o.holat || latest.zaxira !== o.zaxira) throw Object.assign(new Error('Order changed'), { code: 'permission-denied' });
@@ -344,24 +347,40 @@ export async function adminSetStatus(o: Order, next: OrderStatus) {
   await writeServerJson(writes, adminUid);
 }
 
+async function candidateTransition(o:Order,next:OrderStatus,actor:string){
+ const event={actor,uid:o.uid,id:o.id};
+ try{
+  const ack=await candidateRequest<{ok:true;order?:unknown}>('/v1/transition',{uid:o.uid,id:o.id,expected:o.holat,next,includeOrder:true},actor);
+  const order=readOrder(o.uid,o.id,ack.order);
+  if(order&&order.raqam===o.raqam&&order.holat===next&&order.updatedAt>=o.updatedAt&&order.items.length){
+   notifyCandidateRefresh({...event,order});
+  }else notifyCandidateRefresh(event); // compatible with an older candidate deployment
+ }catch(error){
+  // A lost response may have committed. Reconcile; do not blindly retry a mutation.
+  if(auth.currentUser?.uid===actor)notifyCandidateRefresh(event);
+  throw error;
+ }
+}
+
 export async function adminSaveNote(o: Order, note: string) {
   if(usesFirestoreCandidate){const uid=auth.currentUser?.uid;if(!uid)throw new Error('Not authenticated');return candidateAck('/v1/admin/note',{uid:o.uid,id:o.id,note:note.trim().slice(0,500)},uid);}
   await withTimeout(update(ref(db, `orders/${o.uid}/${o.id}`), { adminIzoh: note.trim().slice(0, 500) }), 10000);
 }
 
-function pollCandidate<T>(uid:string,read:()=>Promise<T>,success:(value:T)=>void,failure:()=>void,interval=CANDIDATE_LIST_REFRESH_MS){
- let stopped=false,running=false;
+function pollCandidate<T>(uid:string,read:()=>Promise<T>,success:(value:T)=>void,failure:()=>void,interval=CANDIDATE_LIST_REFRESH_MS,onRefresh?:(event:CandidateRefresh)=>boolean){
+ let stopped=false,running=false,queued=false,generation=0;
  let timer:ReturnType<typeof setTimeout>|undefined;
  const tick=async()=>{
   if(stopped||running||auth.currentUser?.uid!==uid)return;
   if(timer!==undefined)clearTimeout(timer);
   if(AppState.currentState==='background'||AppState.currentState==='inactive')return;
-  running=true;
-  try{const v=await read();if(!stopped&&auth.currentUser?.uid===uid)success(v);}
-  catch{if(!stopped&&auth.currentUser?.uid===uid)failure();}
-  finally{running=false;if(!stopped&&AppState.currentState!=='background'&&AppState.currentState!=='inactive')timer=setTimeout(()=>{void tick();},interval);}
+  running=true;queued=false;const current=generation;
+  try{const v=await read();if(!stopped&&current===generation&&auth.currentUser?.uid===uid)success(v);}
+  catch{if(!stopped&&current===generation&&auth.currentUser?.uid===uid)failure();}
+  finally{running=false;if(!stopped&&AppState.currentState!=='background'&&AppState.currentState!=='inactive'){if(queued)void tick();else timer=setTimeout(()=>{void tick();},interval);}}
  };
  const sub=AppState.addEventListener('change',state=>{if(state==='active')void tick();else if(timer!==undefined)clearTimeout(timer);});
+ const off=subscribeCandidateRefresh(event=>{if(stopped||event.actor!==uid||auth.currentUser?.uid!==uid||!onRefresh?.(event))return;generation++;queued=true;void tick();});
  void tick();
- return ()=>{stopped=true;if(timer!==undefined)clearTimeout(timer);sub.remove();};
+ return ()=>{stopped=true;if(timer!==undefined)clearTimeout(timer);sub.remove();off();};
 }
