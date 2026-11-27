@@ -4,7 +4,7 @@ import { onValue, ref, set } from 'firebase/database';
 import { isValidLatLng, roundCoord } from '../domain/geo';
 import { WEB_ADMIN_ONLY } from '../lib/platform';
 
-import { auth, classifyError, db, withTimeout, type FirebaseProblem } from '../lib/firebase';
+import { auth, classifyError, db, readServerJson, withTimeout, type FirebaseProblem } from '../lib/firebase';
 import { createStore, useStore } from '../lib/store';
 import { readLocal, saveLocal } from '../lib/storage';
 
@@ -17,6 +17,7 @@ export type AccountState = {
   uid: string | null;
   anonymous: boolean;
   email: string | null;
+  emailVerified: boolean;
   admin: boolean;
   /** admins/{uid} tekshirib bo'lindi (admin ekranida "yuklanmoqda" va "ruxsat yo'q" ni ajratish uchun). */
   adminChecked: boolean;
@@ -25,7 +26,7 @@ export type AccountState = {
 };
 
 export const accountStore = createStore<AccountState>({
-  ready: false, uid: null, anonymous: true, email: null, admin: false, adminChecked: false, profile: emptyProfile, problem: null,
+  ready: false, uid: null, anonymous: true, email: null, emailVerified: false, admin: false, adminChecked: false, profile: emptyProfile, problem: null,
 });
 
 let started = false;
@@ -51,7 +52,7 @@ export async function startAccount() {
     offAdmin?.();
     offAdmin = null;
     accountStore.set((s) => ({
-      ...s, ready: true, uid: user?.uid ?? null, anonymous: user?.isAnonymous ?? true, email: user?.email ?? null, admin: false,
+      ...s, ready: true, uid: user?.uid ?? null, anonymous: user?.isAnonymous ?? true, email: user?.email ?? null, emailVerified: user?.emailVerified ?? false, admin: false,
       adminChecked: !user || user.isAnonymous, problem: user ? null : s.problem,
     }));
     if (user && !user.isAnonymous) {
@@ -82,11 +83,11 @@ export function ensureCustomer(): Promise<string> {
 }
 
 export async function saveProfile(profile: Profile) {
+  const uid = auth.currentUser?.uid;
   const clean = readProfile(profile);
   accountStore.set((s) => ({ ...s, profile: clean }));
   await saveLocal('profile', clean).catch(() => {});
-  const uid = auth.currentUser?.uid;
-  if (uid && clean.name.trim().length >= 2 && clean.phone) {
+  if (uid && auth.currentUser?.uid === uid && clean.name.trim().length >= 2 && clean.phone) {
     // Bazada bo'sh nuqta saqlanmaydi (qoidalar raqam kutadi).
     const { lat, lng, ...rest } = clean;
     const body = { ...rest, ...(lat != null && lng != null ? { lat, lng } : {}), updatedAt: Date.now() };
@@ -106,3 +107,19 @@ export const useAccount = () => useStore(accountStore, (s) => s);
 export const useProfile = () => useStore(accountStore, (s) => s.profile);
 export const useIsAdmin = () => useStore(accountStore, (s) => s.admin);
 export const useUid = () => useStore(accountStore, (s) => s.uid);
+
+/** After a staged account switch, never copy the previous guest's profile to the new UID. */
+export async function replaceCustomerProfile(uid:string){
+  if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
+  accountStore.set(s=>({...s,profile:emptyProfile}));
+  await saveLocal('profile',emptyProfile);
+  try{
+    const raw=await readServerJson(`customers/${uid}/profile`,uid);
+    if(auth.currentUser?.uid!==uid)return;
+    const clean=readProfile(raw);
+    accountStore.set(s=>({...s,profile:clean}));
+    await saveLocal('profile',clean);
+  }catch{
+    // The old profile remains cleared. Do not write an empty profile to the server.
+  }
+}

@@ -19,3 +19,5 @@ export function setDeliveryDraft(patch: Partial<DeliveryDraft>) {
 }
 
 export const useDeliveryDraft = () => useStore(deliveryStore, (s) => s);
+
+export function resetDeliveryDraft(){deliveryStore.set({...empty});}

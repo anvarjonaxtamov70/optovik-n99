@@ -25,3 +25,6 @@ The synthetic prototype now stores an immutable order-index snapshot with each o
 
 ## Multi-connection local concurrency tests
 Six independent Node worker threads open the same disposable SQLite file, wait for a start signal, then attempt duplicate checkout, competing stock confirmation or cancellation replay. A 5-second SQLite busy timeout permits short lock contention; transactions still serialize writes. The assertions require one order/event on identical retries, exactly three confirmations for three units, and exactly one release event on cancellation. These are local file contention tests, not deployed Worker tests or a distributed benchmark. No customer data, cloud service, or production credentials are used.
+
+## Staging persistent UID experiment
+The mobile client now offers explicit anonymous account linking to email/password without replacing the UID and guarded sign-in on a new empty guest. This is a persistent account foundation, not cross-device idempotency for independently generated order keys. No automatic merge of two separate UIDs or unverified phone-based identification is allowed. The SQLite prototype is still not integrated with Firebase Auth or deployed.

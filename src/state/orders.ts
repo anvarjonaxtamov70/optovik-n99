@@ -26,6 +26,13 @@ const RATE_MS = 30_000;
 
 let placingOrder = false;
 const recoveryListeners = new Set<() => void>();
+// Identity changes share the checkout mutex so no checkout starts mid-switch.
+export async function withCustomerIdentityChange<T>(task:()=>Promise<T>):Promise<T>{
+  if(placingOrder)throw new PlaceOrderError('rate');
+  placingOrder=true;
+  try{return await task();}
+  finally{placingOrder=false;for(const notify of recoveryListeners)notify();}
+}
 // One active attempt only; full contact/address snapshots never persist in new local records.
 let sessionIntent: {uid:string;id:string;intent:string} | undefined;
 function forgetIntent(uid:string,id:string){if(sessionIntent?.uid===uid&&sessionIntent.id===id)sessionIntent=undefined;}

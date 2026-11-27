@@ -20,6 +20,7 @@ import { modelBySlug } from '../domain/taxonomy';
 import { useT } from '../i18n';
 import { haptic } from '../lib/haptics';
 import { useAccount } from '../state/account';
+import { customerIdentityEnabled } from '../state/customerIdentity';
 import { useCartCount } from '../state/cart';
 import { useMyOrders } from '../state/orders';
 import { useFavorites, useMyCar } from '../state/prefs';
@@ -85,6 +86,7 @@ export default function ProfileScreen() {
 
           <Group title={t('profile.sectionSettings')}>
             <ListRow icon="person-outline" title={t('profile.personal')} onPress={() => router.push('/profile-edit')} />
+            {customerIdentityEnabled?<ListRow icon="shield-checkmark-outline" title={t('identity.title')} onPress={()=>router.push('/customer-account')}/>:null}
             <ListRow icon="language-outline" title={t('profile.language')} value={lang === 'ru' ? t('lang.ru') : t('lang.uz')} onPress={() => setLangOpen(true)} last />
           </Group>
 
