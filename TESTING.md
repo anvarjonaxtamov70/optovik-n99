@@ -95,3 +95,6 @@ Unit tests cover shared deadline calculation, no write after budget expiry, four
 
 ### Bounded transaction architecture prototype
 `node --test tests/transactionPrototype.test.mjs` exercises the isolated in-memory relational prototype with Node 24+, including duplicate recovery, reservation/release and rejected-order rollback. It does not measure distributed concurrency or establish cloud service readiness.
+
+### Synthetic relational recovery and workload
+Three additional unit tests cover immutable order-index snapshots and out-of-order replay, isolated SQLite backup restoration, and 100 order lifecycles alongside 1,000 unrelated products. These do not connect to the deployed Worker or Firebase. The database file is temporary and synthetic. No service migration or production scalability is claimed.

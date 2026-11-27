@@ -1,6 +1,6 @@
 // Isolated SQLite architecture prototype. No Firebase or cloud access.
 // Node's built-in SQLite only; never import this in the Expo bundle or Worker.
-import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync, backup } from 'node:sqlite';
 import { createOrder, transition } from '../staging-worker.mjs';
 
 const json=JSON.stringify, parse=JSON.parse;
@@ -14,21 +14,30 @@ function setProduct(root,cat,id,p){if(!own(root.tovarlar,cat))root.tovarlar[cat]
 
 export class TransactionPrototype {
   #db;
-  constructor() {
-    // In-memory synthetic data only. A persistent/cloud adapter requires separate design.
-    this.#db=new DatabaseSync(':memory:');
+  constructor({filename=':memory:'}={}) {
+    // Only local synthetic databases are supported. Never point at business data.
+    this.#db=new DatabaseSync(filename);
     this.#db.exec(`
       PRAGMA foreign_keys=ON;
-      CREATE TABLE products(cat TEXT NOT NULL, id TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(cat,id));
-      CREATE TABLE customers(uid TEXT PRIMARY KEY, last_order INTEGER NOT NULL);
-      CREATE TABLE admins(uid TEXT PRIMARY KEY);
-      CREATE TABLE settings(id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL);
-      CREATE TABLE orders(id TEXT PRIMARY KEY, uid TEXT NOT NULL, payload TEXT NOT NULL, idx TEXT NOT NULL);
-      CREATE INDEX orders_by_uid ON orders(uid);
-      CREATE TABLE outbox(seq INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT NOT NULL, kind TEXT NOT NULL, FOREIGN KEY(order_id) REFERENCES orders(id));
+      CREATE TABLE IF NOT EXISTS products(cat TEXT NOT NULL, id TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(cat,id));
+      CREATE TABLE IF NOT EXISTS customers(uid TEXT PRIMARY KEY, last_order INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS admins(uid TEXT PRIMARY KEY);
+      CREATE TABLE IF NOT EXISTS settings(id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS orders(id TEXT PRIMARY KEY, uid TEXT NOT NULL, payload TEXT NOT NULL, idx TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS orders_by_uid ON orders(uid);
+      CREATE TABLE IF NOT EXISTS outbox(seq INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT NOT NULL, kind TEXT NOT NULL, snapshot TEXT NOT NULL, FOREIGN KEY(order_id) REFERENCES orders(id));
     `);
   }
   close(){this.#db.close();}
+  async backupTo(filename){await backup(this.#db,filename);}
+  eventsAfter(seq=0,limit=100){
+    if(!Number.isSafeInteger(seq)||seq<0||!Number.isInteger(limit)||limit<1||limit>100)reject('invalid-cursor');
+    return this.#db.prepare('SELECT seq,order_id,kind,snapshot FROM outbox WHERE seq>? ORDER BY seq LIMIT ?').all(seq,limit).map(row=>({seq:row.seq,orderId:row.order_id,kind:row.kind,index:parse(row.snapshot)}));
+  }
+  // Snapshot at commit time, not the mutable current order state.
+  #event(id,kind,index){
+    this.#db.prepare('INSERT INTO outbox(order_id,kind,snapshot) VALUES(?,?,?)').run(id,kind,json(index));
+  }
   seedProduct(cat,id,p){this.#db.prepare('INSERT INTO products VALUES(?,?,?)').run(key(cat),key(id),json(p));}
   seedSettings(settings){this.#db.prepare('INSERT INTO settings VALUES(1,?)').run(json(settings));}
   seedAdmin(uid){this.#db.prepare('INSERT INTO admins VALUES(?)').run(key(uid));}
@@ -74,7 +83,7 @@ export class TransactionPrototype {
       if(result.changed){
         this.#db.prepare('INSERT INTO orders VALUES(?,?,?,?)').run(id,uid,json(root.orders[uid][id]),json(root.orderIndex[id]));
         this.#db.prepare('INSERT INTO customers VALUES(?,?) ON CONFLICT(uid) DO UPDATE SET last_order=excluded.last_order').run(uid,root.customers[uid].lastOrderAt);
-        this.#db.prepare('INSERT INTO outbox(order_id,kind) VALUES(?,?)').run(id,'created');
+        this.#event(id,'created',root.orderIndex[id]);
       }
       return result.value;
     });
@@ -92,7 +101,7 @@ export class TransactionPrototype {
           this.#db.prepare('UPDATE products SET payload=? WHERE cat=? AND id=?').run(json(p),cat,pid);
         }
         this.#db.prepare('UPDATE orders SET payload=?,idx=? WHERE id=? AND uid=?').run(json(root.orders[uid][id]),json(root.orderIndex[id]),id,uid);
-        this.#db.prepare('INSERT INTO outbox(order_id,kind) VALUES(?,?)').run(id,b.next);
+        this.#event(id,b.next,root.orderIndex[id]);
       }
       return result.value;
     });
