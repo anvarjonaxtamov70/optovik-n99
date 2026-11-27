@@ -122,3 +122,6 @@ Five unit tests cover lifecycle with unrelated catalog data, rejection/closure, 
 
 ### Firestore migration rehearsal
 Four new unit tests cover offline migration consistency, invalid snapshot rejection, derived query metadata, and emulator endpoint guard. One separate CI functional test uses the local Firestore emulator to import a reserved synthetic order, cancel it, create/replay another order and confirm stock. Results must be observed in CI; not a live service or full migration verification. No production data or credentials.
+
+### Firestore admin parity
+Six unit tests cover revision conflicts, role/field validation, archived reserved stock restoration, creation, note access and delivery settings. The existing emulator rehearsal additionally checks stale admin writes, archive followed by cancellation, note readback and delivery settings. This is server module parity, not an integrated mobile/admin client. CI result for the new commit is pending.
