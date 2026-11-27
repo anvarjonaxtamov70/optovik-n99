@@ -1,14 +1,22 @@
 // Firestore REST transaction runner for the isolated staging project only.
 // No service key, client token or credentials are stored here. Never import from the app.
-const DATABASE='projects/optovik-n99-staging/databases/(default)';
-const BASE='https://firestore.googleapis.com/v1/'+DATABASE+'/documents';
+const STAGING_DATABASE='projects/optovik-n99-staging/databases/(default)';
 const fail=(message,status=503)=>{throw Object.assign(new Error(message),{status});};
-const name=path=>DATABASE+'/documents/'+path;
 const documentPath=path=>{
   if(typeof path!=='string'||!/^n99[A-Za-z]+\/[A-Za-z0-9_%.!~*'()-]+(?:\/products\/[A-Za-z0-9_%.!~*'()-]+)?$/.test(path))fail('invalid-document-path',400);
   return path.split('/').map(encodeURIComponent).join('/');
 };
 export function firestoreRunner({token,deadline,fetcher=fetch,clock=Date.now}){
+  return makeRunner({token,deadline,fetcher,clock,database:STAGING_DATABASE,origin:'https://firestore.googleapis.com'});
+}
+// Explicit disposable emulator only; cannot select a remote endpoint or project.
+export function localFirestoreRunner({host,deadline}){
+  if(!/^(127\\.0\\.0\\.1|localhost):8080$/.test(host??''))fail('local-emulator-required');
+  return makeRunner({token:'owner',deadline,fetcher:fetch,clock:Date.now,database:'projects/demo-n99-firestore/databases/(default)',origin:'http://'+host});
+}
+function makeRunner({token,deadline,fetcher,clock,database,origin}){
+  const BASE=origin+'/v1/'+database+'/documents';
+  const name=path=>database+'/documents/'+path;
   if(typeof token!=='string'||!token||!Number.isSafeInteger(deadline))fail('invalid-runner');
   async function request(url,body,method='POST'){
     const ms=Math.min(8000,deadline-clock());
@@ -41,7 +49,7 @@ export function firestoreRunner({token,deadline,fetcher=fetch,clock=Date.now}){
             documentPath(path);
             const payload=JSON.stringify(value);
             if(typeof payload!=='string'||new TextEncoder().encode(payload).length>900000)fail('document-size');
-            writes.set(path,{update:{name:name(path),fields:{payload:{stringValue:payload}}}});
+            writes.set(path,{update:{name:name(path),fields:documentFields(path,value,payload)}});
             if(writes.size>52)fail('write-limit');
           },
         });
@@ -62,4 +70,19 @@ export function firestoreRunner({token,deadline,fetcher=fetch,clock=Date.now}){
     }
     fail('transaction-conflict');
   };
+}
+
+/** Query metadata is derived from the authoritative payload in the same document write. */
+export function documentFields(path,value,payload=JSON.stringify(value)){
+  const fields={payload:{stringValue:payload}};
+  const str=(k,v)=>{if(typeof v!=='string')fail('invalid-query-field');fields[k]={stringValue:v};};
+  const int=(k,v)=>{if(!Number.isSafeInteger(v))fail('invalid-query-field');fields[k]={integerValue:String(v)};};
+  if(path.startsWith('n99Orders/')&&value?.index){
+    str('uid',value.index.uid);str('status',value.index.holat);int('createdAt',value.index.createdAt);int('raqam',value.index.raqam);
+  }
+  if(path.startsWith('n99Categories/')){
+    str('name',value.nomi);int('price',value.narxi);int('stock',value.qoldiq);
+    fields.archived={booleanValue:value.archived===true};
+  }
+  return fields;
 }

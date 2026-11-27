@@ -119,3 +119,6 @@ Staging mobile profiles are now cached with their UID, and legacy unowned stagin
 
 ### Bounded Firestore integration foundation
 Five unit tests cover lifecycle with unrelated catalog data, rejection/closure, committed-order closure, REST transaction protocol, explicit-abort retry and unknown-write outcome. The new modules are server-only and not wired to the existing Worker or Expo. Fake transaction and HTTP tests do not validate real Firestore semantics. Next: disposable emulator integration, queryable schema, migration/reader/writer parity, isolated staging rollout and rollback. Keep Spark/no billing and do not copy production data.
+
+### Firestore migration rehearsal
+Four new unit tests cover offline migration consistency, invalid snapshot rejection, derived query metadata, and emulator endpoint guard. One separate CI functional test uses the local Firestore emulator to import a reserved synthetic order, cancel it, create/replay another order and confirm stock. Results must be observed in CI; not a live service or full migration verification. No production data or credentials.

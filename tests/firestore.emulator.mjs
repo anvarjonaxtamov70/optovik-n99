@@ -1,0 +1,30 @@
+// Functional migration/transaction rehearsal on a disposable local Firestore only.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {localFirestoreRunner} from '../backend/firestore-rest.mjs';
+import {executeFirestoreOrder,paths} from '../backend/firestore-orders.mjs';
+import {planFirestoreImport} from '../backend/firestore-migration.mjs';
+import {createOrder,transition} from '../backend/staging-worker.mjs';
+const host=process.env.FIRESTORE_EMULATOR_HOST;
+if(!/^(127\\.0\\.0\\.1|localhost):8080$/.test(host??''))throw new Error('Local emulator required');
+const run=task=>localFirestoreRunner({host,deadline:Date.now()+30000})(task);
+const uid='synthetic',admin='testadmin',id='-AAAAAAAAAAAAAAAAAAA',now=1800000000000;
+const request=(key=id)=>({id:key,raqam:123456,order:{mijoz:{ism:'Synthetic',telefon:'+998900000000'},yetkazish:{turi:'olib'},tolov:'naqd',til:'uz',platforma:'ios',items:{optika:{fara:{narxi:100,soni:1}}},summa:100,jami:100,soni:1,yetkazishNarxi:0}});
+test('local Firestore imports synthetic reserved order and continues fulfillment',async()=>{
+ const root={admins:{[admin]:true},tovarlar:{optika:{fara:{nomi:'Synthetic',narxi:100,qoldiq:2,revision:1}}},settings:{shop:{pickupEnabled:true,courierEnabled:true,courierFee:0,freeDeliveryFrom:0}}};
+ createOrder(root,uid,request(),now);
+ transition(root,admin,{uid,id,expected:'yangi',next:'tasdiqlandi'},now+1);
+ const plan=planFirestoreImport(root);
+ await run(async tx=>{for(const [path,value] of plan.docs)tx.set(path,value);});
+ const product=()=>run(tx=>tx.get(paths.product('optika','fara')));
+ assert.equal((await product()).qoldiq,1);
+ await executeFirestoreOrder(run,'change',admin,{uid,id,expected:'tasdiqlandi',next:'bekor'},now+2);
+ assert.equal((await product()).qoldiq,2);
+ const second='-BBBBBBBBBBBBBBBBBBB';
+ const submitted=await executeFirestoreOrder(run,'create','second',request(second),now+30001);
+ assert.equal(submitted.recovered,false);
+ assert.equal((await executeFirestoreOrder(run,'create','second',request(second),now+30002)).recovered,true);
+ await executeFirestoreOrder(run,'change',admin,{uid:'second',id:second,expected:'yangi',next:'tasdiqlandi'},now+30003);
+ assert.equal((await product()).qoldiq,1);
+ assert.equal((await run(tx=>tx.get(paths.order(second)))).index.holat,'tasdiqlandi');
+});
