@@ -36,7 +36,8 @@ async function loadProducts(tx,root,items){
       list.push([cat,id,paths.product(cat,id)]);
     }
   }
-  const values=await Promise.all(list.map(([, ,path])=>tx.get(path)));
+  const productPaths=list.map(([, ,path])=>path);
+  const values=tx.getAll&&productPaths.length?await tx.getAll(productPaths):await Promise.all(productPaths.map(path=>tx.get(path)));
   list.forEach(([cat,id],i)=>{if(values[i]!==null){root.tovarlar[cat]??=map();root.tovarlar[cat][id]=values[i];}});
 }
 function putOrder(tx,root,uid,id){tx.set(paths.order(id),{order:root.orders[uid][id],index:root.orderIndex[id]});}
@@ -55,7 +56,7 @@ export async function executeFirestoreOrder(run,operation,actor,body,now){
     if(operation==='create'){
       await loadMarkers(tx,root,uid);
       if(!own(root.orderIndex,id)&&!own(root.abandonedOrders[uid],id)){
-        const [customer,shop]=await Promise.all([tx.get(paths.customer(uid)),tx.get(paths.settings)]);
+        const [customer,shop]=tx.getAll?await tx.getAll([paths.customer(uid),paths.settings]):await Promise.all([tx.get(paths.customer(uid)),tx.get(paths.settings)]);
         if(customer!==null)root.customers[uid]=customer;
         if(shop!==null)root.settings={shop};
         await loadProducts(tx,root,body.order?.items);

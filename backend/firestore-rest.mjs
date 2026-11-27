@@ -22,8 +22,8 @@ function makeRunner({token,deadline,fetcher,clock,database,origin}){
   async function request(url,body,method='POST'){
     const ms=Math.min(8000,deadline-clock());
     if(ms<=0)fail('request-deadline');
-    const response=await fetcher(url,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','Cache-Control':'no-store'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(ms)});
-    return response;
+    try{return await fetcher(url,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','Cache-Control':'no-store'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(ms)});}
+    catch(error){if(error?.name==='TimeoutError'||error?.name==='AbortError')fail('firestore-request-timeout');throw error;}
   }
   return async task=>{
     for(let attempt=0;attempt<4;attempt++){
@@ -35,17 +35,34 @@ function makeRunner({token,deadline,fetcher,clock,database,origin}){
         if(typeof transaction!=='string'||!transaction)fail('transaction-start');
         const writes=new Map();
         let reads=0;
+        // The emulator has a known hang with a bytes transaction query parameter
+        // (firebase-tools #3293). Use the documented BatchGet body in both environments.
+        const getAll=async paths=>{
+          if(writes.size)fail('read-after-write');
+          if(!Array.isArray(paths)||!paths.length||paths.length>56||new Set(paths).size!==paths.length)fail('invalid-read-batch');
+          reads+=paths.length;
+          if(reads>56)fail('read-limit');
+          const names=paths.map(path=>{documentPath(path);return name(path);});
+          const requested=new Set(names),results=new Map();
+          const res=await request(BASE+':batchGet',{documents:names,transaction});
+          if(!res.ok){if(res.status===409)fail('transaction-conflict',409);fail('document-read');}
+          const data=await res.json();
+          if(!Array.isArray(data))fail('invalid-batch-response');
+          for(const row of data){
+            const found=row?.found,missing=row?.missing;
+            const docName=found?.name??missing;
+            if(!requested.has(docName)||results.has(docName)||Boolean(found)===Boolean(missing))fail('invalid-batch-response');
+            if(found){
+              if(typeof found.fields?.payload?.stringValue!=='string')fail('invalid-document');
+              results.set(docName,JSON.parse(found.fields.payload.stringValue));
+            }else results.set(docName,null);
+          }
+          if(results.size!==names.length)fail('incomplete-batch-response');
+          return names.map(n=>results.get(n));
+        };
         const value=await task({
-          get:async path=>{
-            if(writes.size)fail('read-after-write');
-            if(++reads>56)fail('read-limit');
-            const res=await request(BASE+'/'+documentPath(path)+'?transaction='+encodeURIComponent(transaction),undefined,'GET');
-            if(res.status===404)return null;
-            if(!res.ok){if(res.status===409)fail('transaction-conflict',409);fail('document-read');}
-            const doc=await res.json();
-            if(doc.name!==name(path)||typeof doc.fields?.payload?.stringValue!=='string')fail('invalid-document');
-            return JSON.parse(doc.fields.payload.stringValue);
-          },
+          get:async path=>(await getAll([path]))[0],
+          getAll,
           set:(path,value)=>{
             documentPath(path);
             const payload=JSON.stringify(value);

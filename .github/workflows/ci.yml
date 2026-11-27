@@ -65,3 +65,7 @@ jobs:
           java-version: 21
       - name: Local Firestore migration and fulfillment rehearsal
         run: npx --yes firebase-tools@14 emulators:exec --config backend/firebase.firestore.local.json --only firestore --project demo-n99-firestore "node --test tests/firestore.emulator.mjs"
+      - name: Firestore emulator diagnostic log on failure
+        if: failure()
+        run: |
+          if [ -f firestore-debug.log ]; then tail -n 100 firestore-debug.log; fi

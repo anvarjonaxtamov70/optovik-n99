@@ -50,7 +50,7 @@ test('REST runner reads and commits bounded document writes in a single transact
  const run=firestoreRunner({token:'synthetic',deadline:10000,clock:()=>0,fetcher:async(url,options)=>{
   calls.push({url,options});
   if(url.endsWith(':beginTransaction'))return response({transaction:'tx1'});
-  if(url.includes('?transaction='))return response({},404);
+  if(url.endsWith(':batchGet')){const b=JSON.parse(options.body);assert.equal(b.transaction,'tx1');return response([{missing:b.documents[0]}]);}
   if(url.endsWith(':commit'))return response({});
   throw new Error('unexpected request');
  }});
@@ -79,4 +79,22 @@ test('REST runner retries explicit aborted commit but not unknown commit outcome
  }});
  await assert.rejects(unknown(async tx=>tx.set(paths.order(id),{x:1})),/lost response/);
  assert.equal(starts,1);assert.equal(commits,1);
+});
+
+test('batch get maps out-of-order found and missing documents and rejects incomplete replies',async()=>{
+ const a=paths.order(id),b=paths.customer(uid);
+ let complete=true;
+ const run=firestoreRunner({token:'synthetic',deadline:10000,clock:()=>0,fetcher:async(url,options)=>{
+   if(url.endsWith(':beginTransaction'))return response({transaction:'tx'});
+   if(url.endsWith(':rollback'))return response({});
+   if(url.endsWith(':batchGet')){
+     const req=JSON.parse(options.body);assert.equal(req.transaction,'tx');
+     const [first,second]=req.documents;
+     return response(complete?[{missing:second},{found:{name:first,fields:{payload:{stringValue:'{"ok":true}'}}}}]:[{missing:second}]);
+   }
+   throw new Error('unexpected request');
+ }});
+ assert.deepEqual(await run(tx=>tx.getAll([a,b])),[{ok:true},null]);
+ complete=false;
+ await assert.rejects(run(tx=>tx.getAll([a,b])),/incomplete-batch-response/);
 });
