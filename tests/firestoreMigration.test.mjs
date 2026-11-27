@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {planFirestoreImport} from '../backend/firestore-migration.mjs';
 import {paths} from '../backend/firestore-orders.mjs';
-import {documentFields,localFirestoreRunner} from '../backend/firestore-rest.mjs';
+import {documentFields,localFirestoreRunner,isLocalFirestoreHost} from '../backend/firestore-rest.mjs';
 import {createOrder,transition} from '../backend/staging-worker.mjs';
 const uid='synthetic',admin='testadmin',id='-AAAAAAAAAAAAAAAAAAA',now=1800000000000;
 function fixture(){
@@ -38,4 +38,12 @@ test('query fields derive from authoritative order and product, not user supplie
 });
 test('local Firestore runner refuses non-local endpoints',()=>{
  for(const host of [undefined,'example.com:8080','127.0.0.1:9999','localhost:8080/extra'])assert.throws(()=>localFirestoreRunner({host,deadline:Date.now()+1000}),/local-emulator-required/);
+});
+
+test('local Firestore guard accepts only the two exact loopback endpoints',()=>{
+ for(const host of ['127.0.0.1:8080','localhost:8080']){
+  assert.equal(isLocalFirestoreHost(host),true);
+  assert.equal(typeof localFirestoreRunner({host,deadline:Date.now()+1000}),'function');
+ }
+ for(const host of ['127x0x0x1:8080','127.0.0.1:8080/','http://localhost:8080','localhost:8081',null])assert.equal(isLocalFirestoreHost(host),false);
 });

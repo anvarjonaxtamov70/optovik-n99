@@ -10,8 +10,9 @@ export function firestoreRunner({token,deadline,fetcher=fetch,clock=Date.now}){
   return makeRunner({token,deadline,fetcher,clock,database:STAGING_DATABASE,origin:'https://firestore.googleapis.com'});
 }
 // Explicit disposable emulator only; cannot select a remote endpoint or project.
+export function isLocalFirestoreHost(host){return host==='127.0.0.1:8080'||host==='localhost:8080';}
 export function localFirestoreRunner({host,deadline}){
-  if(!/^(127\\.0\\.0\\.1|localhost):8080$/.test(host??''))fail('local-emulator-required');
+  if(!isLocalFirestoreHost(host))fail('local-emulator-required');
   return makeRunner({token:'owner',deadline,fetcher:fetch,clock:Date.now,database:'projects/demo-n99-firestore/databases/(default)',origin:'http://'+host});
 }
 function makeRunner({token,deadline,fetcher,clock,database,origin}){
