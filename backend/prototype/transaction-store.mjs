@@ -18,6 +18,7 @@ export class TransactionPrototype {
     // Only local synthetic databases are supported. Never point at business data.
     this.#db=new DatabaseSync(filename);
     this.#db.exec(`
+      PRAGMA busy_timeout=5000;
       PRAGMA foreign_keys=ON;
       CREATE TABLE IF NOT EXISTS products(cat TEXT NOT NULL, id TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(cat,id));
       CREATE TABLE IF NOT EXISTS customers(uid TEXT PRIMARY KEY, last_order INTEGER NOT NULL);

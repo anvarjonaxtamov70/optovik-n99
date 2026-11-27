@@ -98,3 +98,6 @@ Unit tests cover shared deadline calculation, no write after budget expiry, four
 
 ### Synthetic relational recovery and workload
 Three additional unit tests cover immutable order-index snapshots and out-of-order replay, isolated SQLite backup restoration, and 100 order lifecycles alongside 1,000 unrelated products. These do not connect to the deployed Worker or Firebase. The database file is temporary and synthetic. No service migration or production scalability is claimed.
+
+### Concurrent SQLite prototype acceptance
+`node --test tests/transactionConcurrency.test.mjs` runs three multi-connection tests with six worker threads per scenario, each on a disposable synthetic SQLite file. These complement the sequential workload and emulator restoration. The next real-device gate is to deploy staging Worker v3 after CI and repeat checkout, cancellation and recovery on the existing isolated staging project; do not deploy the SQLite prototype into Cloudflare. Production remains blocked until hosting, durable identity, migration and live acceptance are resolved.
