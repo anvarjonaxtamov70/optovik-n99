@@ -15,6 +15,7 @@ import { useStore } from '../lib/store';
 import { parsePendingOrder } from '../domain/pendingOrder';
 import { checkoutQuote, assertQuoteMatches, readQuoteProduct } from '../domain/checkoutQuote';
 import { readSettings } from '../domain/content';
+import { orderBackend, usesOrderBackend } from '../lib/orderBackend';
 
 export type PlaceError = 'auth' | 'rules' | 'rate' | 'network' | 'empty' | 'unknown';
 export class PlaceOrderError extends Error {
@@ -89,6 +90,12 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
   }
   await saveLocal(pendingKey, { id: orderId, raqam }).catch(() => { throw new PlaceOrderError('unknown'); });
   try {
+    if (usesOrderBackend) {
+      await orderBackend('/v1/orders', { id: orderId, raqam, order: writes[`orders/${uid}/${orderId}`] }, uid);
+      const confirmed = readOrder(uid, orderId, await readServerJson(`orders/${uid}/${orderId}`, uid));
+      if (!confirmed || confirmed.raqam !== raqam || !confirmed.items.length) throw new PlaceOrderError('unknown');
+      return finish(confirmed.id, confirmed.raqam, confirmed.mijoz.telefon, Object.fromEntries(confirmed.items.map(item => [item.id, item.soni])), !!validPending);
+    }
     await writeServerJson(writes, uid);
   } catch (e) {
     const kind = classifyError(e);
@@ -99,8 +106,8 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
       if (!order || order.raqam !== raqam || !order.items.length) throw new PlaceOrderError('unknown');
       return finish(order.id, order.raqam, order.mijoz.telefon, Object.fromEntries(order.items.map((item) => [item.id, item.soni])), true);
     }
-    if (kind === 'permission' && existing === null && !validPending) await saveLocal(pendingKey, null).catch(() => {});
-    throw new PlaceOrderError(kind === 'network' || existing === undefined ? 'network' : kind === 'permission' ? 'rules' : 'unknown');
+    if ((kind === 'permission' || kind === 'rate') && existing === null && !validPending) await saveLocal(pendingKey, null).catch(() => {});
+    throw new PlaceOrderError(kind === 'network' || existing === undefined ? 'network' : kind === 'permission' ? 'rules' : kind === 'rate' ? 'rate' : 'unknown');
   }
   const ordered: Record<string, number> = {};
   for (const line of lines) {
@@ -165,6 +172,7 @@ export function useOrder(uid: string | undefined | null, id: string | undefined)
 }
 
 export async function cancelMyOrder(o: Order) {
+  if (usesOrderBackend) return orderBackend('/v1/transition', { uid: o.uid, id: o.id, expected: o.holat, next: 'bekor' }, o.uid);
   const base = `orders/${o.uid}/${o.id}`;
   await writeServerJson({
     [`${base}/holat`]: 'bekor',
@@ -193,6 +201,7 @@ export function useAdminOrders(limit = 300) {
 export async function adminSetStatus(o: Order, next: OrderStatus) {
   const adminUid = auth.currentUser?.uid;
   if (!adminUid) throw new Error('Not authenticated');
+  if (usesOrderBackend) return orderBackend('/v1/transition', { uid: o.uid, id: o.id, expected: o.holat, next }, adminUid);
   const latest = readOrder(o.uid, o.id, await readServerJson(`orders/${o.uid}/${o.id}`, adminUid));
   if (!latest || latest.holat !== o.holat || latest.zaxira !== o.zaxira) throw Object.assign(new Error('Order changed'), { code: 'permission-denied' });
   o = latest;

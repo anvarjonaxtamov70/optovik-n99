@@ -70,3 +70,6 @@ Emulator builds now use the synthetic `demo-n99` Firebase identity and a separat
 - [ ] iPhone checkout, interruption/recovery, and admin stock transitions verified in staging.
 - [ ] Encrypted backup taken and isolated restore rehearsed (docs/BACKUP_RECOVERY.md).
 - [ ] Trusted aggregate pricing, cross-device idempotency and server-owned inventory architecture resolved before claiming full backend security.
+
+## Staging Worker prototype
+See backend/README.md for the isolated deployment and test sequence. Keep production rules and deployments unchanged.
