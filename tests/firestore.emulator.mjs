@@ -160,6 +160,7 @@ test('encrypted synthetic candidate backup restores into a separate disposable e
  const {makeCandidateBackup}=await import('../scripts/firestore-backup-format.mjs');
  const {sealBackup,openBackup}=await import('../scripts/backup-crypto.mjs');
  const {randomBytes}=await import('node:crypto');
+ const {rehearseCandidate}=await import('../scripts/firestore-backup-rehearse.mjs');
  const seed=syntheticSeed('backup-restore-admin');
  const key=randomBytes(32);
  const original=Buffer.from(JSON.stringify(makeCandidateBackup(seed)));
@@ -177,4 +178,7 @@ test('encrypted synthetic candidate backup restores into a separate disposable e
  assert.equal(rows.length,names.length);
  const actual=new Map(rows.map(row=>[row.found.name.slice(target.length+1),JSON.parse(row.found.fields.payload.stringValue)]));
  assert.deepEqual(actual,seed);
+ const result=await rehearseCandidate(restored,{host});
+ assert.equal(result.restored,seed.size??seed.length);
+ assert.equal(result.verified,result.restored);
 });

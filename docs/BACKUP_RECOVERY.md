@@ -52,3 +52,15 @@ The exporter uses the signed-in gcloud identity (read permissions only required)
 
 ## Before closing phase 1
 Candidate validation additionally rejects impossible reservation states, invalid order status/timestamps and invalid lastOrderAt. This does not change the older RTDB backup format. For actual staging backup, run the read-only exporter from Cloud Shell with operator authorization and a private directory; keep independent key copy and verified encrypted backup off-repository. Record aggregate counts only. Firebase Auth export (password hashes and hash configuration are highly sensitive) and image files require a separate encrypted process; do not put them in chat, Git or CI. No actual staging data has been exported by the coding agent.
+
+
+## Actual encrypted file: isolated restore rehearsal
+After the read-only staging export, use the new CLI with a disposable local Firestore emulator. No gcloud token or remote restore is used. Set `FIRESTORE_EMULATOR_HOST` via the emulator runner (127.0.0.1:8080 only), using a demo project and no emulator import/export options. Example from Cloud Shell at the reviewed branch:
+```sh
+cd "$HOME/n99-backup-code"
+git pull --ff-only
+BACKUP="$(ls -t "$HOME"/n99-private-backups/staging-*.n99backup | head -n 1)"
+KEY="$HOME/n99-private-keys/staging.key"
+npx --yes firebase-tools@14 emulators:exec --config backend/firebase.firestore.local.json --only firestore --project demo-n99-firestore "node scripts/firestore-backup-rehearse.mjs '$KEY' '$BACKUP'"
+```
+The CLI validates the encrypted envelope, allocates a random demo-only namespace, uses bounded create-only writes and checks all stored document fields against the snapshot, reporting aggregate counts. No plaintext JSON is written by the CLI. Use only an isolated trusted machine because the emulator holds decrypted data in memory while running; do not share emulator logs or export its state. Stop the emulator after the test. No remote restore, no Auth import, no external image restoration. A failed local rehearsal must not trigger live writes. Independent key/backup storage remains mandatory. This is not a production migration tool.
