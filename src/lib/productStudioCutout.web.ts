@@ -4,7 +4,9 @@ type Options={createWorker?:()=>WorkerLike;timeoutMs?:number};
 const errors=new Set(['studio-model-unavailable','studio-model-integrity','studio-model-contract','studio-mask-input','studio-mask-output','studio-mask-uncertain','studio-source-type','studio-source-dimensions','studio-browser-unavailable','studio-export-size','studio-busy','studio-cutout-unavailable']);
 function defaultWorker():WorkerLike{
   if(typeof window==='undefined'||typeof Worker==='undefined')return studioFail('studio-browser-unavailable');
-  return new Worker(new URL('/studio-local/cutout-worker.mjs',window.location.origin),{type:'module'});
+  // Public static file, not a Metro module import. Build an absolute string at runtime.
+  const workerUrl=window.location.origin+'/studio-local/cutout-worker.mjs';
+  return new Worker(workerUrl,{type:'module'});
 }
 // One reusable worker per editor; dispose on unmount. Cancellation terminates inference.
 export function createStudioCutoutEngine({createWorker=defaultWorker,timeoutMs=180000}:Options={}){

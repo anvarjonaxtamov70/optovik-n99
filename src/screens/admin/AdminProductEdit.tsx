@@ -16,12 +16,11 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { Txt } from '../../components/ui/Txt';
 import { MAX_IMAGES, type Product } from '../../domain/products';
 import { appendStudioImage } from '../../domain/productStudioDraft';
-import { auth } from '../../lib/firebase';
 import { usesFirestoreCandidate } from '../../lib/orderBackend';
 import { CAR_MODELS, CATEGORIES, categoryLabel } from '../../domain/taxonomy';
 import { useT, type TKey } from '../../i18n';
 import { confirmAsync } from '../../lib/confirm';
-import { classifyError } from '../../lib/firebase';
+import { auth, classifyError } from '../../lib/firebase';
 import { haptic } from '../../lib/haptics';
 import { ActiveOrderProductError, deleteProduct, formFromCopy, formFromProduct, nextNewForm, saveProduct, validateProduct, uploadToImgbb, useMediaKey, type ProductForm } from '../../state/admin';
 import { useCatalogStatus, useProduct, useProducts } from '../../state/catalog';
@@ -69,6 +68,8 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
   const [studioVersion, setStudioVersion] = useState(0);
   const [studioUploading,setStudioUploading]=useState(false);
   const studioUpload=useRef(false);
+  const editorMounted=useRef(true);
+  useEffect(()=>{editorMounted.current=true;return ()=>{editorMounted.current=false;};},[]);
   const media=useMediaKey();
   const imageLimit=usesFirestoreCandidate?8:MAX_IMAGES;
   const [busy, setBusy] = useState(false);
@@ -77,23 +78,24 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
   const errors = validateProduct(form);
   const err = (k: keyof ProductForm) => (touched && errors[k] ? t(`admin.product.err.${errors[k]}` as TKey) : null);
   const set = (patch: Partial<ProductForm>) => setForm((f) => ({ ...f, ...patch }));
-  const setImages = useCallback((update: (list: string[]) => string[]) => setForm((f) => ({ ...f, rasmlar: update(f.rasmlar) })), []);
+  const setImages = useCallback((update: (list: string[]) => string[]) => setForm((f) => { const next=update(f.rasmlar); return next.length>Math.max(f.rasmlar.length,imageLimit)?f:{...f,rasmlar:next}; }), [imageLimit]);
   const attachStudioImage=async(blob:Blob)=>{
     if(studioUpload.current||busy||uploading||form.rasmlar.length>=imageLimit||!media.key)throw Error('studio-attach-unavailable');
     const uid=auth.currentUser?.uid;if(!uid)throw Error('unauthenticated');
     studioUpload.current=true;setStudioUploading(true);
     try{
       const link=await uploadToImgbb(blob,media.key);
-      if(auth.currentUser?.uid!==uid)throw Error('unauthenticated');
+      if(!editorMounted.current||auth.currentUser?.uid!==uid)throw Error('unauthenticated');
       setForm(f=>({...f,rasmlar:appendStudioImage(f.rasmlar,link,imageLimit)}));
       return link;
-    }finally{studioUpload.current=false;setStudioUploading(false);}
+    }finally{studioUpload.current=false;if(editorMounted.current)setStudioUploading(false);}
   };
   const categories = Array.from(new Set([...CATEGORIES.map((c) => c.slug), ...products.map((p) => p.kategoriya)]));
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline);
 
   // Saqlanmagan o'zgarish bo'lsa, orqaga qaytishda (va brauzer yopilganda) so'raymiz.
-  const disablePrevention = usePreventRemove(dirty && !busy && !leaving, ({ repeat }) => {
+  const disablePrevention = usePreventRemove((dirty || studioUploading) && !busy && !leaving, ({ repeat }) => {
+    if (studioUpload.current) { showToast(t('admin.product.uploadingWait')); return; }
     void confirmAsync(t('admin.product.unsavedTitle'), t('admin.product.unsavedText'), { ok: t('admin.product.leave'), cancel: t('common.cancel'), destructive: true })
       .then((ok) => { if (ok) { setLeaving(true); repeat(); } });
   });

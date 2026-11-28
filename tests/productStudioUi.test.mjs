@@ -25,3 +25,9 @@ test('studio uses local worker only on loopback and cleans up work and object UR
  assert.match(ui,/engine.current\?\.dispose\(\)/);
  assert.match(ui,/URL.revokeObjectURL/);
 });
+
+test('worker public file is loaded at runtime, not via Metro static new URL transform',()=>{
+ const code=read('src/lib/productStudioCutout.web.ts');
+ assert.match(code,/new Worker\(workerUrl,/);
+ assert.doesNotMatch(code,/new Worker\(new URL/);
+});
