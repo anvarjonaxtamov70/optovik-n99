@@ -22,13 +22,14 @@ function validatedBanner(v){
  ok(v.art===undefined||['gm','accessories','sale','delivery','cash'].includes(v.art),'invalid-banner');
  return v;
 }
-async function bannerMap(tx){
- const raw=await tx.get(paths.banners);
+function validatedBannerMap(raw){
  if(raw===null)return {};
  ok(record(raw)&&Object.keys(raw).length<=40,'invalid-data',503);
  for(const [id,v] of Object.entries(raw)){ok(bannerId(id),'invalid-data',503);validatedBanner(v);}
  return raw;
 }
+async function bannerMap(tx){return validatedBannerMap(await tx.get(paths.banners));}
+export function publicBanners(raw){return Object.fromEntries(Object.entries(validatedBannerMap(raw)).filter(([,b])=>b.active));}
 export async function listBanners(run,actor,admin=false){
  return run(async tx=>{
   if(admin)ok(await tx.get(paths.admin(actor))===true,'forbidden',403);

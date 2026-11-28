@@ -6,12 +6,27 @@ import {readOrder,readOrderIndex,type Order,type OrderIndex} from '../domain/ord
 type Row={id:string;uid:string;data:unknown};
 type Cursor={id:string;createdAt:number};
 function active(uid:string){if(auth.currentUser?.uid!==uid)throw new Error('Account changed');}
-export async function candidateCatalog(uid:string){
- const rows=await collectPages<{cat:string;id:string;data:unknown},string>((cursor,limit)=>candidateRequest('/v1/catalog/list',{cursor,limit},uid),CANDIDATE_CATALOG_CAP,true);
+type CatalogRow={cat:string;id:string;data:unknown};
+type CatalogPage=Page<CatalogRow,string>&{settings?:unknown;banners?:unknown};
+async function readCatalog(uid:string,includeContent:boolean){
+ let content:{settings:unknown;banners:unknown}|undefined;
+ const rows=await collectPages<CatalogRow,string>(async(cursor,limit)=>{
+  const page=await candidateRequest<CatalogPage>('/v1/catalog/list',{cursor,limit,...(includeContent&&cursor===null?{includeContent:true}:{})},uid);
+  if(includeContent&&cursor===null&&page&&Object.hasOwn(page,'settings')&&Object.hasOwn(page,'banners'))content={settings:page.settings,banners:page.banners};
+  return page;
+ },CANDIDATE_CATALOG_CAP,true);
  active(uid);
  const products:Product[]=rows.map(row=>{const p=readProduct(row.cat,row.id,row.data);if(!p||p.archived)throw new Error('Invalid catalog response');return p;});
  if(new Set(products.map(p=>p.id)).size!==products.length)throw new Error('Duplicate catalog');
- return products.sort(defaultOrder);
+ return {products:products.sort(defaultOrder),content};
+}
+export async function candidateCatalog(uid:string){return (await readCatalog(uid,false)).products;}
+export async function candidateCatalogSnapshot(uid:string){
+ const {products,content}=await readCatalog(uid,true);
+ // Rolling staging deploy compatibility; never use another backend or cached stock.
+ if(content){active(uid);return {products,...content};}
+ const [shop,banners]=await Promise.all([candidateRequest<{settings:unknown}>('/v1/shop/get',{},uid),candidateRequest<{banners:unknown}>('/v1/banners/list',{},uid)]);
+ active(uid);return {products,settings:shop.settings,banners:banners.banners};
 }
 export async function candidateOrders(uid:string,admin:boolean,limit:number){
  const rows=await collectPages<Row,Cursor>((cursor,limit)=>candidateRequest<Page<Row,Cursor>>(admin?'/v1/admin/orders/list':'/v1/orders/list',{cursor,limit},uid),limit,false);

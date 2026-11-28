@@ -44,7 +44,7 @@ export function createFirestoreApi({authenticate,runner,enabled,clock=Date.now})
         case '/v1/orders':value=await executeFirestoreOrder(run,'create',uid,b,now);break;
         case '/v1/transition':value=await executeFirestoreOrder(run,'change',uid,b,now);break;
         case '/v1/abandon':value=await executeFirestoreOrder(run,'abandon',uid,b,now);break;
-        case '/v1/catalog/list':value=await listFirestoreProducts(run,{limit:b.limit,cursor:b.cursor});break;
+        case '/v1/catalog/list':value=await listFirestoreProducts(run,{limit:b.limit,cursor:b.cursor,includeContent:b.includeContent===true});break;
         case '/v1/orders/list':value=await listFirestoreOrders(run,uid,{limit:b.limit,cursor:b.cursor,admin:false});break;
         case '/v1/admin/orders/list':value=await listFirestoreOrders(run,uid,{limit:b.limit,cursor:b.cursor,admin:true});break;
         case '/v1/orders/get':value={order:await readFirestoreOrder(run,uid,b.id,b.uid)};break;

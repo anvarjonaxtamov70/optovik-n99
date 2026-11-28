@@ -1,5 +1,6 @@
 import { limitToLast, onValue, orderByChild, push, query, ref, serverTimestamp, update } from 'firebase/database';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { AppState, Platform } from 'react-native';
 
 import { MAX_LINES, validId, type CartLine, type CartSummary } from '../domain/cart';
@@ -271,9 +272,12 @@ export function useOrder(uid: string | undefined | null, id: string | undefined)
   const [state, setState] = useState<{ key: string; order: Order | null; loading: boolean }>({ key: '', order: null, loading: true });
   const actor=useUid();
   const key = `${actor}/${uid}/${id}`;
+  useFocusEffect(useCallback(()=>{
+    if(!usesFirestoreCandidate||!uid||!id||!actor)return;
+    return pollCandidate(actor,async()=>readOrder(uid,id,await candidateOrder(uid,id,actor)),order=>setState({key,order,loading:false}),()=>setState({key,order:null,loading:false}),CANDIDATE_DETAIL_REFRESH_MS,event=>{if(event.uid!==uid||event.id!==id)return false;const order=event.order;if(order)setState(s=>s.key===key&&s.order&&s.order.updatedAt>order.updatedAt?s:{key,order,loading:false});return true;});
+  },[uid,id,actor,key]));
   useEffect(() => {
-    if (!uid || !id) return;
-    if(usesFirestoreCandidate){if(!actor)return;return pollCandidate(actor,async()=>readOrder(uid,id,await candidateOrder(uid,id,actor)),order=>setState({key,order,loading:false}),()=>setState({key,order:null,loading:false}),CANDIDATE_DETAIL_REFRESH_MS,event=>{if(event.uid!==uid||event.id!==id)return false;const order=event.order;if(order)setState(s=>s.key===key&&s.order&&s.order.updatedAt>order.updatedAt?s:{key,order,loading:false});return true;});}
+    if (!uid || !id || usesFirestoreCandidate) return;
     return onValue(ref(db, `orders/${uid}/${id}`), (snap) => {
       setState({ key, order: readOrder(uid, id, snap.val()), loading: false });
     }, () => setState({ key, order: null, loading: false }));
@@ -299,8 +303,12 @@ export function useAdminOrders(limit = 300) {
   const [state, setState] = useState<{ orders: OrderIndex[]; loading: boolean; error: boolean }>({ orders: [], loading: true, error: false });
   const actor=useUid();
   const [owner,setOwner]=useState<string|null>(null);
+  useFocusEffect(useCallback(()=>{
+    if(!usesFirestoreCandidate||!actor)return;
+    return pollCandidate(actor,()=>candidateAdminOrders(actor,limit),list=>{setOwner(actor);setState({orders:list,loading:false,error:false});},()=>{setOwner(actor);setState({orders:[],loading:false,error:true});},CANDIDATE_LIST_REFRESH_MS,event=>{const order=event.order;if(order)setState(s=>({...s,orders:s.orders.map(o=>o.id===order.id&&o.uid===order.uid?{...o,holat:order.holat}:o)}));return true;});
+  },[limit,actor]));
   useEffect(() => {
-    if(usesFirestoreCandidate){if(!actor)return;return pollCandidate(actor,()=>candidateAdminOrders(actor,limit),list=>{setOwner(actor);setState({orders:list,loading:false,error:false});},()=>{setOwner(actor);setState({orders:[],loading:false,error:true});},CANDIDATE_LIST_REFRESH_MS,event=>{const order=event.order;if(order)setState(s=>({...s,orders:s.orders.map(o=>o.id===order.id&&o.uid===order.uid?{...o,holat:order.holat}:o)}));return true;});}
+    if(usesFirestoreCandidate)return;
     return onValue(query(ref(db, 'orderIndex'), orderByChild('createdAt'), limitToLast(limit)), (snap) => {
     const list: OrderIndex[] = [];
     snap.forEach((child) => {

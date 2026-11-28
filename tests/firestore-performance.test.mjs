@@ -84,3 +84,16 @@ test('API reports fixed upstream phase names and suppresses unrecognized diagnos
  assert.match(res.headers.get('Server-Timing'),/fs_begin;dur=12\.0/);
  assert.doesNotMatch(res.headers.get('Server-Timing'),/unknown-private-data/);
 });
+
+test('catalog bootstrap shares dataset and content reads, excludes private settings and inactive banners',async()=>{
+ const {listFirestoreProducts}=await import('../backend/firestore-readers.mjs');
+ const {run,docs,batches}=setup();
+ docs.set(paths.settings,{pickupEnabled:true,courierEnabled:true,courierFee:0,freeDeliveryFrom:0,imgbbApiKey:'private'});
+ const banner={title:{uz:'Test',ru:'Test'},text:{uz:'',ru:''},cta:{uz:'Go',ru:'Go'},link:'catalog',theme:'brand',order:0,active:false};
+ docs.set(paths.banners,{'-AAAAAAAAAAAAAAAAAAA':banner});
+ // Add only a bounded internal product query to the synthetic fixture.
+ const page=await listFirestoreProducts((task,initial)=>run((tx,values)=>task({...tx,query:async()=>[]},values),initial),{includeContent:true});
+ assert.deepEqual(batches,[[paths.dataset,paths.settings,paths.banners]]);
+ assert.equal(page.settings.imgbbApiKey,undefined);assert.deepEqual(page.banners,{});assert.deepEqual(page.items,[]);
+ await assert.rejects(listFirestoreProducts(run,{cursor:paths.product('cat','p'),includeContent:true}),/invalid-request/);
+});

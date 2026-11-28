@@ -16,7 +16,7 @@ export function publicSettings(raw){
  ok(typeof clean.pickupEnabled==='boolean'&&typeof clean.courierEnabled==='boolean'&&int(clean.courierFee,0,10000000)&&int(clean.freeDeliveryFrom,0,1000000000),'invalid-settings',503);
  return clean;
 }
-export async function readShop(run){return run(async tx=>publicSettings(await tx.get(paths.settings)));}
+export async function readShop(run){return run(async (tx,initial)=>publicSettings(initial?initial[0]:await tx.get(paths.settings)),[paths.settings]);}
 export async function saveShop(run,actor,raw){
  ok(rec(raw),'invalid-settings');
  const clean=publicSettings(raw);
@@ -25,8 +25,8 @@ export async function saveShop(run,actor,raw){
  for(const [k,re] of Object.entries({inn:/^([0-9]{9}|[0-9]{14})?$/,bankAccount:/^([0-9]{20})?$/,bankMfo:/^([0-9]{5})?$/,mxik:/^([0-9]{17})?$/,packageCode:/^([0-9]{1,10})?$/,email:/^([^@ ]+@[^@ ]+[.][^@ ]+)?$/}))ok(clean[k]===undefined||re.test(clean[k]),'invalid-settings');
  return run(async tx=>{ok(await tx.get(paths.admin(actor))===true,'forbidden',403);tx.set(paths.settings,clean);return {ok:true};});
 }
-export async function readRole(run,actor){return run(async tx=>({admin:await tx.get(paths.admin(actor))===true}));}
-export async function readProfile(run,actor){return run(async tx=>{const c=await tx.get(paths.customer(actor));return {profile:rec(c?.profile)?c.profile:null};});}
+export async function readRole(run,actor){const path=paths.admin(actor);return run(async (tx,initial)=>({admin:(initial?initial[0]:await tx.get(path))===true}),[path]);}
+export async function readProfile(run,actor){const path=paths.customer(actor);return run(async (tx,initial)=>{const c=initial?initial[0]:await tx.get(path);return {profile:rec(c?.profile)?c.profile:null};},[path]);}
 export async function saveProfile(run,actor,b,now){
  const limits={name:80,phone:13,address:200,apartment:80,landmark:200};
  ok(rec(b)&&Object.keys(b).every(k=>Object.hasOwn(limits,k)||k==='lat'||k==='lng'),'invalid-request');
@@ -46,9 +46,9 @@ export async function readQuote(run,ids){
   ok(typeof id==='string'&&id.split('/').length===2,'invalid-key');
   return paths.product(...id.split('/'));
  });
- return run(async tx=>{
-  const all=[paths.settings,...refs];
-  const [shop,...products]=tx.getAll?await tx.getAll(all):await Promise.all(all.map(p=>tx.get(p)));
+ const all=[paths.settings,...refs];
+ return run(async (tx,initial)=>{
+  const [shop,...products]=initial??(tx.getAll?await tx.getAll(all):await Promise.all(all.map(p=>tx.get(p))));
   return {settings:publicSettings(shop),products:ids.map((id,i)=>({id,data:products[i]}))};
- });
+ },all);
 }

@@ -99,3 +99,9 @@ test('read-only isolated snapshot retains dataset guard and cannot commit writes
  await assert.rejects(isolated(tx=>tx.set(paths.dataset,{kind:'invalid'}),[],{readOnly:true}),/read-only-transaction/);
  assert.equal((await isolated(tx=>tx.get(paths.dataset),[],{readOnly:true})).kind,'synthetic-only');
 });
+
+test('catalog bootstrap returns bounded catalog and public content in one isolated read',async()=>{
+ const isolated=syntheticDatasetRunner(run);
+ const page=await listFirestoreProducts((task,initial)=>isolated(task,initial,{readOnly:true}),{limit:1,includeContent:true});
+ assert.equal(page.items.length,1);assert.equal(page.settings.pickupEnabled,true);assert.deepEqual(page.banners,{});
+});
