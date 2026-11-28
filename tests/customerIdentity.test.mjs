@@ -36,6 +36,13 @@ test('identity errors identify safe failure categories without exposing private 
  assert.equal(identityErrorKey({code:'secret',message:'private'},'link'),'common.error');
 });
 
+test('password reset hides unknown accounts but preserves actionable errors',()=>{
+ assert.equal(neutralPasswordReset({code:'auth/user-not-found'}),true);
+ for(const code of ['auth/network-request-failed','auth/too-many-requests','auth/invalid-email'])assert.equal(neutralPasswordReset({code}),false);
+ assert.equal(neutralPasswordReset(null),false);
+ assert.equal(identityErrorKey({code:'auth/user-token-expired'},'refresh'),'identity.sessionExpired');
+});
+
 test('email correction validates a distinct destination and maps reauthentication failures',()=>{
  assert.equal(validEmailCorrection('old@example.test','new@example.test'),true);
  assert.equal(validEmailCorrection('OLD@example.test',' old@example.test '),false);

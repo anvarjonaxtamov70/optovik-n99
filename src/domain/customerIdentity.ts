@@ -38,6 +38,11 @@ export function identityErrorKey(error:unknown,mode:'link'|'login'|'resend'|'ref
  return 'common.error';
 }
 
+/** Hide whether an address belongs to a registered account in password reset. */
+export function neutralPasswordReset(error:unknown):boolean{
+ return (error as {code?:unknown}|null)?.code==='auth/user-not-found';
+}
+
 /** Correction must target a different valid mailbox, never sign out or unlink the current identity. */
 export function validEmailCorrection(current:string|null,next:string):boolean{
  return !!current&&validAccountEmail(next)&&current.trim().toLowerCase()!==next.trim().toLowerCase();
