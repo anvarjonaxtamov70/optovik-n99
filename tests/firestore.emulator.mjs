@@ -40,7 +40,8 @@ test('local Firestore imports synthetic reserved order and continues fulfillment
  assert.equal((await product()).qoldiq,2);
  assert.equal((await product()).archived,true);
  await saveFirestoreOrderNote(run,admin,{uid:'second',id:second,note:'Synthetic'});
- assert.equal((await readFirestoreOrder(run,'second',second)).adminIzoh,'Synthetic');
+ assert.equal((await readFirestoreOrder(run,'second',second)).adminIzoh,undefined);
+ assert.equal((await readFirestoreOrder(run,admin,second,'second')).adminIzoh,'Synthetic');
  await updateFirestoreDelivery(run,admin,{courierFee:5000});
  assert.equal((await run(tx=>tx.get(paths.settings))).courierFee,5000);
  const mine=await listFirestoreOrders(run,'second',{limit:1});

@@ -132,6 +132,7 @@ async function saveProfileInternal(profile:Profile,expectedUid:string|undefined)
   if(scopedProfile&&uid)localDraftUid=uid;
   accountStore.set((s) => ({ ...s, profile: clean }));
   await saveLocal(scopedProfile?'ownedProfile':'profile', scopedProfile?{uid,profile:clean}:clean).catch(() => {});
+  if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
   if (uid && auth.currentUser?.uid === uid && clean.name.trim().length >= 2 && clean.phone) {
     // Bazada bo'sh nuqta saqlanmaydi (qoidalar raqam kutadi).
     const { lat, lng, ...rest } = clean;
