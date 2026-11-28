@@ -1,4 +1,4 @@
-import { EmailAuthProvider, linkWithCredential, reload, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { EmailAuthProvider, linkWithCredential, reauthenticateWithCredential, verifyBeforeUpdateEmail, reload, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, app, readServerJson } from '../lib/firebase';
 import { usesFirestoreCandidate } from '../lib/orderBackend';
 import { candidateHasOrders } from '../lib/candidateData';
@@ -7,7 +7,7 @@ import { readLocalStrict } from '../lib/storage';
 import { accountStore, replaceCustomerProfile, clearCustomerProfile } from './account';
 import { resetDeliveryDraft } from './delivery';
 import { withCustomerIdentityChange } from './orders';
-import { maySwitchGuest, maySignOutCustomer, validAccountEmail, validAccountPassword } from '../domain/customerIdentity';
+import { maySwitchGuest, maySignOutCustomer, validAccountEmail, validAccountPassword, validEmailCorrection } from '../domain/customerIdentity';
 
 export const customerIdentityEnabled=!IS_WEB&&process.env.EXPO_PUBLIC_N99_ENV==='staging'&&app.options.projectId==='optovik-n99-staging';
 function assertEnabled(){if(!customerIdentityEnabled)throw new Error('Unavailable');}
@@ -49,6 +49,19 @@ export async function signInCustomerEmail(email:string,password:string){
     publishIdentity();
   });
 }
+/** Keep the existing UID and order history. Firebase only replaces the address after the new mailbox is verified. */
+export async function requestCustomerEmailCorrection(newEmail:string,password:string){
+ assertEnabled();
+ return withCustomerIdentityChange(async()=>{
+  const user=auth.currentUser;
+  if(!user||user.isAnonymous||!user.email||!validEmailCorrection(user.email,newEmail)||!validAccountPassword(password))throw new Error('Invalid correction');
+  const uid=user.uid;
+  await reauthenticateWithCredential(user,EmailAuthProvider.credential(user.email,password));
+  if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
+  await verifyBeforeUpdateEmail(user,newEmail.trim());
+  if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
+ });
+}
 export async function resendCustomerVerification(){
   assertEnabled();
   const user=auth.currentUser;
@@ -62,6 +75,8 @@ export async function refreshCustomerVerification(){
   await reload(user);
   if(auth.currentUser?.uid!==user.uid)throw new Error('Account changed');
   publishIdentity();
+  await user.getIdToken(true);
+  if(auth.currentUser?.uid!==user.uid)throw new Error('Account changed');
   return user.emailVerified;
 }
 export async function resetCustomerPassword(email:string){

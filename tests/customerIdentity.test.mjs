@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validAccountEmail, validAccountPassword, maySwitchGuest, ownedProfile, maySignOutCustomer, identityErrorKey } from '../src/domain/customerIdentity.ts';
+import { validAccountEmail, validAccountPassword, maySwitchGuest, ownedProfile, maySignOutCustomer, identityErrorKey, validEmailCorrection } from '../src/domain/customerIdentity.ts';
 test('identity form validates bounded email and password without trimming passwords',()=>{
  assert.equal(validAccountEmail(' test@example.test '),true);
  for(const value of ['test','a@b','a b@example.test','x'.repeat(255)+'@a.test'])assert.equal(validAccountEmail(value),false);
@@ -34,4 +34,14 @@ test('identity errors identify safe failure categories without exposing private 
  assert.equal(identityErrorKey({code:'guest-history'},'login'),'identity.guestHistory');
  assert.equal(identityErrorKey({code:'auth/user-not-found'},'reset'),'common.error');
  assert.equal(identityErrorKey({code:'secret',message:'private'},'link'),'common.error');
+});
+
+test('email correction validates a distinct destination and maps reauthentication failures',()=>{
+ assert.equal(validEmailCorrection('old@example.test','new@example.test'),true);
+ assert.equal(validEmailCorrection('OLD@example.test',' old@example.test '),false);
+ assert.equal(validEmailCorrection(null,'new@example.test'),false);
+ assert.equal(validEmailCorrection('old@example.test','invalid'),false);
+ assert.equal(identityErrorKey({code:'auth/requires-recent-login'},'changeEmail'),'identity.changePasswordError');
+ assert.equal(identityErrorKey({code:'auth/email-already-in-use'},'changeEmail'),'identity.linkConflict');
+ assert.equal(maySignOutCustomer(false,null),false);
 });
