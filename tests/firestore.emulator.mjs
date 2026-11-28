@@ -182,3 +182,21 @@ test('encrypted synthetic candidate backup restores into a separate disposable e
  assert.equal(result.restored,seed.size??seed.length);
  assert.equal(result.verified,result.restored);
 });
+
+test('studio quota reservation is atomic in local Firestore, never invokes provider',async()=>{
+ const {reserveStudioAttempt,STUDIO_QUOTA}=await import('../backend/product-studio-quota.mjs');
+ const a='studio-admin-a',b='studio-admin-b',at=now+360000;
+ await run(tx=>{
+  tx.set(paths.dataset,{kind:'synthetic-only',version:1});
+  tx.set(paths.admin(a),true);tx.set(paths.admin(b),true);
+  for(const k of ['global','admin_'+a,'admin_'+b])tx.set('n99StudioQuota/'+k,{attempts:[]});
+ });
+ const isolated=syntheticDatasetRunner(run);
+ const out=await Promise.allSettled([reserveStudioAttempt(isolated,a,at),reserveStudioAttempt(isolated,b,at)]);
+ assert.equal(out.filter(x=>x.status==='fulfilled').length,1);
+ assert.equal(out.find(x=>x.status==='rejected').reason.message,'studio-cooldown');
+ const [g,aa,bb]=await run(tx=>tx.getAll(['n99StudioQuota/global','n99StudioQuota/admin_'+a,'n99StudioQuota/admin_'+b]));
+ assert.deepEqual(g.attempts,[at]);assert.equal(aa.attempts.length+bb.attempts.length,1);
+ await assert.rejects(reserveStudioAttempt(isolated,'studio-guest',at+STUDIO_QUOTA.cooldownMs),/forbidden/);
+ assert.equal((await reserveStudioAttempt(isolated,a,at+STUDIO_QUOTA.cooldownMs)).remainingGlobal,18);
+});

@@ -8,6 +8,8 @@
     "FIREBASE_DATABASE_URL": "https://optovik-n99-staging-default-rtdb.europe-west1.firebasedatabase.app",
     "N99_FIRESTORE_CANDIDATE": "disabled",
     "N99_DATASET": "synthetic-only",
-    "N99_SMS_ENABLED": "disabled"
+    "N99_SMS_ENABLED": "disabled",
+    "N99_STUDIO_ENABLED": "disabled",
+    "N99_STUDIO_FREE_PROJECT_CONFIRMED": "no"
   }
 }
