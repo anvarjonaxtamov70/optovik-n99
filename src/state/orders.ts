@@ -1,5 +1,5 @@
 import { limitToLast, onValue, orderByChild, push, query, ref, serverTimestamp, update } from 'firebase/database';
-import { useCallback, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { AppState, Platform } from 'react-native';
 
@@ -21,6 +21,7 @@ import { candidateRequest, usesFirestoreCandidate, orderBackend, usesOrderBacken
 import { CANDIDATE_LIST_REFRESH_MS,CANDIDATE_DETAIL_REFRESH_MS } from '../domain/candidateBackend';
 import { candidateOrder, candidateCustomerOrders, candidateAdminOrders, candidateAck } from '../lib/candidateData';
 import { reconcileCandidateTransition } from '../domain/candidateTransition';
+import { patchAdminFeed, selectAdminFeed, type AdminFeed } from '../domain/adminFeed';
 import { notifyCandidateRefresh,subscribeCandidateRefresh,type CandidateRefresh } from '../lib/candidateRefresh';
 
 const readOrderRaw=(uid:string,id:string,actor=uid)=>usesFirestoreCandidate?candidateOrder(uid,id,actor):readServerJson(`orders/${uid}/${id}`,actor);
@@ -299,14 +300,32 @@ export async function cancelMyOrder(o: Order) {
 
 /* ---------- Admin ---------- */
 
+// One authorized in-memory feed per mounted AdminShell. Never persist customer
+// order data or share it between accounts. All mutations still hit the server.
+const emptyAdminFeed:AdminFeed={actor:null,orders:[],limit:0,loading:true,error:false};
+const CandidateAdminFeedContext=createContext<AdminFeed>(emptyAdminFeed);
+export const CandidateAdminFeedProvider=CandidateAdminFeedContext.Provider;
+
+export function useCandidateAdminFeed(actor:string,limit:number){
+ const [state,setState]=useState<AdminFeed>(emptyAdminFeed);
+ useEffect(()=>{
+  if(!usesFirestoreCandidate)return;
+  return pollCandidate(actor,()=>candidateAdminOrders(actor,limit),
+   orders=>setState({actor,orders,limit,loading:false,error:false}),
+   ()=>setState({actor,orders:[],limit,loading:false,error:true}),
+   CANDIDATE_LIST_REFRESH_MS,event=>{
+    if(event.order){const order=event.order;setState(s=>patchAdminFeed(s,actor,order));}
+    return true;
+   });
+ },[actor,limit]);
+ return state.actor===actor?state:emptyAdminFeed;
+}
+
 export function useAdminOrders(limit = 300) {
   const [state, setState] = useState<{ orders: OrderIndex[]; loading: boolean; error: boolean }>({ orders: [], loading: true, error: false });
   const actor=useUid();
-  const [owner,setOwner]=useState<string|null>(null);
-  useFocusEffect(useCallback(()=>{
-    if(!usesFirestoreCandidate||!actor)return;
-    return pollCandidate(actor,()=>candidateAdminOrders(actor,limit),list=>{setOwner(actor);setState({orders:list,loading:false,error:false});},()=>{setOwner(actor);setState({orders:[],loading:false,error:true});},CANDIDATE_LIST_REFRESH_MS,event=>{const order=event.order;if(order)setState(s=>({...s,orders:s.orders.map(o=>o.id===order.id&&o.uid===order.uid?{...o,holat:order.holat}:o)}));return true;});
-  },[limit,actor]));
+  const feed=useContext(CandidateAdminFeedContext);
+  const candidate=useMemo(()=>selectAdminFeed(feed,actor,limit),[feed,actor,limit]);
   useEffect(() => {
     if(usesFirestoreCandidate)return;
     return onValue(query(ref(db, 'orderIndex'), orderByChild('createdAt'), limitToLast(limit)), (snap) => {
@@ -319,7 +338,7 @@ export function useAdminOrders(limit = 300) {
     setState({ orders: list, loading: false, error: false });
   }, () => setState({ orders: [], loading: false, error: true }));
   },[limit,actor]);
-  return usesFirestoreCandidate&&owner!==actor?{orders:[],loading:!!actor,error:false}:state;
+  return usesFirestoreCandidate?candidate:state;
 }
 
 export async function adminSetStatus(o: Order, next: OrderStatus) {
