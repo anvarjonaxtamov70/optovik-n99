@@ -19,3 +19,18 @@ export function ownedProfile(raw:unknown,uid:string):unknown {
 export function maySignOutCustomer(verified:boolean,pending:unknown):boolean {
   return verified===true&&pending===null;
 }
+
+/** Only fixed error categories; never expose Firebase messages, credentials or account identifiers. */
+export function identityErrorKey(error:unknown,mode:'link'|'login'|'resend'|'refresh'|'reset'|'logout'){
+ const code=(error as {code?:unknown}|null)?.code;
+ if(code==='guest-history')return 'identity.guestHistory';
+ if(code==='signout-blocked')return 'identity.logoutBlocked';
+ if(code==='auth/invalid-email')return 'identity.invalidEmail';
+ if(code==='auth/weak-password'||code==='auth/password-does-not-meet-requirements')return 'identity.invalidPassword';
+ if(code==='auth/operation-not-allowed'||code==='auth/admin-restricted-operation'||code==='auth/configuration-not-found')return 'identity.providerError';
+ if(code==='auth/network-request-failed'||code==='network'||code==='timeout')return 'identity.networkError';
+ if(code==='auth/too-many-requests')return 'identity.rateError';
+ if(mode==='link'&&(code==='auth/email-already-in-use'||code==='auth/credential-already-in-use'||code==='auth/account-exists-with-different-credential'||code==='auth/provider-already-linked'))return 'identity.linkConflict';
+ if(mode==='login'&&(code==='auth/invalid-credential'||code==='auth/invalid-login-credentials'||code==='auth/wrong-password'||code==='auth/user-not-found'))return 'identity.loginError';
+ return 'common.error';
+}
