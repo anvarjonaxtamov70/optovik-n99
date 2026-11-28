@@ -1,0 +1,7 @@
+# Phase 2B-1: admin-only orchestration and durable quota policy
+
+Internal staging cap: 20 attempts per rolling 24 hours across the dedicated project, 5 per admin per rolling 24 hours, one global request per minute. These conservative numbers are engineering defaults, not Google quota promises. Verify account quota before enabling, reduce defaults if needed. Only the dedicated unbilled project may be used.
+
+The quota module uses the existing Firestore transaction contract and n99Admins role lookup. Counters are in n99StudioQuota; the existing REST path shape accepts these paths and local rules deny all direct clients. No database migration or writes happen until an internal caller is connected. The reservation commits before invoking the provider; no refunds or automatic retries after uncertainty. The service checks role before decoding and again before reserving.
+
+This PR contains no HTTP endpoint, real image decoder, live credentials, deployment, UI, or calls to Gemini. The provided decoder and verified UID are trusted dependencies; tests use fake decoder and serial in-memory atomic transaction simulation, not a live Firestore quota emulator test. The next step must exercise concurrent transactions in the staging emulator and connect actual bounded byte decoding and authenticated routing. Preserve synthetic dataset isolation and do not modify the active RTDB worker. The current image upload is unaffected.
