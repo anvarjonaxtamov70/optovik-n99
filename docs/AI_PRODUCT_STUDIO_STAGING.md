@@ -1,0 +1,9 @@
+# Phase 2B-3 — candidate-only analysis endpoint
+
+POST /v1/admin/studio/analyze, Authorization: Bearer <staging Firebase ID token>, Content-Type: image/png, body: bounded raw static PNG. No arbitrary URLs. Existing candidate traffic is delegated unchanged. The active RTDB Worker is not touched.
+
+Disabled by default; requires existing synthetic-only staging gate and N99_STUDIO_ENABLED=enabled, N99_STUDIO_FREE_PROJECT_CONFIRMED=yes, N99_STUDIO_GEMINI_KEY as a server secret. These flags are not proof of Google's billing status. Verify dedicated unbilled Google project, actual quota and model availability before any live calls. Do not activate billing or put key in repository/chat/client. No deployment in this PR. Only synthetic or approved nonpersonal product images.
+
+Checks verified identity and stored admin role before reading the body, bounds streaming upload, sanitizes PNG, atomically reserves quota, then calls fixed Gemini adapter. Rechecks role; no automatic product save. Returns no-store JSON draft and quota, fixed error codes only. Request timeout budget 35 seconds, body budget up to 10 seconds, provider up to 15 seconds. No automatic retries. Quota is charged before call; an uncertain attempt remains counted. Cross-origin preflight permits Authorization, not cookies. No production credentials.
+
+Unit tests exercise HTTP wrapper with real PNG and mocked Gemini/transaction store. The existing disposable Firestore emulator suite now includes a concurrent quota reservation test. Before enabling: CI, runtime CPU/memory benchmark on Cloudflare Free (5 MiB PNG sanitizer might exceed CPU cap), browser format preparation, real staging API key smoke test, review Gemini structured-output compatibility. If free runtime is insufficient, disable endpoint and choose a lower-resource architecture rather than upgrade automatically. UI and production rollout are not included.

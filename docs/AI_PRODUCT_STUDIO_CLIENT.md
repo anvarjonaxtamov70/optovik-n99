@@ -1,0 +1,5 @@
+# Phase 5B — staging analysis and explicit artwork attachment
+
+Client analysis is disabled unless EXPO_PUBLIC_N99_STUDIO_ANALYSIS=enabled and the existing Firestore candidate staging checks pass. Fixed endpoint, Firebase ID token, bounded response, account consistency, cancellation and no auto retry. AI suggestions appear as a draft, never write catalog fields automatically; the admin explicitly copies suggested title/model into the artwork editor and confirms fitment independently. Brand/article/descriptions are displayed for manual use.
+
+Artwork attachment explicitly uploads the generated PNG through existing ImgBB helper and appends the URL to the unsaved product form (8 slots for candidate, 10 otherwise). Existing photos remain untouched. Original local file is retained during studio session; upload it separately using the existing image manager if needed. No auto-save. Existing product save and revision check are unchanged. A failed or concurrent upload can leave an unused remote image; no deletion API is added. Model and provider still require real staging verification. No deployment or API credentials in this PR.

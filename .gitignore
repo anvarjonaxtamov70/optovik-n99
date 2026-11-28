@@ -59,3 +59,6 @@ backups/
 *.n99backup
 *-seed.json
 firestore-debug.log
+
+# Optional local-only studio runtime and model (never commit binaries)
+/public/studio-local/assets/

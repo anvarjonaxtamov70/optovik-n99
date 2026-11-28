@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ADMIN_WIDE } from '../../components/admin/AdminShell';
 import { ImageManager } from '../../components/admin/ImageManager';
+import { ProductStudio } from '../../components/admin/ProductStudio';
 import { Button } from '../../components/ui/Button';
 import { Card, Chip, SwitchRow } from '../../components/ui/Controls';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -13,13 +14,15 @@ import { goBack, Header } from '../../components/ui/Header';
 import { IconButton } from '../../components/ui/IconButton';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Txt } from '../../components/ui/Txt';
-import type { Product } from '../../domain/products';
+import { MAX_IMAGES, type Product } from '../../domain/products';
+import { appendStudioImage } from '../../domain/productStudioDraft';
+import { usesFirestoreCandidate } from '../../lib/orderBackend';
 import { CAR_MODELS, CATEGORIES, categoryLabel } from '../../domain/taxonomy';
 import { useT, type TKey } from '../../i18n';
 import { confirmAsync } from '../../lib/confirm';
-import { classifyError } from '../../lib/firebase';
+import { auth, classifyError } from '../../lib/firebase';
 import { haptic } from '../../lib/haptics';
-import { ActiveOrderProductError, deleteProduct, formFromCopy, formFromProduct, nextNewForm, saveProduct, validateProduct, type ProductForm } from '../../state/admin';
+import { ActiveOrderProductError, deleteProduct, formFromCopy, formFromProduct, nextNewForm, saveProduct, validateProduct, uploadToImgbb, useMediaKey, type ProductForm } from '../../state/admin';
 import { useCatalogStatus, useProduct, useProducts } from '../../state/catalog';
 import { showToast } from '../../state/toast';
 import { colors } from '../../theme/tokens';
@@ -62,18 +65,37 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
   const products = useProducts();
   const scroll = useRef<ScrollViewInstance>(null);
   const [touched, setTouched] = useState(false);
+  const [studioVersion, setStudioVersion] = useState(0);
+  const [studioUploading,setStudioUploading]=useState(false);
+  const studioUpload=useRef(false);
+  const editorMounted=useRef(true);
+  useEffect(()=>{editorMounted.current=true;return ()=>{editorMounted.current=false;};},[]);
+  const media=useMediaKey();
+  const imageLimit=usesFirestoreCandidate?8:MAX_IMAGES;
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const errors = validateProduct(form);
   const err = (k: keyof ProductForm) => (touched && errors[k] ? t(`admin.product.err.${errors[k]}` as TKey) : null);
   const set = (patch: Partial<ProductForm>) => setForm((f) => ({ ...f, ...patch }));
-  const setImages = useCallback((update: (list: string[]) => string[]) => setForm((f) => ({ ...f, rasmlar: update(f.rasmlar) })), []);
+  const setImages = useCallback((update: (list: string[]) => string[]) => setForm((f) => { const next=update(f.rasmlar); return next.length>Math.max(f.rasmlar.length,imageLimit)?f:{...f,rasmlar:next}; }), [imageLimit]);
+  const attachStudioImage=async(blob:Blob)=>{
+    if(studioUpload.current||busy||uploading||form.rasmlar.length>=imageLimit||!media.key)throw Error('studio-attach-unavailable');
+    const uid=auth.currentUser?.uid;if(!uid)throw Error('unauthenticated');
+    studioUpload.current=true;setStudioUploading(true);
+    try{
+      const link=await uploadToImgbb(blob,media.key);
+      if(!editorMounted.current||auth.currentUser?.uid!==uid)throw Error('unauthenticated');
+      setForm(f=>({...f,rasmlar:appendStudioImage(f.rasmlar,link,imageLimit)}));
+      return link;
+    }finally{studioUpload.current=false;if(editorMounted.current)setStudioUploading(false);}
+  };
   const categories = Array.from(new Set([...CATEGORIES.map((c) => c.slug), ...products.map((p) => p.kategoriya)]));
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline);
 
   // Saqlanmagan o'zgarish bo'lsa, orqaga qaytishda (va brauzer yopilganda) so'raymiz.
-  const disablePrevention = usePreventRemove(dirty && !busy && !leaving, ({ repeat }) => {
+  const disablePrevention = usePreventRemove((dirty || studioUploading) && !busy && !leaving, ({ repeat }) => {
+    if (studioUpload.current) { showToast(t('admin.product.uploadingWait')); return; }
     void confirmAsync(t('admin.product.unsavedTitle'), t('admin.product.unsavedText'), { ok: t('admin.product.leave'), cancel: t('common.cancel'), destructive: true })
       .then((ok) => { if (ok) { setLeaving(true); repeat(); } });
   });
@@ -89,7 +111,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
   const save = async (mode: 'close' | 'next') => {
     if (busy) return;
     setTouched(true);
-    if (uploading) { showToast(t('admin.product.uploadingWait')); return; }
+    if (uploading || studioUpload.current) { showToast(t('admin.product.uploadingWait')); return; }
     if (Object.keys(errors).length) {
       haptic.warning();
       showToast(t('admin.product.checkFields'), { kind: 'error' });
@@ -105,6 +127,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
         const next = nextNewForm(form);
         setForm(next);
         setBaseline(next);
+        setStudioVersion(v => v + 1);
         setTouched(false);
         scroll.current?.scrollTo({ y: 0, animated: true });
       } else {
@@ -131,6 +154,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
   }, []);
 
   const remove = async () => {
+    if (studioUpload.current) return;
     if (!existing) return;
     const ok = await confirmAsync(t('common.delete'), t('admin.product.deleteConfirm'), { ok: t('common.delete'), cancel: t('common.cancel'), destructive: true });
     if (!ok) return;
@@ -145,6 +169,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
   };
 
   const duplicate = async () => {
+    if (studioUpload.current) return;
     if (!existing) return;
     if (dirty) {
       const ok = await confirmAsync(t('admin.product.unsavedTitle'), t('admin.product.unsavedText'), { ok: t('admin.product.duplicate'), cancel: t('common.cancel') });
@@ -217,11 +242,11 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
         <ScrollView ref={scroll} contentContainerStyle={[styles.body, wide && styles.bodyWide, { paddingBottom: insets.bottom + (stacked ? 170 : 110) }]} keyboardShouldPersistTaps="handled">
           {wide ? (
             <View style={styles.columns}>
-              <Column>{images}{main}</Column>
+              <Column>{images}{IS_WEB && <ProductStudio key={studioVersion} nomi={form.nomi} model={form.model} images={form.rasmlar} imageLimit={imageLimit} blocked={busy||uploading||studioUploading||!media.key} onAttach={attachStudioImage} />}{main}</Column>
               <Column>{details}{flags}</Column>
             </View>
           ) : (
-            <>{images}{main}{details}{flags}</>
+            <>{images}{IS_WEB && <ProductStudio key={studioVersion} nomi={form.nomi} model={form.model} images={form.rasmlar} imageLimit={imageLimit} blocked={busy||uploading||studioUploading||!media.key} onAttach={attachStudioImage} />}{main}{details}{flags}</>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
