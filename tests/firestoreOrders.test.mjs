@@ -77,7 +77,7 @@ test('REST runner retries explicit aborted commit but not unknown commit outcome
    if(url.endsWith(':commit')){commits++;throw new Error('lost response');}
    throw new Error('unexpected request');
  }});
- await assert.rejects(unknown(async tx=>tx.set(paths.order(id),{x:1})),/lost response/);
+ await assert.rejects(unknown(async tx=>tx.set(paths.order(id),{x:1})),/firestore-network/);
  assert.equal(starts,1);assert.equal(commits,1);
 });
 
@@ -97,4 +97,37 @@ test('batch get maps out-of-order found and missing documents and rejects incomp
  assert.deepEqual(await run(tx=>tx.getAll([a,b])),[{ok:true},null]);
  complete=false;
  await assert.rejects(run(tx=>tx.getAll([a,b])),/incomplete-batch-response/);
+});
+
+test('read-only transaction takes an explicit snapshot and cannot write',async()=>{
+ const calls=[];
+ const run=firestoreRunner({token:'synthetic',deadline:10000,clock:()=>0,fetcher:async(url,options)=>{
+  calls.push(url.split(':').at(-1));
+  if(url.endsWith(':beginTransaction')){assert.deepEqual(JSON.parse(options.body),{options:{readOnly:{}}});return response({transaction:'tx'});}
+  if(url.endsWith(':batchGet'))return response([{missing:JSON.parse(options.body).documents[0]}]);
+  if(url.endsWith(':rollback'))return response({},503);
+  throw Error('unexpected');
+ }});
+ assert.equal(await run(tx=>tx.get(paths.order(id)),{readOnly:true}),null);
+ assert.deepEqual(calls,['beginTransaction','batchGet','rollback']);
+ await assert.rejects(run(tx=>tx.set(paths.order(id),{x:1}),{readOnly:true}),/read-only-transaction/);
+ assert.ok(!calls.includes('commit'));
+});
+test('only explicit upstream ABORTED permits transaction replay; ambiguous commit never retries',async()=>{
+ let starts=0,reads=0;
+ const run=firestoreRunner({token:'synthetic',deadline:10000,clock:()=>0,fetcher:async(url,options)=>{
+  if(url.endsWith(':beginTransaction'))return response({transaction:'tx'+(++starts)});
+  if(url.endsWith(':rollback'))return response({});
+  if(url.endsWith(':batchGet')){reads++;return reads===1?response({error:{status:'ABORTED'}},409):response([{missing:JSON.parse(options.body).documents[0]}]);}
+  throw Error('unexpected');
+ }});
+ assert.equal(await run(tx=>tx.get(paths.order(id))),null);assert.equal(starts,2);
+ starts=0;
+ const unknown=firestoreRunner({token:'synthetic',deadline:10000,clock:()=>0,fetcher:async url=>{
+  if(url.endsWith(':beginTransaction'))return response({transaction:'tx'+(++starts)});
+  if(url.endsWith(':rollback'))return response({});
+  if(url.endsWith(':batchGet'))return response({error:{status:'OTHER'}},409);
+  throw Error('unexpected');
+ }});
+ await assert.rejects(unknown(tx=>tx.get(paths.order(id))),/document-read/);assert.equal(starts,1);
 });

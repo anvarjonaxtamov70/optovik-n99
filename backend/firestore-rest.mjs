@@ -19,21 +19,28 @@ function makeRunner({token,deadline,fetcher,clock,database,origin,onTiming}){
   const BASE=origin+'/v1/'+database+'/documents';
   const name=path=>database+'/documents/'+path;
   if(typeof token!=='string'||!token||!Number.isSafeInteger(deadline))fail('invalid-runner');
-  async function request(url,body,method='POST'){
-    const ms=Math.min(8000,deadline-clock());
+  async function request(url,body,method='POST',cap=8000){
+    const ms=Math.min(cap,deadline-clock());
     if(ms<=0)fail('request-deadline');
     const phase={beginTransaction:'fs_begin',batchGet:'fs_read',runQuery:'fs_query',commit:'fs_commit',rollback:'fs_rollback'}[url.slice(BASE.length+1)];
     const started=performance.now();
     try{return await fetcher(url,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','Cache-Control':'no-store'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(ms)});}
-    catch(error){if(error?.name==='TimeoutError'||error?.name==='AbortError')fail('firestore-request-timeout');throw error;}
+    catch(error){if(error?.name==='TimeoutError'||error?.name==='AbortError')throw Object.assign(new Error('firestore-request-timeout'),{status:503,phase});throw Object.assign(new Error('firestore-network'),{status:503,phase});}
     finally{if(phase&&onTiming){try{onTiming(phase,Math.max(0,performance.now()-started));}catch{/* diagnostics must not alter transaction outcome */}}}
   }
-  return async task=>{
+  // Only an explicit upstream ABORTED is safe to replay after a commit attempt.
+  const check=async(res,phase,message)=>{
+    if(res.ok)return;
+    const detail=res.status===409?await res.json().catch(()=>null):null;
+    if(detail?.error?.status==='ABORTED')throw Object.assign(new Error('transaction-conflict'),{status:409,phase});
+    throw Object.assign(new Error(message),{status:503,phase});
+  };
+  return async (task,{readOnly=false}={})=>{
     for(let attempt=0;attempt<4;attempt++){
       let transaction,committing=false;
       try{
-        const begin=await request(BASE+':beginTransaction',{options:{readWrite:{}}});
-        if(!begin.ok)fail('transaction-start');
+        const begin=await request(BASE+':beginTransaction',{options:readOnly?{readOnly:{}}:{readWrite:{}}});
+        await check(begin,'fs_begin','transaction-start');
         transaction=(await begin.json()).transaction;
         if(typeof transaction!=='string'||!transaction)fail('transaction-start');
         const writes=new Map();
@@ -48,7 +55,7 @@ function makeRunner({token,deadline,fetcher,clock,database,origin,onTiming}){
           const names=paths.map(path=>{documentPath(path);return name(path);});
           const requested=new Set(names),results=new Map();
           const res=await request(BASE+':batchGet',{documents:names,transaction});
-          if(!res.ok){if(res.status===409)fail('transaction-conflict',409);fail('document-read');}
+          await check(res,'fs_read','document-read');
           const data=await res.json();
           if(!Array.isArray(data))fail('invalid-batch-response');
           for(const row of data){
@@ -73,10 +80,7 @@ function makeRunner({token,deadline,fetcher,clock,database,origin,onTiming}){
             if(!Number.isSafeInteger(limit)||limit<1||reads+limit>56)fail('read-limit');
             reads+=limit;
             const res=await request(BASE+':runQuery',{structuredQuery,transaction});
-            if(!res.ok){
-              if(res.status===409)fail('transaction-conflict',409);
-              fail('query-read');
-            }
+            await check(res,'fs_query','query-read');
             const rows=await res.json();
             if(!Array.isArray(rows)||rows.length>limit+1)fail('invalid-query-response');
             const seen=new Set(),out=[];
@@ -96,6 +100,7 @@ function makeRunner({token,deadline,fetcher,clock,database,origin,onTiming}){
           },
           reference:path=>{documentPath(path);return name(path);},
           set:(path,value)=>{
+            if(readOnly)fail('read-only-transaction');
             documentPath(path);
             const payload=JSON.stringify(value);
             if(typeof payload!=='string'||new TextEncoder().encode(payload).length>900000)fail('document-size');
@@ -103,18 +108,27 @@ function makeRunner({token,deadline,fetcher,clock,database,origin,onTiming}){
             if(writes.size>52)fail('write-limit');
           },
         });
-        if(!writes.size){await request(BASE+':rollback',{transaction});return value;}
+        if(!writes.size){
+          // A read-only snapshot is already complete and holds no write locks.
+          // A cleanup failure must not turn a successful snapshot into a 503.
+          if(readOnly){try{await request(BASE+':rollback',{transaction},'POST',1200);}catch{/* read already completed */}}
+          else await request(BASE+':rollback',{transaction});
+          return value;
+        }
         committing=true;
         const res=await request(BASE+':commit',{transaction,writes:[...writes.values()]});
         if(res.status===409){
           const detail=await res.json().catch(()=>null);
           if(detail?.error?.status==='ABORTED'){committing=false;fail('transaction-conflict',409);}
         }
-        if(!res.ok)fail('transaction-commit');
+        if(!res.ok)throw Object.assign(new Error('transaction-commit'),{status:503,phase:'fs_commit'});
         return value;
       }catch(error){
-        if(transaction&&!committing){try{await request(BASE+':rollback',{transaction});}catch{/* preserve original failure */}}
-        if(!committing&&error?.status===409&&error.message==='transaction-conflict'&&attempt<3)continue;
+        if(transaction&&!committing){try{await request(BASE+':rollback',{transaction},'POST',1200);}catch{/* preserve original failure */}}
+        if(!committing&&error?.status===409&&error.message==='transaction-conflict'){
+          if(attempt<3&&deadline-clock()>1500){await new Promise(resolve=>setTimeout(resolve,50*(2**attempt)+Math.floor(Math.random()*50)));continue;}
+          throw Object.assign(new Error('transaction-conflict'),{status:503,phase:error.phase});
+        }
         throw error;
       }
     }

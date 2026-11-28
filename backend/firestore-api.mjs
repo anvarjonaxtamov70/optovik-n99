@@ -9,6 +9,9 @@ const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status
 import {readShop,saveShop,readRole,readProfile,saveProfile,readQuote} from './firestore-aux.mjs';
 import {listBanners,mutateBanner} from './firestore-isolation.mjs';
 const routes=new Set(['/v1/orders','/v1/transition','/v1/abandon','/v1/catalog/list','/v1/orders/list','/v1/admin/orders/list','/v1/orders/get','/v1/admin/product','/v1/admin/note','/v1/admin/delivery','/v1/shop/get','/v1/admin/shop','/v1/account/role','/v1/profile/get','/v1/profile/save','/v1/quote','/v1/banners/list','/v1/admin/banners/list','/v1/admin/banner']);
+// Fixed routes, never let the client select transaction semantics.
+const readRoutes=new Set(['/v1/catalog/list','/v1/orders/list','/v1/admin/orders/list','/v1/orders/get','/v1/shop/get','/v1/account/role','/v1/profile/get','/v1/quote','/v1/banners/list','/v1/admin/banners/list']);
+const diagnosticPhases=new Set(['auth','runner','firestore','fs_begin','fs_read','fs_query','fs_commit','fs_rollback']);
 const allowedErrors=new Set(['forbidden','unauthenticated','invalid-request','invalid-limit','invalid-cursor','invalid-key','invalid-product-path','product-conflict','product-archived','order-missing','order-changed','quote-changed','stock-unavailable','rate-limit','abandon-limit','order-abandoned','id-conflict','delivery-disabled','invalid-product','invalid-product-field','invalid-images','invalid-old-price','invalid-settings','invalid-note','invalid-transition','invalid-reservation','invalid-order','invalid-stock','invalid-cart','invalid-customer','invalid-delivery','invalid-address','invalid-coordinates','invalid-json','invalid-body','size-limit','invalid-banner','banner-limit']);
 const headers={'Cache-Control':'no-store','Access-Control-Allow-Origin':'*','X-Content-Type-Options':'nosniff','X-N99-Backend':'firestore-candidate','Access-Control-Expose-Headers':'X-N99-Backend, Server-Timing'};
 const json=(value,status=200,timing)=>Response.json(value,{status,headers:timing?{...headers,'Server-Timing':timing}:headers});
@@ -21,8 +24,8 @@ export function createFirestoreApi({authenticate,runner,enabled,clock=Date.now})
     if(enabled(env)!==true)return json({error:'unavailable'},503);
     const deadline=clock()+24000;
     const started=performance.now();
-    const timings=[];
-    const measure=async(name,task)=>{const start=performance.now();try{return await task();}finally{timings.push(name+';dur='+Math.max(0,performance.now()-start).toFixed(1));}};
+    const timings=[];let failurePhase;
+    const measure=async(name,task)=>{const start=performance.now();try{return await task();}catch(error){failurePhase=diagnosticPhases.has(error?.phase)?error.phase:name;throw error;}finally{timings.push(name+';dur='+Math.max(0,performance.now()-start).toFixed(1));}};
     const timing=()=>[...timings,'total;dur='+Math.max(0,performance.now()-started).toFixed(1)].join(', ');
     try{
       const uid=await measure('auth',()=>authenticate(request,env,deadline));
@@ -34,7 +37,7 @@ export function createFirestoreApi({authenticate,runner,enabled,clock=Date.now})
       remainingBudget(deadline,24000,clock());
       const onTiming=(name,ms)=>{if(['fs_begin','fs_read','fs_query','fs_commit','fs_rollback'].includes(name)&&Number.isFinite(ms)&&ms>=0&&timings.length<40)timings.push(name+';dur='+ms.toFixed(1));};
       const rawRun=await measure('runner',()=>runner(env,deadline,onTiming));
-      const run=(...args)=>measure('firestore',()=>rawRun(...args));
+      const run=(task,initialPaths)=>measure('firestore',()=>rawRun(task,initialPaths,{readOnly:readRoutes.has(path)}));
       const now=clock();
       let value;
       switch(path){
@@ -61,6 +64,8 @@ export function createFirestoreApi({authenticate,runner,enabled,clock=Date.now})
       return json(value,200,timing());
     }catch(error){
       const status=Number.isInteger(error?.status)&&error.status>=400&&error.status<600?error.status:503;
+      // No error messages, identifiers or upstream bodies in diagnostics.
+      if(status>=500&&failurePhase)timings.push('failure_'+failurePhase+';dur=0');
       return json({error:status>=500?'unavailable':allowedErrors.has(error?.message)?error.message:'invalid-request'},status,timing());
     }
   }};

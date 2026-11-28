@@ -19,6 +19,7 @@ import { candidateRequest, usesFirestoreCandidate, orderBackend, usesOrderBacken
 
 import { CANDIDATE_LIST_REFRESH_MS,CANDIDATE_DETAIL_REFRESH_MS } from '../domain/candidateBackend';
 import { candidateOrder, candidateCustomerOrders, candidateAdminOrders, candidateAck } from '../lib/candidateData';
+import { reconcileCandidateTransition } from '../domain/candidateTransition';
 import { notifyCandidateRefresh,subscribeCandidateRefresh,type CandidateRefresh } from '../lib/candidateRefresh';
 
 const readOrderRaw=(uid:string,id:string,actor=uid)=>usesFirestoreCandidate?candidateOrder(uid,id,actor):readServerJson(`orders/${uid}/${id}`,actor);
@@ -357,8 +358,15 @@ async function candidateTransition(o:Order,next:OrderStatus,actor:string){
    notifyCandidateRefresh({...event,order});
   }else notifyCandidateRefresh(event); // compatible with an older candidate deployment
  }catch(error){
-  // A lost response may have committed. Reconcile; do not blindly retry a mutation.
-  if(auth.currentUser?.uid===actor)notifyCandidateRefresh(event);
+  // A 503 or lost response does not establish that the write failed. Read once,
+  // never send a second mutation. Keep the original error if outcome is unknown.
+  if(auth.currentUser?.uid===actor){
+   if(classifyError(error)==='network'){
+    const current=await reconcileCandidateTransition(o,next,async()=>readOrder(o.uid,o.id,await candidateOrder(o.uid,o.id,actor)),()=>auth.currentUser?.uid===actor);
+    if(current){notifyCandidateRefresh({...event,order:current});return;}
+   }
+   if(auth.currentUser?.uid===actor)notifyCandidateRefresh(event);
+  }
   throw error;
  }
 }

@@ -11,7 +11,7 @@ import {planFirestoreImport} from '../backend/firestore-migration.mjs';
 import {createOrder,transition} from '../backend/staging-worker.mjs';
 const host=process.env.FIRESTORE_EMULATOR_HOST;
 if(!isLocalFirestoreHost(host))throw new Error('Local emulator required');
-const run=task=>localFirestoreRunner({host,deadline:Date.now()+30000})(task);
+const run=(task,options)=>localFirestoreRunner({host,deadline:Date.now()+30000})(task,options);
 const uid='synthetic',admin='testadmin',id='-AAAAAAAAAAAAAAAAAAA',now=1800000000000;
 const request=(key=id)=>({id:key,raqam:123456,order:{mijoz:{ism:'Synthetic',telefon:'+998900000000'},yetkazish:{turi:'olib'},tolov:'naqd',til:'uz',platforma:'ios',items:{optika:{fara:{narxi:100,soni:1}}},summa:100,jami:100,soni:1,yetkazishNarxi:0}});
 test('local Firestore imports synthetic reserved order and continues fulfillment',async()=>{
@@ -90,4 +90,12 @@ test('local Firestore imports synthetic reserved order and continues fulfillment
  assert.equal((await send('/v1/transition',{uid:'candidate-guest',id:third,expected:'tasdiqlandi',next:'bekor'},admin)).status,200);
  assert.equal((await run(tx=>tx.get(paths.product('optika','new-a')))).qoldiq,2);
 
+});
+
+test('read-only isolated snapshot retains dataset guard and cannot commit writes',async()=>{
+ const isolated=syntheticDatasetRunner(run);
+ const marker=await isolated(tx=>tx.get(paths.dataset),[],{readOnly:true});
+ assert.equal(marker.kind,'synthetic-only');
+ await assert.rejects(isolated(tx=>tx.set(paths.dataset,{kind:'invalid'}),[],{readOnly:true}),/read-only-transaction/);
+ assert.equal((await isolated(tx=>tx.get(paths.dataset),[],{readOnly:true})).kind,'synthetic-only');
 });

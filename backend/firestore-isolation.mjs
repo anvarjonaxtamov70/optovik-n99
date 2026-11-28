@@ -4,13 +4,13 @@ const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status
 const ok=(value,message,status)=>{if(!value)fail(message,status);};
 export const DATASET_VERSION=1;
 export function syntheticDatasetRunner(run){
- return (task,initialPaths=[])=>run(async tx=>{
+ return (task,initialPaths=[],options)=>run(async tx=>{
   // Only server-selected paths; the marker and initial documents share one transaction read.
   const requested=[paths.dataset,...initialPaths];
   const [marker,...initial]=tx.getAll&&initialPaths.length?await tx.getAll(requested):[await tx.get(paths.dataset)];
   ok(record(marker)&&marker.kind==='synthetic-only'&&marker.version===DATASET_VERSION,'dataset-unavailable',503);
   return task(tx,initial.length?initial:undefined);
- });
+ },options);
 }
 const local=(v,max,required=false)=>record(v)&&['uz','ru'].every(k=>typeof v[k]==='string'&&v[k].length<=max&&(!required||v[k].trim().length>0))&&Object.keys(v).every(k=>k==='uz'||k==='ru');
 const safeLink=v=>typeof v==='string'&&(/^(sale|new|popular|catalog|contact|delivery)$/.test(v)||/^group:(parts|accessories)$/.test(v)||/^(cat|model|search):[^\s]{1,80}$/.test(v)||/^product:[^/\s]{1,100}\/[^/\s]{1,100}$/.test(v)||/^https:\/\/\S{4,500}$/.test(v));

@@ -50,3 +50,15 @@ test('API suppresses unexpected upstream error messages',async()=>{
  const res=await api.fetch(request('/v1/orders/list',{}),{});
  assert.equal(res.status,503);assert.deepEqual(await res.json(),{error:'unavailable'});
 });
+
+test('read routes use read-only transaction and mutation routes ignore client readOnly flag',async()=>{
+ const modes=[];
+ const api=createFirestoreApi({enabled:()=>true,authenticate:async()=> 'guest',runner:async()=>async(task,_initial,options)=>{
+  modes.push(options.readOnly);throw Object.assign(Error('hidden'),{status:503,phase:'fs_read'});
+ }});
+ const read=await api.fetch(request('/v1/orders/get',{id,readOnly:false}),{});
+ const write=await api.fetch(request('/v1/transition',{id,uid:'guest',readOnly:true}),{});
+ assert.deepEqual(modes,[true,false]);assert.equal(read.status,503);assert.equal(write.status,503);
+ assert.match(read.headers.get('Server-Timing'),/failure_fs_read;dur=0/);
+ assert.deepEqual(await write.json(),{error:'unavailable'});
+});
