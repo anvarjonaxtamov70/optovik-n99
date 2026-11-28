@@ -1,6 +1,7 @@
 // Offline AES-256-GCM backup envelope. Random separate key, no passwords in shell arguments.
 import {randomBytes,createCipheriv,createDecipheriv} from 'node:crypto';
 import {verifyRestore} from './restore-integrity.mjs';
+import {verifyCandidateBackup,CANDIDATE_BACKUP_FORMAT} from './firestore-backup-format.mjs';
 const MAGIC=Buffer.from('N99BACKUP1','ascii'),MAX=32*1024*1024;
 export const MAX_BACKUP_BYTES=MAX;
 export function parseBackupKey(text){
@@ -11,7 +12,8 @@ export function parseBackupKey(text){
 }
 function validate(bytes){
  if(!Buffer.isBuffer(bytes)||bytes.length<1||bytes.length>MAX)throw new Error('Invalid backup size');
- return verifyRestore(JSON.parse(bytes.toString('utf8')));
+ const snapshot=JSON.parse(bytes.toString('utf8'));
+ return snapshot?.format===CANDIDATE_BACKUP_FORMAT?verifyCandidateBackup(snapshot):verifyRestore(snapshot);
 }
 export function sealBackup(bytes,key){
  validate(bytes);
