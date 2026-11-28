@@ -4,7 +4,7 @@ import {syntheticSeed} from '../backend/firestore-seed.mjs';
 import {makeCandidateBackup} from '../scripts/firestore-backup-format.mjs';
 import {rehearseCandidate} from '../scripts/firestore-backup-rehearse.mjs';
 const snapshot=()=>makeCandidateBackup(syntheticSeed('synthetic-admin'));
-const namespace='demo-n99-rehearsal-0123456789ab';
+const namespace='demo-n99-restore-0123456789ab';
 function mock({corrupt=false}={}){
  const db=new Map(),calls=[];
  return {calls,fetcher:async(url,options)=>{

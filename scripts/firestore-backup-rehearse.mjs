@@ -7,8 +7,8 @@ import {parseBackupKey,openBackup,MAX_BACKUP_BYTES} from './backup-crypto.mjs';
 import {verifyCandidateBackup} from './firestore-backup-format.mjs';
 import {documentFields,isLocalFirestoreHost} from '../backend/firestore-rest.mjs';
 const ok=v=>{if(!v)throw Error('Local restore rehearsal failed');};
-export async function rehearseCandidate(snapshot,{host,fetcher=fetch,namespace='demo-n99-rehearsal-'+randomBytes(6).toString('hex')}={}){
- ok(isLocalFirestoreHost(host)&&/^demo-n99-rehearsal-[a-f0-9]{12}$/.test(namespace));
+export async function rehearseCandidate(snapshot,{host,fetcher=fetch,namespace='demo-n99-restore-'+randomBytes(6).toString('hex')}={}){
+ ok(isLocalFirestoreHost(host)&&/^demo-n99-restore-[a-f0-9]{12}$/.test(namespace));
  const counts=verifyCandidateBackup(snapshot);
  const target='projects/'+namespace+'/databases/(default)/documents';
  // Always use loopback, never follow a redirect. No credentials from gcloud or the environment.
