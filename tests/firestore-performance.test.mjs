@@ -61,9 +61,9 @@ test('admin detail batches marker, order and role without trusting the claimed o
 });
 test('REST phases report only bounded names and observer failures never alter commit',async()=>{
  const {firestoreRunner}=await import('../backend/firestore-rest.mjs');
- const phases=[];
+ const phases=[],durations=[];
  const run=firestoreRunner({token:'synthetic',deadline:10000,clock:()=>0,
-  onTiming:(name,ms)=>{phases.push(name);assert.ok(Number.isFinite(ms)&&ms>=0);throw Error('observer');},
+  onTiming:(name,ms)=>{phases.push(name);durations.push(ms);throw Error('observer');},
   fetcher:async(url,options)=>{
    if(url.endsWith(':beginTransaction'))return Response.json({transaction:'tx'});
    if(url.endsWith(':batchGet'))return Response.json([{missing:JSON.parse(options.body).documents[0]}]);
@@ -72,6 +72,7 @@ test('REST phases report only bounded names and observer failures never alter co
   }});
  await run(async tx=>{await tx.get(paths.order(id));tx.set(paths.order(id),{synthetic:true});});
  assert.deepEqual(phases,['fs_begin','fs_read','fs_commit']);
+ assert.ok(durations.every(ms=>Number.isFinite(ms)&&ms>=0));
 });
 test('API reports fixed upstream phase names and suppresses unrecognized diagnostics',async()=>{
  const api=createFirestoreApi({enabled:()=>true,authenticate:async()=>uid,runner:async(_env,_deadline,onTiming)=>{
