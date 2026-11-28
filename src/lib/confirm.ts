@@ -7,7 +7,7 @@ import { Alert, Platform } from 'react-native';
 export function confirmAsync(title: string, message: string, buttons: { ok: string; cancel: string; destructive?: boolean }): Promise<boolean> {
   if (Platform.OS === 'web') {
     const text = [title, message].filter(Boolean).join('\n\n');
-    return Promise.resolve(typeof globalThis.confirm === 'function' ? globalThis.confirm(text) : true);
+    return Promise.resolve(typeof globalThis.confirm === 'function' ? globalThis.confirm(text) : false);
   }
   return new Promise((resolve) => {
     Alert.alert(title, message || undefined, [

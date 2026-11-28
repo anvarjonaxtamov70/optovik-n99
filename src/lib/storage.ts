@@ -1,6 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { app } from './firebase';
 
-const PREFIX = 'n99:v2:';
+// Never expose production carts, pending order IDs or profiles to a test build.
+const staging = process.env.EXPO_PUBLIC_N99_ENV === 'staging';
+const emulator = !!process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST;
+const testProject = staging ? app.options.projectId : '';
+const candidate=process.env.EXPO_PUBLIC_N99_BACKEND==='firestore-candidate';
+const PREFIX = staging ? `n99:staging:${testProject}:${candidate?'firestore:':''}v2:` : emulator ? 'n99:emulator:demo-n99:v2:' : 'n99:v2:';
 let queue = Promise.resolve();
 
 export function saveLocal(key: string, value: unknown): Promise<void> {
@@ -26,4 +32,11 @@ export function debouncedSaver(key: string, delay = 400) {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => { timer = null; void saveLocal(key, latest).catch(() => {}); }, delay);
   };
+}
+
+/** Checkout must distinguish missing local state from a failed storage read. */
+export async function readLocalStrict<T>(key: string): Promise<T | null> {
+  await queue.catch(() => {});
+  const raw = await AsyncStorage.getItem(PREFIX + key);
+  return raw === null ? null : JSON.parse(raw) as T;
 }

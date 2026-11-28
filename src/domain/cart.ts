@@ -34,7 +34,21 @@ export function restoreCart(value: unknown): CartState {
   return { items, off };
 }
 
+/** Apply a confirmed checkout receipt once, preserving unrelated cart lines. */
+export function applyOrderReceipt<T extends CartState & { receipts: string[] }>(cart: T, receipt: string, ordered: Record<string, number>): T {
+  if (cart.receipts.includes(receipt)) return cart;
+  const items = { ...cart.items };
+  const off = { ...cart.off };
+  for (const [id, qty] of Object.entries(ordered)) {
+    if (!validId(id) || !Number.isSafeInteger(qty) || qty <= 0) throw new Error('Invalid receipt quantity');
+    const left = (items[id] ?? 0) - qty;
+    if (left > 0) items[id] = left; else { delete items[id]; delete off[id]; }
+  }
+  return { ...cart, items, off, receipts: [...cart.receipts, receipt].slice(-20) };
+}
+
 export function setQty(cart: CartState, id: string, qty: number, stock: number): CartState {
+  if (!validId(id) || !Number.isFinite(qty) || !Number.isSafeInteger(stock) || stock < 0) return cart;
   const limit = Math.max(0, Math.min(stock, MAX_QTY));
   const next = Math.max(0, Math.min(Math.floor(qty), limit));
   const current = cart.items[id] ?? 0;
@@ -103,8 +117,8 @@ export function clampToStock(cart: CartState, byId: Map<string, Product>): { car
  * Katalogdan butunlay olib tashlangan tovarlarni savatdan o'chiradi (savatda nomi ham, narxi ham yo'q —
  * faqat tushunarsiz kod qolardi). Katalog bo'sh bo'lsa hech narsa o'chirilmaydi (ulanish xatosi bo'lishi mumkin).
  */
-export function pruneMissing(cart: CartState, byId: Map<string, Product>): { cart: CartState; removed: number } {
-  if (!byId.size) return { cart, removed: 0 };
+export function pruneMissing(cart: CartState, byId: Map<string, Product>, authoritativeEmpty = false): { cart: CartState; removed: number } {
+  if (!byId.size && !authoritativeEmpty) return { cart, removed: 0 };
   const gone = Object.keys(cart.items).filter((id) => !byId.has(id));
   return gone.length ? { cart: removeLines(cart, gone), removed: gone.length } : { cart, removed: 0 };
 }

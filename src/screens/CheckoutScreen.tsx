@@ -21,8 +21,8 @@ import { fullAddress, PAYMENTS_SOON, SHOW_SOON_PAYMENTS, validateCheckout, type 
 import { useT, type TKey } from '../i18n';
 import { haptic } from '../lib/haptics';
 import { openMap } from '../lib/links';
-import { saveProfile, useAccount, useProfile } from '../state/account';
-import { cart, useCart } from '../state/cart';
+import { saveProfile, useAccount, useProfile, useUid } from '../state/account';
+import { useCart } from '../state/cart';
 import { useCatalogLive, useSettings } from '../state/catalog';
 import { initDeliveryDraft, useDeliveryDraft, type DeliveryDraft } from '../state/delivery';
 import { PlaceOrderError, placeOrder } from '../state/orders';
@@ -39,6 +39,8 @@ export default function CheckoutScreen() {
   const { t, money, lang } = useT();
   const settings = useSettings();
   const profile = useProfile();
+  const uid=useUid();
+  const [owner]=useState(uid);
   const authProblem = useAccount().problem === 'auth-disabled';
   const live = useCatalogLive();
   const courierOk = settings.courierEnabled;
@@ -74,26 +76,25 @@ export default function CheckoutScreen() {
   const submit = async () => {
     setTouched(true);
     setError(null);
+    if(owner!==uid){setError(t('common.error'));return;}
     if (Object.keys(errors).length) { haptic.warning(); return; }
     setBusy(true);
     try {
-      const ordered = Object.fromEntries(lines.filter((l) => l.selected && l.product).map((l) => [l.id, Math.min(l.qty, l.product!.qoldiq)]));
       const res = await placeOrder(lines, summary, order, lang);
       done.current = true;
       haptic.success();
       const courier = kind === 'kuryer';
-      void saveProfile({
+      if (!res.recovered) void saveProfile({
         name: contact.ism, phone: contact.telefon,
         address: courier ? draft.manzil : profile.address, apartment: courier ? draft.xonadon : profile.apartment,
         landmark: courier ? draft.moljal : profile.landmark, lat: courier ? draft.lat : profile.lat, lng: courier ? draft.lng : profile.lng,
-      });
-      cart.ordered(ordered);
-      router.replace({ pathname: '/order-success', params: { id: res.id, raqam: String(res.raqam), phone: contact.telefon } });
+      },res.uid).catch(()=>{});
+      router.replace({ pathname: '/order-success', params: { id: res.id, raqam: String(res.raqam), phone: res.phone } });
     } catch (e) {
       haptic.warning();
       const reason = e instanceof PlaceOrderError ? e.reason : 'unknown';
       const msg = reason === 'auth' ? t('checkout.err.auth') : reason === 'rules' ? t('checkout.err.rules') : reason === 'rate' ? t('checkout.err.rate')
-        : reason === 'network' ? t('checkout.err.network') : reason === 'empty' ? t('checkout.err.empty') : t('common.error');
+        : reason === 'pending-changed' ? t('checkout.err.pendingChanged') : reason === 'network' ? t('checkout.err.network') : reason === 'empty' ? t('checkout.err.empty') : t('common.error');
       setError(msg);
       showToast(msg, { kind: 'error' });
     } finally {

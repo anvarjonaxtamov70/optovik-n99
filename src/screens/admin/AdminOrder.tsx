@@ -17,6 +17,7 @@ import { displayPhone } from '../../domain/phone';
 import { useT } from '../../i18n';
 import { confirmAsync } from '../../lib/confirm';
 import { classifyError } from '../../lib/firebase';
+import {adminTransitionErrorKey} from '../../domain/candidateError';
 import { haptic } from '../../lib/haptics';
 import { callPhone } from '../../lib/links';
 import { adminSaveNote, adminSetStatus, useOrder } from '../../state/orders';
@@ -45,9 +46,10 @@ function AdminPanel({ order: o }: { order: Order }) {
   const [note, setNote] = useState(o.adminIzoh ?? '');
   const next = nextStatus(o);
   const totals = recomputeTotals(o);
-  const mismatch = totals.jami !== o.jami;
+  const mismatch = !o.items.length || totals.jami !== o.jami || totals.summa !== o.summa || totals.soni !== o.soni;
 
   const move = async (s: OrderStatus) => {
+    if (busy || (s !== 'bekor' && mismatch)) return;
     setBusy(s);
     try {
       await adminSetStatus(o, s);
@@ -55,7 +57,8 @@ function AdminPanel({ order: o }: { order: Order }) {
       showToast(t('admin.updated'), { kind: 'success' });
     } catch (e) {
       haptic.warning();
-      showToast(classifyError(e) === 'permission' ? (s === 'tasdiqlandi' || !o.zaxira ? t('admin.stockError') : t('admin.err.permission')) : t('common.error'), { kind: 'error' });
+      const key=adminTransitionErrorKey(e);
+      showToast(key?t(key):classifyError(e) === 'permission' ? (s === 'tasdiqlandi' || !o.zaxira ? t('admin.stockError') : t('admin.err.permission')) : t('common.error'), { kind: 'error' });
     } finally {
       setBusy(null);
     }
@@ -87,7 +90,7 @@ function AdminPanel({ order: o }: { order: Order }) {
         ) : null}
         {next ? (
           <Button title={t('admin.moveTo', { status: t(statusKey(next, o.yetkazish.turi)) })} icon="arrow-forward-circle-outline" size="lg"
-            loading={busy === next} disabled={!!busy} onPress={() => void move(next)} />
+            loading={busy === next} disabled={!!busy || mismatch} onPress={() => void move(next)} />
         ) : null}
         {isActive(o.holat) ? (
           <Button title={t('admin.cancelOrder')} variant="ghost" loading={busy === 'bekor'} disabled={!!busy}

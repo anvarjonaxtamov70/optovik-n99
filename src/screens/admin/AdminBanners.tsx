@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { KeyboardAvoidingView, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,12 +18,31 @@ import { Txt } from '../../components/ui/Txt';
 import { BANNER_THEMES, DEFAULT_BANNERS, isSafeLink, type Banner } from '../../domain/content';
 import { CATEGORIES, CAR_MODELS } from '../../domain/taxonomy';
 import { useT, type TKey } from '../../i18n';
+import {safeBannerError} from '../../domain/bannerUi';
 import { confirmAsync } from '../../lib/confirm';
 import { haptic } from '../../lib/haptics';
-import { deleteBanner, saveBanner } from '../../state/admin';
+import { deleteBanner, saveBanner, loadCandidateAdminBanners } from '../../state/admin';
+import { usesFirestoreCandidate } from '../../lib/orderBackend';
+import { useUid } from '../../state/account';
 import { useBanners } from '../../state/catalog';
 import { showToast } from '../../state/toast';
 import { colors, layout, radius, shadow } from '../../theme/tokens';
+
+function useAdminBannerSource(retain=false){
+ const legacy=useBanners();
+ const uid=useUid();
+ const [state,setState]=useState<{uid:string;items:Banner[];error:boolean}|null>(null);
+ const [attempt,setAttempt]=useState(0);
+ useFocusEffect(useCallback(()=>{
+  if(!usesFirestoreCandidate||!uid)return;
+  let active=true;
+  if(!retain)setState(null);
+  void loadCandidateAdminBanners(uid).then(items=>{if(active)setState({uid,items,error:false});}).catch(()=>{if(active)setState({uid,items:[],error:true});});
+  return ()=>{active=false;};
+ },[uid,attempt,retain]));
+ const current=state?.uid===uid?state:null;
+ return {items:usesFirestoreCandidate?(current&&!current.error?current.items:null):legacy,loading:usesFirestoreCandidate&&!current,error:usesFirestoreCandidate&&current?.error===true,retry:()=>{setState(null);setAttempt(n=>n+1);}};
+}
 
 export function AdminBannerList() {
   const insets = useSafeAreaInsets();
@@ -30,23 +50,29 @@ export function AdminBannerList() {
   const { sidebar } = useAdminShell();
   const { width } = useWindowDimensions();
   const wide = width >= layout.wide;
-  const remote = useBanners();
-  const list = remote ?? [];
+  const source = useAdminBannerSource(true);
+  const list = source.items ?? [];
   const add = () => router.push('/admin/banner');
+  const live=list.filter(b=>b.active);
   return (
     <View style={styles.root}>
       <Header title={t('admin.banners')} back={!sidebar}
         right={wide ? <Button title={t('admin.banner.new')} icon="add" size="sm" full={false} onPress={add} /> : undefined} />
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + (wide ? 30 : 100) }]}>
-        {!list.length ? <Notice icon="images-outline" text={t('admin.banner.defaults')} /> : null}
-        <View style={styles.preview}><BannerCarousel banners={list.length ? list : DEFAULT_BANNERS} /></View>
+        {source.loading ? <Txt variant="small">{t('common.loading')}</Txt> : source.error ? <Notice icon="images-outline" tone="warning" text={t('admin.banner.loadError')} action={t('common.retry')} onAction={source.retry} /> : <>
+          {!list.length ? <Notice icon="images-outline" text={t('admin.banner.defaults')} /> : null}
+          <Txt variant="label">{t('admin.banner.preview')} · {list.length?live.length:DEFAULT_BANNERS.length}</Txt>
+          {list.length&&!live.length?<Notice icon="images-outline" text={t('admin.banner.allInactive')}/>:<View style={styles.preview}><BannerCarousel preview banners={list.length ? live : DEFAULT_BANNERS} /></View>}
+        </>}
         {list.map((b) => (
           <PressableScale key={b.id} onPress={() => router.push({ pathname: '/admin/banner', params: { id: b.id } })} scaleTo={0.98} style={[styles.row, shadow.soft]} accessibilityLabel={b.title[lang]}>
             <View style={styles.flex}>
               <Txt variant="bodyStrong" numberOfLines={1}>{b.title[lang].replace(/\n/g, ' ')}</Txt>
               <Txt variant="tiny">{b.link} · #{b.order}</Txt>
             </View>
+            <Pill text={t(b.active?'admin.banner.active':'admin.banner.inactive')} tone={b.active?'success':'muted'} />
             <Pill text={t(`admin.banner.theme.${b.theme}` as TKey)} tone="tint" />
+            <Txt variant="smallStrong" color={colors.primary}>{t('admin.banner.edit')}</Txt>
           </PressableScale>
         ))}
       </ScrollView>
@@ -64,9 +90,11 @@ const empty: Draft = { title: { uz: '', ru: '' }, text: { uz: '', ru: '' }, cta:
 
 export function AdminBannerEdit() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const remote = useBanners();
-  const existing = remote?.find((b) => b.id === id);
-  return <BannerEditor key={existing?.id ?? 'new'} id={existing?.id} initial={existing ?? { ...empty, order: (remote?.length ?? 0) }} />;
+  const source = useAdminBannerSource();
+  const {t}=useT();
+  const existing = source.items?.find((b) => b.id === id);
+  if(usesFirestoreCandidate&&(source.loading||source.error||(id&&!existing)))return <View style={styles.root}><Header title={t('admin.banner.title')}/><View style={styles.body}>{source.loading?<Txt>{t('common.loading')}</Txt>:<Notice icon="images-outline" tone="warning" text={t(source.error?'admin.banner.loadError':'admin.banner.missing')} action={t('common.retry')} onAction={source.retry}/>}</View></View>;
+  return <BannerEditor key={existing?.id ?? 'new'} id={existing?.id} initial={existing ?? { ...empty, link:usesFirestoreCandidate?'catalog':empty.link, order: (source.items?.length ?? 0) }} />;
 }
 
 function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
@@ -76,40 +104,47 @@ function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
   const wide = width >= layout.wide;
   const [d, setD] = useState<Draft>(initial);
   const [busy, setBusy] = useState(false);
+  const locked=useRef(false);
+  const [error,setError]=useState<TKey|null>(null);
+  const fail=(e:unknown)=>{const reason=safeBannerError((e as {bannerError?:unknown})?.bannerError);const key: TKey=reason==='banner-limit'?'admin.banner.limit':reason==='invalid-banner'?'admin.banner.invalid':reason==='forbidden'||reason==='unauthenticated'?'admin.banner.denied':'admin.banner.writeError';setError(key);showToast(t(key),{kind:'error'});};
   const set = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
   const links: { value: string; label: string }[] = [
-    { value: 'sale', label: t('home.sale') }, { value: 'new', label: t('home.new') }, { value: 'popular', label: t('home.popular') },
+    { value: 'catalog', label: t('catalog.title') }, { value: 'sale', label: t('home.sale') }, { value: 'new', label: t('home.new') }, { value: 'popular', label: t('home.popular') },
     { value: 'group:parts', label: t('catalog.parts') }, { value: 'group:accessories', label: t('catalog.accessories') },
     { value: 'contact', label: t('profile.contact') }, { value: 'delivery', label: t('profile.delivery') },
     ...CATEGORIES.map((c) => ({ value: `cat:${c.slug}`, label: c.label[lang] })),
     ...CAR_MODELS.slice(0, 10).map((m) => ({ value: `model:${m.slug}`, label: m.name })),
   ];
-  const valid = !!(d.title.uz.trim() || d.title.ru.trim()) && isSafeLink(d.link) && (!d.image || /^https:\/\/\S+$/.test(d.image));
+  const valid = !!(d.title.uz.trim() || d.title.ru.trim()) && isSafeLink(d.link) && (!d.image || (d.image.length<=2000&&/^https:\/\/\S+$/.test(d.image))) && Number.isSafeInteger(d.order)&&d.order>=0&&d.order<=1000000;
   const save = async () => {
-    setBusy(true);
+    if(locked.current||!valid)return;
+    locked.current=true;setBusy(true);setError(null);
     try {
-      await saveBanner({ ...d, title: { uz: d.title.uz || d.title.ru, ru: d.title.ru || d.title.uz } }, id);
+      await saveBanner({ ...d, title: { uz: d.title.uz.trim() || d.title.ru.trim(), ru: d.title.ru.trim() || d.title.uz.trim() } }, id);
       haptic.success();
       showToast(t('admin.banner.saved'), { kind: 'success' });
       goBack('/admin/banners');
-    } catch {
-      showToast(t('common.error'), { kind: 'error' });
-    } finally {
-      setBusy(false);
-    }
+    } catch(e) {fail(e);}
+    finally {locked.current=false;setBusy(false);}
+  };
+  const remove=async()=>{
+    if(!id||locked.current)return;
+    locked.current=true;setBusy(true);setError(null);
+    try{if(await confirmAsync(t('common.delete'),'',{ok:t('common.delete'),cancel:t('common.cancel'),destructive:true})){await deleteBanner(id);haptic.success();goBack('/admin/banners');}}
+    catch(e){fail(e);}finally{locked.current=false;setBusy(false);}
   };
   return (
     <View style={styles.root}>
       <Header title={id ? t('admin.banner.title') : t('admin.banner.new')}
         right={id ? <IconButton icon="trash-outline" label={t('common.delete')} size={40} bg={colors.saleSoft} color={colors.sale}
-          onPress={() => void confirmAsync(t('common.delete'), '', { ok: t('common.delete'), cancel: t('common.cancel'), destructive: true }).then((ok) => {
-            if (ok) void deleteBanner(id).then(() => goBack('/admin/banners')).catch(() => showToast(t('common.error'), { kind: 'error' }));
-          })} /> : undefined} />
+          onPress={()=>void remove()} /> : undefined} onBack={()=>goBack('/admin/banners')} />
       <KeyboardAvoidingView style={styles.root} behavior="padding">
         <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 110 }]} keyboardShouldPersistTaps="handled">
           <Txt variant="label">{t('admin.banner.preview')}</Txt>
-          <View style={styles.preview}><BannerCarousel banners={[{ ...d, id: 'preview', title: { uz: d.title.uz || '…', ru: d.title.ru || d.title.uz || '…' } }]} /></View>
-          <Card style={styles.gap}>
+          <View style={styles.preview}><BannerCarousel preview banners={[{ ...d, id: 'preview', title: { uz: d.title.uz || d.title.ru || '…', ru: d.title.ru || d.title.uz || '…' } }]} /></View>
+          {error?<Notice icon="images-outline" tone="warning" text={t(error)}/>:null}
+          <View style={wide?styles.editorColumns:styles.gap}>
+          <Card style={[styles.gap,wide?styles.editorColumn:undefined]}>
             <Field label={t('admin.banner.titleUz')} value={d.title.uz} onChangeText={(v) => set({ title: { ...d.title, uz: v } })} maxLength={60} multiline />
             <Field label={t('admin.banner.titleRu')} value={d.title.ru} onChangeText={(v) => set({ title: { ...d.title, ru: v } })} maxLength={60} multiline />
             <Field label={t('admin.banner.textUz')} value={d.text.uz} onChangeText={(v) => set({ text: { ...d.text, uz: v } })} maxLength={120} />
@@ -119,7 +154,7 @@ function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
               <View style={styles.flex}><Field label={t('admin.banner.ctaRu')} value={d.cta.ru} onChangeText={(v) => set({ cta: { ...d.cta, ru: v } })} maxLength={30} /></View>
             </View>
           </Card>
-          <Card style={styles.gap}>
+          <Card style={[styles.gap,wide?styles.editorColumn:undefined]}>
             <Txt variant="label">{t('admin.banner.link')}</Txt>
             <View style={styles.wrap}>{links.map((l) => <Chip key={l.value} label={l.label} selected={d.link === l.value} onPress={() => set({ link: l.value })} />)}</View>
             <Txt variant="label">{t('admin.banner.theme')}</Txt>
@@ -130,6 +165,7 @@ function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
             <Field label={t('admin.banner.order')} value={String(d.order)} onChangeText={(v) => set({ order: parseInt(v.replace(/\D/g, '') || '0', 10) })} keyboardType="number-pad" />
             <SwitchRow title={t('admin.banner.active')} value={d.active} onChange={(v) => set({ active: v })} />
           </Card>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
       <BottomBar wide={wide}>
@@ -142,7 +178,9 @@ function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  body: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  body: { padding: 16, gap: 12, width: '100%', maxWidth: 1100, alignSelf: 'center' },
+  editorColumns:{flexDirection:'row',gap:16,alignItems:'flex-start'},
+  editorColumn:{flex:1,minWidth:0},
   preview: { marginHorizontal: -16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: radius.lg, backgroundColor: colors.white },
   gap: { gap: 12 },

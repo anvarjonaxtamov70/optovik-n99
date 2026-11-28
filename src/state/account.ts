@@ -1,12 +1,18 @@
+import { AppState } from 'react-native';
 import { onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { onValue, ref, set } from 'firebase/database';
 
 import { isValidLatLng, roundCoord } from '../domain/geo';
-import { WEB_ADMIN_ONLY } from '../lib/platform';
+import { IS_WEB, WEB_ADMIN_ONLY } from '../lib/platform';
 
-import { auth, classifyError, db, withTimeout, type FirebaseProblem } from '../lib/firebase';
+import { app, auth, classifyError, db, readServerJson, withTimeout, type FirebaseProblem } from '../lib/firebase';
 import { createStore, useStore } from '../lib/store';
 import { readLocal, saveLocal } from '../lib/storage';
+import { candidateRequest,usesFirestoreCandidate } from '../lib/orderBackend';
+import { candidateAck } from '../lib/candidateData';
+import { ownedProfile } from '../domain/customerIdentity';
+import {createProfileWriteQueue} from '../domain/profileWriteQueue';
+import { resetDeliveryDraft } from './delivery';
 
 /** Mijoz ma'lumotlari: keyingi buyurtmada manzil (xaritadagi nuqta bilan) qayta yozilmaydi. */
 export type Profile = { name: string; phone: string; address: string; apartment: string; landmark: string; lat: number | null; lng: number | null };
@@ -17,6 +23,7 @@ export type AccountState = {
   uid: string | null;
   anonymous: boolean;
   email: string | null;
+  emailVerified: boolean;
   admin: boolean;
   /** admins/{uid} tekshirib bo'lindi (admin ekranida "yuklanmoqda" va "ruxsat yo'q" ni ajratish uchun). */
   adminChecked: boolean;
@@ -25,12 +32,16 @@ export type AccountState = {
 };
 
 export const accountStore = createStore<AccountState>({
-  ready: false, uid: null, anonymous: true, email: null, admin: false, adminChecked: false, profile: emptyProfile, problem: null,
+  ready: false, uid: null, anonymous: true, email: null, emailVerified: false, admin: false, adminChecked: false, profile: emptyProfile, problem: null,
 });
 
 let started = false;
 let pending: Promise<string> | null = null;
 let offAdmin: (() => void) | null = null;
+const scopedProfile = !IS_WEB && process.env.EXPO_PUBLIC_N99_ENV === 'staging' && app.options.projectId === 'optovik-n99-staging';
+let profileRevision=0;
+const profileWrites=createProfileWriteQueue();
+let localDraftUid:string|null=null;
 
 function readProfile(v: unknown): Profile {
   const p = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
@@ -45,19 +56,46 @@ function readProfile(v: unknown): Profile {
 export async function startAccount() {
   if (started) return;
   started = true;
-  const local = await readLocal('profile');
-  accountStore.set((s) => ({ ...s, profile: readProfile(local) }));
+  if(!scopedProfile){
+    const local = await readLocal('profile');
+    accountStore.set((s) => ({ ...s, profile: readProfile(local) }));
+  }else{
+    // Old staging profile has no owner. Never guess which customer owns it.
+    await saveLocal('profile',null).catch(()=>{});
+  }
+  if(scopedProfile)AppState.addEventListener('change',state=>{
+    const uid=auth.currentUser?.uid;
+    // Refresh server profile on return from another device, not while an edit is pending.
+    if(state==='active'&&uid&&!profileWrites.busy()&&localDraftUid!==uid)void hydrateOwnedProfile(uid,false);
+  });
   onAuthStateChanged(auth, (user) => {
     offAdmin?.();
     offAdmin = null;
+    const changed=accountStore.get().uid!==(user?.uid??null);
+    if(scopedProfile&&changed){profileRevision++;localDraftUid=null;resetDeliveryDraft();}
     accountStore.set((s) => ({
-      ...s, ready: true, uid: user?.uid ?? null, anonymous: user?.isAnonymous ?? true, email: user?.email ?? null, admin: false,
+      ...s, ready: true, uid: user?.uid ?? null, anonymous: user?.isAnonymous ?? true, email: user?.email ?? null, emailVerified: user?.emailVerified ?? false, admin: false,
       adminChecked: !user || user.isAnonymous, problem: user ? null : s.problem,
+      ...(scopedProfile&&changed?{profile:emptyProfile}:{}),
     }));
+    if(scopedProfile&&changed&&user)void hydrateOwnedProfile(user.uid);
     if (user && !user.isAnonymous) {
-      offAdmin = onValue(ref(db, `admins/${user.uid}`), (snap) => {
+      if(usesFirestoreCandidate){
+        let stopped=false;let timer:ReturnType<typeof setTimeout>|undefined;
+        let running=false;
+        const clear=()=>{if(timer!==undefined)clearTimeout(timer);};
+        const refresh=async()=>{
+          clear();if(stopped||running||AppState.currentState==='background'||AppState.currentState==='inactive')return;
+          running=true;
+          try{const role=await candidateRequest<{admin:boolean}>('/v1/account/role',{},user.uid);if(!stopped)accountStore.set(s=>s.uid===user.uid?{...s,admin:role.admin===true,adminChecked:true}:s);}
+          catch{if(!stopped)accountStore.set(s=>s.uid===user.uid?{...s,admin:false,adminChecked:true}:s);}
+          finally{running=false;if(!stopped&&AppState.currentState!=='background'&&AppState.currentState!=='inactive')timer=setTimeout(()=>{void refresh();},60000);}
+        };
+        const sub=AppState.addEventListener('change',state=>{if(state==='active')void refresh();else clear();});
+        offAdmin=()=>{stopped=true;clear();sub.remove();};void refresh();
+      }else offAdmin = onValue(ref(db, `admins/${user.uid}`), (snap) => {
         accountStore.set((s) => (s.uid === user.uid ? { ...s, admin: snap.val() === true, adminChecked: true } : s));
-      }, () => accountStore.set((s) => ({ ...s, admin: false, adminChecked: true })));
+      }, () => accountStore.set((s) => s.uid===user.uid?{ ...s, admin: false, adminChecked: true }:s));
     }
     // Brauzer — faqat admin paneli: mijoz uchun anonim hisob ochilmaydi.
     if (!user && !WEB_ADMIN_ONLY) void ensureCustomer().catch(() => {});
@@ -81,16 +119,28 @@ export function ensureCustomer(): Promise<string> {
   return pending;
 }
 
-export async function saveProfile(profile: Profile) {
-  const clean = readProfile(profile);
-  accountStore.set((s) => ({ ...s, profile: clean }));
-  await saveLocal('profile', clean).catch(() => {});
+export async function saveProfile(profile: Profile, expectedUid=auth.currentUser?.uid) {
+  // Capture the owner and value before entering the queue.
+  const snapshot={...profile};
+  return profileWrites.run(()=>saveProfileInternal(snapshot,expectedUid));
+}
+async function saveProfileInternal(profile:Profile,expectedUid:string|undefined){
   const uid = auth.currentUser?.uid;
-  if (uid && clean.name.trim().length >= 2 && clean.phone) {
+  if(uid!==expectedUid||(scopedProfile&&!uid))throw new Error('Account changed');
+  profileRevision++;
+  const clean = readProfile(profile);
+  if(scopedProfile&&uid)localDraftUid=uid;
+  accountStore.set((s) => ({ ...s, profile: clean }));
+  await saveLocal(scopedProfile?'ownedProfile':'profile', scopedProfile?{uid,profile:clean}:clean).catch(() => {});
+  if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
+  if (uid && auth.currentUser?.uid === uid && clean.name.trim().length >= 2 && clean.phone) {
     // Bazada bo'sh nuqta saqlanmaydi (qoidalar raqam kutadi).
     const { lat, lng, ...rest } = clean;
     const body = { ...rest, ...(lat != null && lng != null ? { lat, lng } : {}), updatedAt: Date.now() };
-    await withTimeout(set(ref(db, `customers/${uid}/profile`), body), 8000).catch(() => {});
+    if(usesFirestoreCandidate){const {updatedAt: _updatedAt,...profileBody}=body;await candidateAck('/v1/profile/save',profileBody,uid);}
+    else await withTimeout(set(ref(db, `customers/${uid}/profile`), body), 8000).catch(() => {});
+    if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
+    if(scopedProfile&&localDraftUid===uid)localDraftUid=null;
   }
 }
 
@@ -106,3 +156,32 @@ export const useAccount = () => useStore(accountStore, (s) => s);
 export const useProfile = () => useStore(accountStore, (s) => s.profile);
 export const useIsAdmin = () => useStore(accountStore, (s) => s.admin);
 export const useUid = () => useStore(accountStore, (s) => s.uid);
+
+/** Account changes and newer edits invalidate stale reads. */
+async function hydrateOwnedProfile(uid:string,readCache=true){
+  if(!readCache&&(profileWrites.busy()||localDraftUid===uid))return;
+  const revision=++profileRevision;
+  const active=()=>auth.currentUser?.uid===uid&&profileRevision===revision;
+  if(readCache){
+    const cached=ownedProfile(await readLocal('ownedProfile'),uid);
+    if(!active())return;
+    if(cached)accountStore.set(s=>({...s,profile:readProfile(cached)}));
+  }
+  try{
+    const raw=usesFirestoreCandidate?(await candidateRequest<{profile:unknown}>('/v1/profile/get',{},uid)).profile:await readServerJson(`customers/${uid}/profile`,uid);
+    if(!active()||raw===null)return;
+    const clean=readProfile(raw);
+    accountStore.set(s=>({...s,profile:clean}));
+    await saveLocal('ownedProfile',{uid,profile:clean});
+  }catch{/* Keep only the matching local cache when offline. */}
+}
+export async function replaceCustomerProfile(uid:string){
+  if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
+  if(scopedProfile)await hydrateOwnedProfile(uid);
+}
+export async function clearCustomerProfile(){
+  profileRevision++;localDraftUid=null;
+  accountStore.set(s=>({...s,profile:emptyProfile}));
+  resetDeliveryDraft();
+  await saveLocal('ownedProfile',null);
+}

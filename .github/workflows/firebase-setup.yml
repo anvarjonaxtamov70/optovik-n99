@@ -5,11 +5,16 @@ name: Firebase sozlash
 on:
   workflow_dispatch:
     inputs:
+      confirm_production:
+        description: 'Explicit production change approval'
+        type: boolean
+        required: true
+        default: false
       seed:
         description: "Namuna katalog: auto — faqat baza bo'sh bo'lsa; skip — yuklamaslik; force — majburan (eski katalog zaxiraga olinadi)"
         type: choice
         options: [auto, skip, force]
-        default: auto
+        default: skip
       admin_email:
         description: "Admin qilinadigan email (avval Firebase → Authentication → Users da yarating). Bo'sh qoldirsa bo'ladi."
         type: string
@@ -21,6 +26,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   setup:
+    if: ${{ github.ref == 'refs/heads/master' && inputs.confirm_production == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

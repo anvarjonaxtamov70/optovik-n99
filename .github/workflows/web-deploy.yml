@@ -1,21 +1,15 @@
 name: Web admin panel
 # Admin panelning kompyuter (brauzer) versiyasini Firebase Hosting'ga joylaydi: https://optovikn99.web.app/admin
-# master'ga o'zgarish tushganda o'zi ishlaydi; qo'lda: Actions → "Web admin panel" → Run workflow.
+# Manual production release only; merging a PR must not publish.
 # Kerak: Settings → Secrets and variables → Actions → FIREBASE_SERVICE_ACCOUNT (Firebase sozlash bilan bir xil).
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'src/**'
-      - 'assets/**'
-      # Tovar rasmlari (https://optovikn99.web.app/img/...)
-      - 'public/**'
-      - 'app.json'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'firebase.json'
-      - '.github/workflows/web-deploy.yml'
   workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Explicit production Hosting deployment approval'
+        required: true
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -23,6 +17,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   deploy:
+    if: ${{ github.ref == 'refs/heads/master' && inputs.confirm_production == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:

@@ -204,3 +204,85 @@ test('profil: faqat egasi, to‘g‘ri telefon bilan', async () => {
   ok(await req('customers/alice', { auth: OWNER }), 'admin mijozni ko‘radi');
   denied(await req('customers/alice', { auth: BOB }), 'begona mijoz');
 });
+
+test('order lifecycle: split writes, backwards and skipped transitions are denied', async () => {
+  denied(await req('orders/carol/g4/holat', { method: 'PUT', auth: CAROL, body: 'bekor' }), 'split customer cancellation');
+  denied(await req('orderIndex/g4/holat', { method: 'PUT', auth: CAROL, body: 'bekor' }), 'split index cancellation');
+  const move = (status) => req('', { method: 'PATCH', auth: OWNER, body: {
+    'orders/bob/b1/holat': status,
+    ['orders/bob/b1/tarix/' + status]: TS,
+    'orders/bob/b1/updatedAt': TS,
+    'orderIndex/b1/holat': status,
+  } });
+  denied(await move('yangi'), 'backwards');
+  denied(await move('tayyor'), 'wrong delivery flow');
+  denied(await move('yetkazildi'), 'skipped status');
+  ok(await move('yolda'), 'valid courier transition');
+  ok(await move('yetkazildi'), 'valid completion');
+  denied(await move('bekor'), 'completed order cannot be cancelled');
+});
+
+test('reservation: stale stock revision and independent flag changes are rejected', async () => {
+  denied(await req('orders/bob/b1/zaxira', { method: 'PUT', auth: OWNER, body: false }), 'reservation flag cannot change independently');
+  const before = (await req('tovarlar/filtrlar/q1')).body;
+  ok(await req('tovarlar/filtrlar/q1', { method: 'PATCH', auth: OWNER, body: { qoldiq: 2, revision: before.revision + 1 } }), 'first stock writer');
+  denied(await req('tovarlar/filtrlar/q1', { method: 'PATCH', auth: OWNER, body: { qoldiq: 1, revision: before.revision + 1 } }), 'stale stock writer');
+  assert.equal((await req('tovarlar/filtrlar/q1/qoldiq')).body, 2);
+});
+
+test('delivery: configured fees, enabled modes and index metadata are enforced', async () => {
+  const uid = 'delivery-test';
+  const auth = token(uid);
+  const courier = { order: { yetkazish: { turi: 'kuryer', manzil: 'Registon 12' } }, index: { turi: 'kuryer' } };
+  denied(await place(auth, uid, 'fee1', courier), 'courier fee cannot be omitted');
+  denied(await place(auth, uid, 'fee2', { yetkazishNarxi: 25000 }), 'pickup must be free');
+  denied(await place(auth, uid, 'idx1', { index: { soni: 99 } }), 'incorrect index quantity');
+  denied(await place(auth, uid, 'idx2', { index: { ism: 'Other' } }), 'incorrect index name');
+  ok(await req('settings/shop', { method: 'PATCH', auth: OWNER, body: { courierEnabled: false } }), 'disable courier');
+  denied(await place(auth, uid, 'fee3', { ...courier, yetkazishNarxi: 25000 }), 'disabled courier');
+  ok(await req('settings/shop', { method: 'PATCH', auth: OWNER, body: { courierEnabled: true, freeDeliveryFrom: 90000 } }), 'free threshold');
+  denied(await place(auth, uid, 'fee4', { ...courier, yetkazishNarxi: 25000 }), 'free delivery must not charge');
+  ok(await place(auth, uid, 'fee5', courier), 'free delivery at threshold');
+});
+
+test('inventory: concurrent stale revisions cannot both succeed', async () => {
+  const path = 'tovarlar/filtrlar/concurrency';
+  ok(await req(path, { method: 'PUT', auth: OWNER, body: { nomi: 'Test', narxi: 10000, qoldiq: 5, revision: 1 } }), 'seed');
+  denied(await req(path + '/qoldiq', { method: 'PUT', auth: OWNER, body: 4 }), 'stock without revision');
+  denied(await req(path + '/narxi', { method: 'PUT', auth: OWNER, body: 20000 }), 'price without revision');
+  denied(await req(path + '/revision', { method: 'DELETE', auth: OWNER }), 'revision deletion');
+  const results = await Promise.all([4, 3].map(qoldiq => req(path, { method: 'PATCH', auth: OWNER, body: { qoldiq, revision: 2 } })));
+  assert.equal(results.filter(r => r.status === 200).length, 1);
+  denied(results.find(r => r.status !== 200), 'stale concurrent writer');
+  const saved = (await req(path)).body;
+  assert.equal(saved.revision, 2);
+  assert.ok([3, 4].includes(saved.qoldiq));
+});
+
+test('order audit: admin cannot delete orders or corrupt index metadata', async () => {
+  denied(await req('orders/bob/b1', { method: 'DELETE', auth: OWNER }), 'order deletion');
+  denied(await req('orderIndex/b1', { method: 'DELETE', auth: OWNER }), 'index deletion');
+  denied(await req('orderIndex/b1/jami', { method: 'PUT', auth: OWNER, body: 1 }), 'index total');
+  denied(await req('orderIndex/b1/soni', { method: 'PUT', auth: OWNER, body: 99 }), 'index quantity');
+  denied(await req('orders/bob/b1/soni', { method: 'PUT', auth: OWNER, body: 99 }), 'order quantity');
+  denied(await req('orders/bob/b1/yetkazish/turi', { method: 'PUT', auth: OWNER, body: 'olib' }), 'delivery mutation');
+  ok(await req('orders/bob/b1/adminIzoh', { method: 'PUT', auth: OWNER, body: 'Audit test' }), 'admin note remains editable');
+});
+
+test('order audit: lifecycle timestamps cannot be erased', async () => {
+  denied(await req('orders/bob/b1/tarix/yangi', { method: 'DELETE', auth: OWNER }), 'initial timestamp deletion');
+  denied(await req('orders/bob/b1/tarix/tasdiqlandi', { method: 'DELETE', auth: OWNER }), 'confirmation timestamp deletion');
+  denied(await req('orders/bob/b1/tarix', { method: 'PUT', auth: OWNER, body: { yangi: { '.sv': 'timestamp' } } }), 'history replacement');
+});
+
+test('catalog archive preserves the original product and its inventory', async () => {
+  const path = 'tovarlar/filtrlar/archive-example';
+  ok(await req(path, { method: 'PUT', auth: OWNER, body: { nomi: 'Archive example', narxi: 10000, qoldiq: 5, revision: 1 } }), 'create catalog item');
+  ok(await req(path, { method: 'PATCH', auth: OWNER, body: { archived: true, revision: 2 } }), 'archive catalog item');
+  const archived = await req(path);
+  ok(archived, 'physical record retained');
+  assert.equal(archived.body.archived, true);
+  assert.equal(archived.body.qoldiq, 5);
+  ok(await req(path, { method: 'PATCH', auth: OWNER, body: { qoldiq: 6, revision: 3 } }), 'stock correction remains possible');
+  assert.equal((await req(path)).body.archived, true);
+});

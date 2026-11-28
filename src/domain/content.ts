@@ -41,7 +41,7 @@ export function isSafeLink(link: string): boolean {
     || /^https:\/\/\S{4,500}$/.test(link);
 }
 
-export function readBanners(value: unknown): Banner[] {
+export function readBanners(value: unknown, includeInactive = false): Banner[] {
   if (!isRecord(value)) return [];
   const out: Banner[] = [];
   for (const [id, b] of Object.entries(value)) {
@@ -62,7 +62,7 @@ export function readBanners(value: unknown): Banner[] {
       active: b.active !== false,
     });
   }
-  return out.filter((b) => b.active).sort((a, b) => a.order - b.order);
+  return out.filter((b) => includeInactive || b.active).sort((a, b) => a.order - b.order);
 }
 
 /**
@@ -83,6 +83,21 @@ export function bannerHasContent(link: string, products: Product[]): boolean {
   if (kind === 'model') return products.some((p) => fitsModel(p, value));
   if (kind === 'product') return products.some((p) => p.id === value);
   return true;
+}
+
+/** Candidate distinguishes no custom banners (null) from all custom banners inactive ({}).
+ * Older candidate servers omit the metadata; preserve their empty-map default behavior. */
+export function candidateBannerCache(raw:unknown,configured?:boolean):Record<string,unknown>|null{
+ if(!isRecord(raw))throw new Error('Invalid banner snapshot');
+ if(configured===false&&Object.keys(raw).length)throw new Error('Inconsistent banner snapshot');
+ return configured===true||Object.keys(raw).length?raw:null;
+}
+
+/** Explicit active custom banners are admin-controlled. Only built-in ads are
+ * filtered by available products; all-disabled custom banners remain hidden. */
+export function candidateHomeBanners(remote:Banner[]|null,products:Product[]):Banner[]{
+ if(remote!==null)return remote.filter(b=>b.active);
+ return products.length?DEFAULT_BANNERS.filter(b=>bannerHasContent(b.link,products)):DEFAULT_BANNERS;
 }
 
 /** Admin hali banner qo'shmagan bo'lsa ko'rsatiladigan tayyor bannerlar. */

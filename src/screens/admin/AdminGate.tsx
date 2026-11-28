@@ -1,5 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -16,7 +16,8 @@ import { classifyError } from '../../lib/firebase';
 import { haptic } from '../../lib/haptics';
 import { adminSignIn, adminSignOut, useAccount } from '../../state/account';
 import { migrateMediaKey, watchMediaKey } from '../../state/admin';
-import { useAdminOrders } from '../../state/orders';
+import { useAdminOrders, useCandidateAdminFeed, CandidateAdminFeedProvider } from '../../state/orders';
+import { adminFeedLimit } from '../../domain/adminFeed';
 import { showToast } from '../../state/toast';
 import { colors } from '../../theme/tokens';
 
@@ -27,15 +28,18 @@ export default function AdminGate() {
   if (!account.uid || account.anonymous) return <AdminLogin />;
   if (!account.adminChecked) return <Loading />;
   if (!account.admin) return <NotAdmin uid={account.uid} email={account.email} />;
-  return <AdminShell />;
+  return <AdminShell key={account.uid} actor={account.uid} />;
 }
 
 /** Kompyuterda — chap menyu + sahifa, telefonda — oddiy sahifalar ketma-ketligi. */
-function AdminShell() {
+function AdminShell({actor}:{actor:string}) {
+  const pathname=usePathname();
   const { width } = useWindowDimensions();
   const sidebar = IS_WEB && width >= ADMIN_WIDE;
   const shell = useMemo(() => ({ sidebar }), [sidebar]);
+  const feed=useCandidateAdminFeed(actor,adminFeedLimit(pathname,sidebar));
   return (
+    <CandidateAdminFeedProvider value={feed}>
     <AdminShellProvider value={shell}>
       <View style={styles.shell}>
         {sidebar ? <AdminSidebar /> : null}
@@ -46,6 +50,7 @@ function AdminShell() {
       <NewOrderWatcher />
       <MediaKeyWatcher />
     </AdminShellProvider>
+    </CandidateAdminFeedProvider>
   );
 }
 

@@ -2,221 +2,439 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "admins": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid"
       }
     },
-
     "tovarlar": {
       ".read": true,
-      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$kat": {
         "$id": {
-          ".validate": "newData.hasChildren(['nomi', 'narxi', 'qoldiq'])",
-          "nomi": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 160" },
-          "narxi": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000 && newData.val() % 1 === 0" },
-          "eskiNarx": { ".validate": "newData.isNumber() && newData.val() <= 1000000000 && newData.val() > newData.parent().child('narxi').val()" },
-          "qoldiq": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000 && newData.val() % 1 === 0" },
-          "birlik": { ".validate": "newData.isString() && newData.val().length <= 20" },
-          "artikul": { ".validate": "newData.isString() && newData.val().length <= 80" },
-          "brend": { ".validate": "newData.isString() && newData.val().length <= 60" },
-          "model": { ".validate": "newData.isString() && newData.val().length <= 300" },
-          "tavsif": { ".validate": "newData.isString() && newData.val().length <= 5000" },
-          "rasm": { ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 2000" },
-          "rasmlar": {
-            "$i": { ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 2000" }
+          ".validate": "newData.hasChildren(['nomi', 'narxi', 'qoldiq']) && (!data.exists() || ((newData.child('qoldiq').val() === data.child('qoldiq').val() && newData.child('narxi').val() === data.child('narxi').val()) || (newData.child('revision').isNumber() && (data.child('revision').exists() ? newData.child('revision').val() === data.child('revision').val() + 1 : newData.child('revision').val() === 1)))) && (!data.child('revision').exists() || newData.child('revision').exists()) && ((newData.child('archived').val() === true) === (data.child('archived').val() === true) || (newData.child('revision').isNumber() && (data.child('revision').exists() ? newData.child('revision').val() === data.child('revision').val() + 1 : newData.child('revision').val() === 1))) && (data.child('archived').val() !== true || newData.child('archived').val() === true)",
+          "nomi": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 160"
           },
-          "ommabop": { ".validate": "newData.isBoolean()" },
-          "yangi": { ".validate": "newData.isBoolean()" },
-          "tartib": { ".validate": "newData.isNumber()" },
-          "revision": { ".validate": "newData.isNumber() && (!data.exists() || newData.val() === data.val() + 1)" },
-          "updatedAt": { ".validate": "newData.isNumber() && newData.val() <= now" },
-          "$other": { ".validate": false }
+          "narxi": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000 && newData.val() % 1 === 0"
+          },
+          "eskiNarx": {
+            ".validate": "newData.isNumber() && newData.val() <= 1000000000 && newData.val() > newData.parent().child('narxi').val()"
+          },
+          "qoldiq": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000 && newData.val() % 1 === 0"
+          },
+          "birlik": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "artikul": {
+            ".validate": "newData.isString() && newData.val().length <= 80"
+          },
+          "brend": {
+            ".validate": "newData.isString() && newData.val().length <= 60"
+          },
+          "model": {
+            ".validate": "newData.isString() && newData.val().length <= 300"
+          },
+          "tavsif": {
+            ".validate": "newData.isString() && newData.val().length <= 5000"
+          },
+          "rasm": {
+            ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 2000"
+          },
+          "rasmlar": {
+            "$i": {
+              ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 2000"
+            }
+          },
+          "ommabop": {
+            ".validate": "newData.isBoolean()"
+          },
+          "yangi": {
+            ".validate": "newData.isBoolean()"
+          },
+          "tartib": {
+            ".validate": "newData.isNumber()"
+          },
+          "revision": {
+            ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && (!data.exists() || newData.val() === data.val() + 1)"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber() && newData.val() <= now"
+          },
+          "$other": {
+            ".validate": false
+          },
+          ".write": "auth != null && root.child('admins').child(auth.uid).val() === true && newData.exists()",
+          "archived": {
+            ".validate": "newData.val() === true"
+          }
         }
       }
     },
-
     "bannerlar": {
       ".read": true,
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$id": {
         ".validate": "newData.hasChildren(['title', 'link'])",
         "title": {
-          "uz": { ".validate": "newData.isString() && newData.val().length <= 60" },
-          "ru": { ".validate": "newData.isString() && newData.val().length <= 60" },
-          "$other": { ".validate": false }
+          "uz": {
+            ".validate": "newData.isString() && newData.val().length <= 60"
+          },
+          "ru": {
+            ".validate": "newData.isString() && newData.val().length <= 60"
+          },
+          "$other": {
+            ".validate": false
+          }
         },
         "text": {
-          "uz": { ".validate": "newData.isString() && newData.val().length <= 120" },
-          "ru": { ".validate": "newData.isString() && newData.val().length <= 120" },
-          "$other": { ".validate": false }
+          "uz": {
+            ".validate": "newData.isString() && newData.val().length <= 120"
+          },
+          "ru": {
+            ".validate": "newData.isString() && newData.val().length <= 120"
+          },
+          "$other": {
+            ".validate": false
+          }
         },
         "cta": {
-          "uz": { ".validate": "newData.isString() && newData.val().length <= 30" },
-          "ru": { ".validate": "newData.isString() && newData.val().length <= 30" },
-          "$other": { ".validate": false }
+          "uz": {
+            ".validate": "newData.isString() && newData.val().length <= 30"
+          },
+          "ru": {
+            ".validate": "newData.isString() && newData.val().length <= 30"
+          },
+          "$other": {
+            ".validate": false
+          }
         },
-        "link": { ".validate": "newData.isString() && newData.val().length <= 520 && (newData.val().matches(/^(sale|new|popular|catalog|contact|delivery)$/) || newData.val().matches(/^(group|cat|model|search|product):[^ ]+$/) || newData.val().beginsWith('https://'))" },
-        "theme": { ".validate": "newData.isString() && newData.val().matches(/^(brand|night|sky|sunrise|mint)$/)" },
-        "art": { ".validate": "newData.isString() && newData.val().matches(/^(gm|accessories|sale|delivery|cash)$/)" },
-        "image": { ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 2000" },
-        "order": { ".validate": "newData.isNumber()" },
-        "active": { ".validate": "newData.isBoolean()" },
-        "$other": { ".validate": false }
+        "link": {
+          ".validate": "newData.isString() && newData.val().length <= 520 && (newData.val().matches(/^(sale|new|popular|catalog|contact|delivery)$/) || newData.val().matches(/^(group|cat|model|search|product):[^ ]+$/) || newData.val().beginsWith('https://'))"
+        },
+        "theme": {
+          ".validate": "newData.isString() && newData.val().matches(/^(brand|night|sky|sunrise|mint)$/)"
+        },
+        "art": {
+          ".validate": "newData.isString() && newData.val().matches(/^(gm|accessories|sale|delivery|cash)$/)"
+        },
+        "image": {
+          ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 2000"
+        },
+        "order": {
+          ".validate": "newData.isNumber()"
+        },
+        "active": {
+          ".validate": "newData.isBoolean()"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
-
     "settings": {
       "shop": {
         ".read": true,
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
-        "name": { ".validate": "newData.isString() && newData.val().length <= 60" },
-        "phone": { ".validate": "newData.isString() && newData.val().length <= 20" },
-        "phone2": { ".validate": "newData.isString() && newData.val().length <= 20" },
-        "telegram": { ".validate": "newData.isString() && newData.val().length <= 60" },
-        "instagram": { ".validate": "newData.isString() && newData.val().length <= 60" },
-        "address": { ".validate": "newData.isString() && newData.val().length <= 300" },
-        "landmark": { ".validate": "newData.isString() && newData.val().length <= 300" },
-        "workHours": { ".validate": "newData.isString() && newData.val().length <= 60" },
-        "deliveryNote": { ".validate": "newData.isString() && newData.val().length <= 300" },
-        "legalName": { ".validate": "newData.isString() && newData.val().length <= 120" },
-        "inn": { ".validate": "newData.isString() && newData.val().matches(/^([0-9]{9}|[0-9]{14})?$/)" },
-        "legalAddress": { ".validate": "newData.isString() && newData.val().length <= 300" },
-        "director": { ".validate": "newData.isString() && newData.val().length <= 120" },
-        "bankName": { ".validate": "newData.isString() && newData.val().length <= 160" },
-        "bankAccount": { ".validate": "newData.isString() && newData.val().matches(/^([0-9]{20})?$/)" },
-        "bankMfo": { ".validate": "newData.isString() && newData.val().matches(/^([0-9]{5})?$/)" },
-        "email": { ".validate": "newData.isString() && newData.val().length <= 120 && newData.val().matches(/^([^@ ]+@[^@ ]+[.][^@ ]+)?$/)" },
-        "mxik": { ".validate": "newData.isString() && newData.val().matches(/^([0-9]{17})?$/)" },
-        "packageCode": { ".validate": "newData.isString() && newData.val().matches(/^([0-9]{1,10})?$/)" },
-        "vatPercent": { ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 30" },
-        "lat": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
-        "lng": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
-        "courierEnabled": { ".validate": "newData.isBoolean()" },
-        "pickupEnabled": { ".validate": "newData.isBoolean()" },
-        "courierFee": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000 && newData.val() % 1 === 0" },
-        "freeDeliveryFrom": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000 && newData.val() % 1 === 0" },
-        "$other": { ".validate": false }
+        "name": {
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "phone": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "phone2": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "telegram": {
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "instagram": {
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "address": {
+          ".validate": "newData.isString() && newData.val().length <= 300"
+        },
+        "landmark": {
+          ".validate": "newData.isString() && newData.val().length <= 300"
+        },
+        "workHours": {
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "deliveryNote": {
+          ".validate": "newData.isString() && newData.val().length <= 300"
+        },
+        "legalName": {
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        },
+        "inn": {
+          ".validate": "newData.isString() && newData.val().matches(/^([0-9]{9}|[0-9]{14})?$/)"
+        },
+        "legalAddress": {
+          ".validate": "newData.isString() && newData.val().length <= 300"
+        },
+        "director": {
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        },
+        "bankName": {
+          ".validate": "newData.isString() && newData.val().length <= 160"
+        },
+        "bankAccount": {
+          ".validate": "newData.isString() && newData.val().matches(/^([0-9]{20})?$/)"
+        },
+        "bankMfo": {
+          ".validate": "newData.isString() && newData.val().matches(/^([0-9]{5})?$/)"
+        },
+        "email": {
+          ".validate": "newData.isString() && newData.val().length <= 120 && newData.val().matches(/^([^@ ]+@[^@ ]+[.][^@ ]+)?$/)"
+        },
+        "mxik": {
+          ".validate": "newData.isString() && newData.val().matches(/^([0-9]{17})?$/)"
+        },
+        "packageCode": {
+          ".validate": "newData.isString() && newData.val().matches(/^([0-9]{1,10})?$/)"
+        },
+        "vatPercent": {
+          ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 30"
+        },
+        "lat": {
+          ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+        },
+        "lng": {
+          ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+        },
+        "courierEnabled": {
+          ".validate": "newData.isBoolean()"
+        },
+        "pickupEnabled": {
+          ".validate": "newData.isBoolean()"
+        },
+        "courierFee": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000 && newData.val() % 1 === 0"
+        },
+        "freeDeliveryFrom": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000 && newData.val() % 1 === 0"
+        },
+        "$other": {
+          ".validate": false
+        }
       },
       "private": {
         ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
-        "imgbbApiKey": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{8,100}$/)" },
-        "$other": { ".validate": false }
+        "imgbbApiKey": {
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{8,100}$/)"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
-
     "customers": {
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
         "profile": {
           ".write": "auth != null && auth.uid === $uid",
           ".validate": "newData.hasChildren(['name', 'phone'])",
-          "name": { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80" },
-          "phone": { ".validate": "newData.isString() && newData.val().matches(/^\\+998[0-9]{9}$/)" },
-          "address": { ".validate": "newData.isString() && newData.val().length <= 300" },
-          "landmark": { ".validate": "newData.isString() && newData.val().length <= 200" },
-          "apartment": { ".validate": "newData.isString() && newData.val().length <= 80" },
-          "lat": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
-          "lng": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
-          "updatedAt": { ".validate": "newData.isNumber()" },
-          "$other": { ".validate": false }
+          "name": {
+            ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80"
+          },
+          "phone": {
+            ".validate": "newData.isString() && newData.val().matches(/^\\+998[0-9]{9}$/)"
+          },
+          "address": {
+            ".validate": "newData.isString() && newData.val().length <= 300"
+          },
+          "landmark": {
+            ".validate": "newData.isString() && newData.val().length <= 200"
+          },
+          "apartment": {
+            ".validate": "newData.isString() && newData.val().length <= 80"
+          },
+          "lat": {
+            ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+          },
+          "lng": {
+            ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
         },
         "lastOrderAt": {
-          ".write": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && newData.exists()",
           ".validate": "newData.isNumber() && newData.val() === now"
         },
-        "$other": { ".validate": false }
+        "$other": {
+          ".validate": false
+        }
       }
     },
-
     "orders": {
       ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
-        ".indexOn": ["createdAt"],
+        ".indexOn": [
+          "createdAt"
+        ],
         "$oid": {
-          ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (auth.uid === $uid && !data.exists() && newData.exists()))",
-          ".validate": "newData.hasChildren(['raqam', 'createdAt', 'updatedAt', 'holat', 'tarix', 'mijoz', 'yetkazish', 'tolov', 'items', 'summa', 'yetkazishNarxi', 'jami', 'soni']) && (data.exists() || (newData.child('holat').val() === 'yangi' && newData.parent().parent().parent().child('customers').child($uid).child('lastOrderAt').val() === now && (!root.child('customers').child($uid).child('lastOrderAt').exists() || root.child('customers').child($uid).child('lastOrderAt').val() < now - 30000) && newData.parent().parent().parent().child('orderIndex').child($oid).child('uid').val() === $uid))",
-          "raqam": { ".validate": "newData.isNumber() && newData.val() >= 100000 && newData.val() <= 999999 && (!data.exists() || newData.val() === data.val())" },
-          "createdAt": { ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)" },
+          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['raqam', 'createdAt', 'updatedAt', 'holat', 'tarix', 'mijoz', 'yetkazish', 'tolov', 'items', 'summa', 'yetkazishNarxi', 'jami', 'soni']) && (data.exists() || (newData.child('holat').val() === 'yangi' && newData.parent().parent().parent().child('customers').child($uid).child('lastOrderAt').val() === now && (!root.child('customers').child($uid).child('lastOrderAt').exists() || root.child('customers').child($uid).child('lastOrderAt').val() < now - 30000) && newData.parent().parent().parent().child('orderIndex').child($oid).child('uid').val() === $uid)) && newData.parent().parent().parent().child('orderIndex').child($oid).child('holat').val() === newData.child('holat').val() && (!data.exists() || data.child('holat').val() === newData.child('holat').val() || ((data.child('holat').val() === 'yangi' && newData.child('holat').val() === 'tasdiqlandi') || (data.child('holat').val() === 'tasdiqlandi' && ((newData.child('holat').val() === 'yolda' && data.child('yetkazish/turi').val() === 'kuryer') || (newData.child('holat').val() === 'tayyor' && data.child('yetkazish/turi').val() === 'olib'))) || ((data.child('holat').val() === 'yolda' || data.child('holat').val() === 'tayyor') && newData.child('holat').val() === 'yetkazildi') || ((data.child('holat').val() === 'yangi' || data.child('holat').val() === 'tasdiqlandi' || data.child('holat').val() === 'yolda' || data.child('holat').val() === 'tayyor') && newData.child('holat').val() === 'bekor')) && newData.child('tarix').child(newData.child('holat').val()).val() === now && !data.child('tarix').child(newData.child('holat').val()).exists()) && (!data.exists() || ((data.child('holat').val() === newData.child('holat').val() && newData.child('zaxira').val() === data.child('zaxira').val()) || (data.child('holat').val() !== newData.child('holat').val() && ((newData.child('holat').val() === 'bekor' && newData.child('zaxira').val() !== true) || (newData.child('holat').val() !== 'bekor' && newData.child('zaxira').val() === true))))) && (!data.child('tarix/yangi').exists() || newData.child('tarix/yangi').val() === data.child('tarix/yangi').val()) && (!data.child('tarix/tasdiqlandi').exists() || newData.child('tarix/tasdiqlandi').val() === data.child('tarix/tasdiqlandi').val()) && (!data.child('tarix/yolda').exists() || newData.child('tarix/yolda').val() === data.child('tarix/yolda').val()) && (!data.child('tarix/tayyor').exists() || newData.child('tarix/tayyor').val() === data.child('tarix/tayyor').val()) && (!data.child('tarix/yetkazildi').exists() || newData.child('tarix/yetkazildi').val() === data.child('tarix/yetkazildi').val()) && (!data.child('tarix/bekor').exists() || newData.child('tarix/bekor').val() === data.child('tarix/bekor').val()) && newData.child('tarix/yangi').isNumber() && (data.exists() || newData.child('tarix/yangi').val() === now)",
+          "raqam": {
+            ".validate": "newData.isNumber() && newData.val() >= 100000 && newData.val() <= 999999 && (!data.exists() || newData.val() === data.val())"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)"
+          },
           "updatedAt": {
-            ".write": "auth != null && auth.uid === $uid && data.parent().child('holat').val() === 'yangi' && newData.parent().child('holat').val() === 'bekor'",
+            ".write": "(auth != null && root.child('admins').child(auth.uid).val() === true && data.parent().exists() && newData.exists()) || (auth != null && auth.uid === $uid && data.parent().child('holat').val() === 'yangi' && newData.parent().child('holat').val() === 'bekor')",
             ".validate": "newData.isNumber() && newData.val() === now"
           },
           "holat": {
-            ".write": "auth != null && auth.uid === $uid && data.val() === 'yangi' && newData.val() === 'bekor'",
+            ".write": "(auth != null && root.child('admins').child(auth.uid).val() === true && data.parent().exists() && newData.exists()) || (auth != null && auth.uid === $uid && data.val() === 'yangi' && newData.val() === 'bekor')",
             ".validate": "newData.isString() && newData.val().matches(/^(yangi|tasdiqlandi|yolda|tayyor|yetkazildi|bekor)$/)"
           },
           "tarix": {
             "$s": {
-              ".write": "auth != null && auth.uid === $uid && $s === 'bekor' && !data.exists() && data.parent().parent().child('holat').val() === 'yangi' && newData.parent().parent().child('holat').val() === 'bekor'",
-              ".validate": "newData.isNumber() && newData.val() === now && $s.matches(/^(yangi|tasdiqlandi|yolda|tayyor|yetkazildi|bekor)$/)"
+              ".write": "(auth != null && root.child('admins').child(auth.uid).val() === true && data.parent().parent().exists() && newData.exists() && !data.exists()) || (auth != null && auth.uid === $uid && $s === 'bekor' && !data.exists() && data.parent().parent().child('holat').val() === 'yangi' && newData.parent().parent().child('holat').val() === 'bekor')",
+              ".validate": "newData.isNumber() && $s.matches(/^(yangi|tasdiqlandi|yolda|tayyor|yetkazildi|bekor)$/) && (data.exists() ? newData.val() === data.val() : (newData.val() === now && newData.parent().parent().child('holat').val() === $s))"
             }
           },
           "mijoz": {
             ".validate": "newData.hasChildren(['ism', 'telefon'])",
-            "ism": { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80" },
-            "telefon": { ".validate": "newData.isString() && newData.val().matches(/^\\+998[0-9]{9}$/)" },
-            "$other": { ".validate": false }
+            "ism": {
+              ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80"
+            },
+            "telefon": {
+              ".validate": "newData.isString() && newData.val().matches(/^\\+998[0-9]{9}$/)"
+            },
+            "$other": {
+              ".validate": false
+            }
           },
           "yetkazish": {
             ".validate": "newData.hasChildren(['turi']) && (newData.child('turi').val() === 'olib' || newData.hasChild('manzil'))",
-            "turi": { ".validate": "newData.isString() && newData.val().matches(/^(kuryer|olib)$/)" },
-            "manzil": { ".validate": "newData.isString() && newData.val().length >= 6 && newData.val().length <= 300" },
-            "moljal": { ".validate": "newData.isString() && newData.val().length <= 200" },
-            "lat": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90 && newData.parent().child('lng').isNumber()" },
-            "lng": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180 && newData.parent().child('lat').isNumber()" },
-            "$other": { ".validate": false }
+            "turi": {
+              ".validate": "newData.isString() && newData.val().matches(/^(kuryer|olib)$/) && (!data.exists() || newData.val() === data.val())"
+            },
+            "manzil": {
+              ".validate": "newData.isString() && newData.val().length >= 6 && newData.val().length <= 300"
+            },
+            "moljal": {
+              ".validate": "newData.isString() && newData.val().length <= 200"
+            },
+            "lat": {
+              ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90 && newData.parent().child('lng').isNumber()"
+            },
+            "lng": {
+              ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180 && newData.parent().child('lat').isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
           },
-          "tolov": { ".validate": "newData.val() === 'naqd'" },
-          "izoh": { ".validate": "newData.isString() && newData.val().length <= 500" },
+          "tolov": {
+            ".validate": "newData.val() === 'naqd'"
+          },
+          "izoh": {
+            ".validate": "newData.isString() && newData.val().length <= 500"
+          },
           "items": {
             "$kat": {
               "$pid": {
-                ".validate": "newData.hasChildren(['nomi', 'narxi', 'soni']) && (data.exists() || root.child('tovarlar').child($kat).child($pid).exists())",
-                "nomi": { ".validate": "newData.isString() && newData.val().length <= 160" },
-                "narxi": { ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === root.child('tovarlar').child($kat).child($pid).child('narxi').val())" },
-                "eskiNarx": { ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === root.child('tovarlar').child($kat).child($pid).child('eskiNarx').val())" },
-                "soni": { ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 999 && (data.exists() ? newData.val() === data.val() : newData.val() <= root.child('tovarlar').child($kat).child($pid).child('qoldiq').val())" },
-                "$other": { ".validate": false }
+                ".validate": "newData.hasChildren(['nomi', 'narxi', 'soni']) && (data.exists() || (root.child('tovarlar').child($kat).child($pid).exists() && root.child('tovarlar').child($kat).child($pid).child('archived').val() !== true))",
+                "nomi": {
+                  ".validate": "newData.isString() && newData.val().length <= 160"
+                },
+                "narxi": {
+                  ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === root.child('tovarlar').child($kat).child($pid).child('narxi').val())"
+                },
+                "eskiNarx": {
+                  ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === root.child('tovarlar').child($kat).child($pid).child('eskiNarx').val())"
+                },
+                "soni": {
+                  ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 999 && (data.exists() ? newData.val() === data.val() : newData.val() <= root.child('tovarlar').child($kat).child($pid).child('qoldiq').val())"
+                },
+                "$other": {
+                  ".validate": false
+                }
               }
             }
           },
-          "summa": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000000 && (!data.exists() || newData.val() === data.val())" },
-          "yetkazishNarxi": { ".validate": "newData.isNumber() && newData.val() >= 0 && (data.exists() ? newData.val() === data.val() : (newData.val() === 0 || newData.val() === root.child('settings').child('shop').child('courierFee').val()))" },
-          "jami": { ".validate": "newData.isNumber() && newData.val() === newData.parent().child('summa').val() + newData.parent().child('yetkazishNarxi').val()" },
-          "soni": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50000" },
-          "til": { ".validate": "newData.isString() && newData.val().matches(/^(uz|ru)$/)" },
-          "platforma": { ".validate": "newData.isString() && newData.val().length <= 20" },
-          "zaxira": { ".validate": "newData.isBoolean() && auth != null && root.child('admins').child(auth.uid).val() === true" },
-          "adminIzoh": { ".validate": "newData.isString() && newData.val().length <= 500 && auth != null && root.child('admins').child(auth.uid).val() === true" },
-          "$other": { ".validate": false }
+          "summa": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000000 && (!data.exists() || newData.val() === data.val()) && newData.val() % 1 === 0"
+          },
+          "yetkazishNarxi": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0 && (data.exists() ? newData.val() === data.val() : ((newData.parent().child('yetkazish/turi').val() === 'olib' && root.child('settings/shop').child('pickupEnabled').val() !== false && newData.val() === 0) || (newData.parent().child('yetkazish/turi').val() === 'kuryer' && root.child('settings/shop').child('courierEnabled').val() !== false && ((root.child('settings/shop').child('freeDeliveryFrom').isNumber() && root.child('settings/shop').child('freeDeliveryFrom').val() > 0 && newData.parent().child('summa').val() >= root.child('settings/shop').child('freeDeliveryFrom').val()) ? newData.val() === 0 : (root.child('settings/shop').child('courierFee').isNumber() ? newData.val() === root.child('settings/shop').child('courierFee').val() : newData.val() === 0)))))"
+          },
+          "jami": {
+            ".validate": "newData.isNumber() && newData.val() === newData.parent().child('summa').val() + newData.parent().child('yetkazishNarxi').val() && (!data.exists() || newData.val() === data.val())"
+          },
+          "soni": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50000 && newData.val() % 1 === 0 && (!data.exists() || newData.val() === data.val())"
+          },
+          "til": {
+            ".validate": "newData.isString() && newData.val().matches(/^(uz|ru)$/)"
+          },
+          "platforma": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "zaxira": {
+            ".validate": "newData.isBoolean() && auth != null && root.child('admins').child(auth.uid).val() === true",
+            ".write": "auth != null && root.child('admins').child(auth.uid).val() === true && data.parent().exists() && newData.exists()"
+          },
+          "adminIzoh": {
+            ".validate": "newData.isString() && newData.val().length <= 500 && auth != null && root.child('admins').child(auth.uid).val() === true",
+            ".write": "auth != null && root.child('admins').child(auth.uid).val() === true && data.parent().exists() && newData.exists()"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     },
-
     "orderIndex": {
       ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
-      ".indexOn": ["createdAt"],
+      ".indexOn": [
+        "createdAt"
+      ],
       "$oid": {
-        ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('uid').val() === auth.uid))",
-        ".validate": "newData.hasChildren(['uid', 'raqam', 'createdAt', 'holat', 'jami', 'ism', 'telefon', 'soni', 'turi']) && (data.exists() || (newData.child('holat').val() === 'yangi' && newData.child('jami').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('jami').val()))",
-        "uid": { ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())" },
-        "raqam": { ".validate": "newData.isNumber()" },
-        "createdAt": { ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)" },
+        ".write": "auth != null && newData.exists() && (root.child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('uid').val() === auth.uid))",
+        ".validate": "newData.hasChildren(['uid', 'raqam', 'createdAt', 'holat', 'jami', 'ism', 'telefon', 'soni', 'turi']) && (data.exists() || (newData.child('holat').val() === 'yangi' && newData.child('jami').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('jami').val())) && newData.child('holat').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('holat').val() && (data.exists() || (newData.child('raqam').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('raqam').val() && newData.child('soni').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('soni').val() && newData.child('ism').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('mijoz/ism').val() && newData.child('telefon').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('mijoz/telefon').val() && newData.child('turi').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('yetkazish/turi').val())) && newData.child('raqam').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('raqam').val() && newData.child('createdAt').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('createdAt').val() && newData.child('jami').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('jami').val() && newData.child('soni').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('soni').val() && newData.child('ism').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('mijoz/ism').val() && newData.child('telefon').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('mijoz/telefon').val() && newData.child('turi').val() === newData.parent().parent().child('orders').child(newData.child('uid').val()).child($oid).child('yetkazish/turi').val()",
+        "uid": {
+          ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())"
+        },
+        "raqam": {
+          ".validate": "newData.isNumber()"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)"
+        },
         "holat": {
           ".write": "auth != null && data.parent().child('uid').val() === auth.uid && data.val() === 'yangi' && newData.val() === 'bekor'",
           ".validate": "newData.isString() && newData.val().matches(/^(yangi|tasdiqlandi|yolda|tayyor|yetkazildi|bekor)$/)"
         },
-        "jami": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-        "ism": { ".validate": "newData.isString() && newData.val().length <= 80" },
-        "telefon": { ".validate": "newData.isString() && newData.val().length <= 20" },
-        "soni": { ".validate": "newData.isNumber()" },
-        "turi": { ".validate": "newData.isString() && newData.val().matches(/^(kuryer|olib)$/)" },
-        "$other": { ".validate": false }
+        "jami": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "ism": {
+          ".validate": "newData.isString() && newData.val().length <= 80"
+        },
+        "telefon": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "soni": {
+          ".validate": "newData.isNumber()"
+        },
+        "turi": {
+          ".validate": "newData.isString() && newData.val().matches(/^(kuryer|olib)$/)"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     }
   }

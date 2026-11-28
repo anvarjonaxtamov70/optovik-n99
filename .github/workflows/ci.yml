@@ -29,6 +29,9 @@ jobs:
         if: ${{ !cancelled() }}
       - run: npx expo install --check
         if: ${{ !cancelled() }}
+      - name: Bundle web admin (build only, no deployment)
+        if: ${{ !cancelled() }}
+        run: npx expo export --platform web --output-dir dist/web
       - name: Bundle Android and iOS
         if: ${{ !cancelled() }}
         run: |
@@ -48,3 +51,24 @@ jobs:
           java-version: 21
       - name: Security rules in the Realtime Database emulator
         run: npx --yes firebase-tools@14 emulators:exec --only database --project demo-n99 "node --test tests/rules.emulator.mjs"
+      - name: Synthetic backup and restore in a fresh local emulator
+        run: npx --yes firebase-tools@14 emulators:exec --only database --project demo-n99-restore "node --test tests/restore.emulator.mjs"
+
+  firestore-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Local Firestore migration and fulfillment rehearsal
+        run: npx --yes firebase-tools@14 emulators:exec --config backend/firebase.firestore.local.json --only firestore --project demo-n99-firestore "node --test tests/firestore.emulator.mjs"
+      - name: Firestore emulator diagnostic log on failure
+        if: failure()
+        run: |
+          if [ -f firestore-debug.log ]; then tail -n 100 firestore-debug.log; fi

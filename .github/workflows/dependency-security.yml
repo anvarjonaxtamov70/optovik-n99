@@ -18,7 +18,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Audit the exact mobile and server lockfiles
+      - name: Audit the exact mobile and server lockfiles (high and critical gate)
+        env:
+          N99_STRICT_AUDIT: '1'
         run: node scripts/audit-dependencies.mjs
       - uses: actions/upload-artifact@v4
         if: always()
@@ -26,3 +28,4 @@ jobs:
           name: dependency-security
           path: reports/
           retention-days: 14
+

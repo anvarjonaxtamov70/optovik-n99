@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { cartLines, cartSuggestions, clampToStock, emptyCart, MAX_LINES, pruneMissing, restoreCart, setQty, summarize, toggleLine } from '../src/domain/cart.ts';
+import { applyOrderReceipt, cartLines, cartSuggestions, clampToStock, emptyCart, MAX_LINES, pruneMissing, restoreCart, setQty, summarize, toggleLine } from '../src/domain/cart.ts';
 import { bannerHasContent, DEFAULT_SETTINGS, isSafeLink, LEGACY_PUBLIC_MEDIA_FIELDS, legalErrors, readBanners, readMediaKey, readSettings } from '../src/domain/content.ts';
 import { ofertaSections, RETURN_DAYS } from '../src/content/oferta.ts';
 import { composeAddress, distanceKm, formatKm, isValidLatLng, mapUrl, roundCoord, SAMARQAND } from '../src/domain/geo.ts';
 import { formatSom, groupDigits } from '../src/domain/money.ts';
-import { buildOrderWrite, fullAddress, nextStatus, orderNumber, readOrder, recomputeTotals, statusFlow, validateCheckout } from '../src/domain/order.ts';
+import { buildOrderWrite, fullAddress, nextStatus, orderNumber, readOrder, recomputeTotals, planStockChanges, readStockSnapshot, statusFlow, validateCheckout } from '../src/domain/order.ts';
 import { displayPhone, formatLocal, isValidUzPhone, localDigits, toE164 } from '../src/domain/phone.ts';
 import { addImages, applyFilters, discountPercent, isPlaceholderCatalog, MAX_IMAGES, moveImage, parseWhole, readCachedProducts, readProducts, searchScore, similarProducts, toCache } from '../src/domain/products.ts';
 import { categoryFor, categoryLabel, parseModels } from '../src/domain/taxonomy.ts';
@@ -314,4 +314,67 @@ test('tarjima: o‘zbekcha va ruscha kalitlar va {o‘zgaruvchilar} bir xil', ()
   assert.deepEqual(Object.keys(ru).sort(), Object.keys(uz).sort());
   const vars = (s) => [...new Set(s.match(/\{\w+\}/g) ?? [])].sort().join(',');
   for (const k of Object.keys(uz)) assert.equal(vars(ru[k]), vars(uz[k]), `kalit: ${k}`);
+});
+
+test('checkout rejects stale totals, duplicate items and invalid quantity', () => {
+  const lines = cartLines(setQty(emptyCart, 'dvigatel/oil', 2, 12), byId);
+  const summary = summarize(lines, { courierEnabled: true, courierFee: 20000, freeDeliveryFrom: 0 });
+  const args = { uid: 'u', orderId: 'o', raqam: 123456, lines, summary, form: { ism: 'Ali', telefon: '+998901234567', turi: 'olib', manzil: '', moljal: '', izoh: '' }, lang: 'uz', platform: 'ios', ts: {} };
+  assert.equal(buildOrderWrite(args)['orders/u/o'].jami, 90000);
+  assert.throws(() => buildOrderWrite({ ...args, summary: { ...summary, subtotal: 1, total: 1 } }), /totals changed/);
+  assert.throws(() => buildOrderWrite({ ...args, summary: { ...summary, count: 1 } }), /totals changed/);
+  assert.throws(() => buildOrderWrite({ ...args, lines: [...lines, ...lines] }), /duplicate/);
+  assert.throws(() => buildOrderWrite({ ...args, lines: [{ ...lines[0], qty: 1.5 }] }), /Invalid order item/);
+  assert.throws(() => buildOrderWrite({ ...args, lines: [] }), /totals changed/);
+  assert.throws(() => buildOrderWrite({ ...args, summary: { ...summary, lines: 2 } }), /totals changed/);
+  assert.throws(() => buildOrderWrite({ ...args, lines: [{ ...lines[0], id: 'dvigatel/oil/extra' }] }), /Invalid/);
+  assert.throws(() => buildOrderWrite({ ...args, summary: { ...summary, delivery: Number.MAX_SAFE_INTEGER, total: Number.MAX_SAFE_INTEGER + summary.subtotal } }), /totals changed/);
+});
+
+test('confirmed checkout receipt is applied only once, including after serialization', () => {
+  const initial = { items: { 'dvigatel/oil': 5, 'aksessuarlar/holder': 2 }, off: { 'aksessuarlar/holder': true }, receipts: [] };
+  const ordered = { 'dvigatel/oil': 3 };
+  const once = applyOrderReceipt(initial, 'user/order', ordered);
+  assert.deepEqual(once.items, { 'dvigatel/oil': 2, 'aksessuarlar/holder': 2 });
+  assert.deepEqual(once.off, initial.off);
+  assert.deepEqual(initial.items, { 'dvigatel/oil': 5, 'aksessuarlar/holder': 2 });
+  const restored = JSON.parse(JSON.stringify(once));
+  assert.equal(applyOrderReceipt(restored, 'user/order', ordered), restored);
+  const next = applyOrderReceipt(restored, 'user/next', { 'dvigatel/oil': 2 });
+  assert.deepEqual(next.items, { 'aksessuarlar/holder': 2 });
+  assert.throws(() => applyOrderReceipt(initial, 'user/bad', { 'dvigatel/oil': -1 }));
+});
+
+test('archived products remain readable by physical ID but are excluded from shop and cache', () => {
+  const archived = { nomi: 'Archived', narxi: 100, qoldiq: 5, revision: 2, archived: true };
+  assert.equal(readProducts({ a: { b: archived } }).length, 0);
+  assert.equal(readCachedProducts([{ id: 'a/b', ...archived }]).length, 0);
+  const product = readProducts({ a: { b: { ...archived, archived: false } } })[0];
+  assert.equal(product.id, 'a/b');
+});
+
+test('inventory plan reserves and releases original product IDs with exact revision', () => {
+  const items = [{ id: 'a/b', nomi: 'X', narxi: 10, soni: 2 }];
+  const catalog = new Map([['a/b', { qoldiq: 5, revision: 3, archived: true }]]);
+  assert.deepEqual(planStockChanges(items, catalog, true), [{ id: 'a/b', stock: 3, revision: 4 }]);
+  assert.deepEqual(planStockChanges(items, catalog, false), [{ id: 'a/b', stock: 7, revision: 4 }]);
+  assert.throws(() => planStockChanges([...items, ...items], catalog, true));
+  assert.throws(() => planStockChanges([{ ...items[0], soni: 6 }], catalog, true));
+  assert.throws(() => planStockChanges([{ ...items[0], soni: 0 }], catalog, false));
+});
+
+test('inventory rejects malformed legacy stock instead of rounding it', () => {
+  assert.deepEqual(readStockSnapshot({ qoldiq: 2 }), { qoldiq: 2, revision: 0 });
+  assert.throws(() => readStockSnapshot({ qoldiq: 1.5, revision: 2 }));
+  assert.throws(() => readStockSnapshot({ qoldiq: -1 }));
+  assert.throws(() => readStockSnapshot({ qoldiq: 1, revision: '2' }));
+});
+
+test('cart rejects invalid quantities and IDs without corrupting state', () => {
+  for (const [id, qty, stock] of [['a/b', NaN, 5], ['a/b', 1, Infinity], ['invalid', 1, 5], ['a/b', 1, -1]]) assert.equal(setQty(emptyCart, id, qty, stock), emptyCart);
+});
+test('authoritative empty catalog removes missing cart lines, cached empty does not', () => {
+  const cart = { items: { 'a/b': 2 }, off: { 'a/b': true } };
+  assert.equal(pruneMissing(cart, new Map()).removed, 0);
+  assert.deepEqual(pruneMissing(cart, new Map(), true), { cart: emptyCart, removed: 1 });
 });

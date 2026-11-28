@@ -1,8 +1,14 @@
+import { onAuthStateChanged } from 'firebase/auth';
+import { AppState } from 'react-native';
+import { usesFirestoreCandidate } from '../lib/orderBackend';
+import { CANDIDATE_CATALOG_REFRESH_MS } from '../domain/candidateBackend';
+import { candidateCatalogSnapshot } from '../lib/candidateData';
+import { subscribeCandidateRefresh } from '../lib/candidateRefresh';
 import { onValue, ref } from 'firebase/database';
 
 import { DEFAULT_SETTINGS, readBanners, readSettings, type Banner, type ShopSettings } from '../domain/content';
 import { isPlaceholderCatalog, readCachedProducts, readProducts, toCache, type Product } from '../domain/products';
-import { db } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { createStore, useStore } from '../lib/store';
 import { readLocal, saveLocal } from '../lib/storage';
 
@@ -57,6 +63,7 @@ export async function startCatalog() {
 
 function subscribe() {
   unsubs.forEach((u) => u());
+  if(usesFirestoreCandidate){subscribeCandidate();return;}
   const slow = setTimeout(() => {
     if (!catalogStore.get().live) catalogStore.set((s) => ({ ...s, status: s.products.length ? 'offline' : 'error' }));
   }, 12000);
@@ -100,3 +107,33 @@ export const useBanners = () => useStore(catalogStore, (s) => s.banners);
 export const useCatalogLive = () => useStore(catalogStore, (s) => s.live && s.connected);
 export const usePlaceholderCatalog = () => useStore(catalogStore, (s) => s.placeholder);
 export const useCatalogVersion = () => useStore(catalogStore, (s) => s.version);
+
+function subscribeCandidate(){
+ let disposed=false,running=false,queued=false,generation=0;
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ const clear=()=>{if(timer!==undefined)clearTimeout(timer);};
+ const refresh=async()=>{
+  clear();
+  if(disposed||running||AppState.currentState==='background'||AppState.currentState==='inactive')return;
+  const uid=auth.currentUser?.uid;
+  if(!uid)return;
+  running=true;queued=false;const current=generation;
+  try{
+   const {products,settings,banners}=await candidateCatalogSnapshot(uid);
+   if(disposed||current!==generation||auth.currentUser?.uid!==uid||AppState.currentState==='background'||AppState.currentState==='inactive')return;
+   // Publish one consistent update; never reconcile the cart against stale products.
+   catalogStore.set(s=>({...s,products,byId:new Map(products.map(p=>[p.id,p])),settings:readSettings(settings),banners:banners===null?null:readBanners(banners),connected:true,live:true,status:'ready',placeholder:isPlaceholderCatalog(products),version:s.version+1}));
+   void saveLocal('catalog',toCache(products)).catch(()=>{});
+   void saveLocal('settings',settings).catch(()=>{});
+   void saveLocal('banners',banners).catch(()=>{});
+  }catch{if(!disposed&&current===generation&&auth.currentUser?.uid===uid&&AppState.currentState!=='background'&&AppState.currentState!=='inactive')catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'error'}));}
+  finally{running=false;if(!disposed&&AppState.currentState!=='background'&&AppState.currentState!=='inactive'){if(queued)void refresh();else timer=setTimeout(()=>{void refresh();},CANDIDATE_CATALOG_REFRESH_MS);}}
+ };
+ const invalidate=()=>{generation++;queued=true;void refresh();};
+ const offRefresh=subscribeCandidateRefresh(event=>{if(event.inventoryMayChange&&event.actor===auth.currentUser?.uid)invalidate();});
+ const off=onAuthStateChanged(auth,()=>{if(disposed)return;catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'loading'}));invalidate();});
+ const sub=AppState.addEventListener('change',s=>{if(s==='active'){if(running)queued=true;else void refresh();}else{generation++;queued=true;clear();catalogStore.set(v=>({...v,connected:false}));}});
+ unsubs=[()=>{disposed=true;clear();off();offRefresh();sub.remove();}];
+ // onAuthStateChanged supplies the initial account, including restored sessions.
+ // Starting here too races that callback and duplicates the first catalog read.
+}

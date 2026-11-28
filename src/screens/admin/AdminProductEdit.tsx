@@ -19,7 +19,7 @@ import { useT, type TKey } from '../../i18n';
 import { confirmAsync } from '../../lib/confirm';
 import { classifyError } from '../../lib/firebase';
 import { haptic } from '../../lib/haptics';
-import { deleteProduct, formFromCopy, formFromProduct, nextNewForm, saveProduct, validateProduct, type ProductForm } from '../../state/admin';
+import { ActiveOrderProductError, deleteProduct, formFromCopy, formFromProduct, nextNewForm, saveProduct, validateProduct, type ProductForm } from '../../state/admin';
 import { useCatalogStatus, useProduct, useProducts } from '../../state/catalog';
 import { showToast } from '../../state/toast';
 import { colors } from '../../theme/tokens';
@@ -52,6 +52,8 @@ export default function AdminProductEdit() {
 function Editor({ existing, initial, copied }: { existing?: Product; initial: ProductForm; copied: boolean }) {
   const [form, setForm] = useState<ProductForm>(initial);
   const [baseline, setBaseline] = useState<ProductForm>(initial);
+  // Keep the revision that the form was actually populated from, not the live subscription's later revision.
+  const [originalProduct] = useState(existing);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   // Shu kenglikdan boshlab forma ikki ustunga bo'linadi (noutbuk).
@@ -95,7 +97,8 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
     }
     setBusy(true);
     try {
-      await saveProduct(form, existing);
+      if (existing && originalProduct?.revision !== existing.revision) throw Object.assign(new Error('Product changed'), { code: 'permission-denied' });
+      await saveProduct(form, originalProduct);
       haptic.success();
       showToast(t('admin.product.saved'), { kind: 'success' });
       if (mode === 'next') {
@@ -110,7 +113,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
       }
     } catch (e) {
       haptic.warning();
-      showToast(classifyError(e) === 'permission' ? t('admin.product.conflict') : t('common.error'), { kind: 'error' });
+      showToast(e instanceof ActiveOrderProductError ? t('admin.product.activeOrder') : classifyError(e) === 'permission' ? t('admin.product.conflict') : t('common.error'), { kind: 'error' });
     } finally {
       setBusy(false);
     }
@@ -136,8 +139,8 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
       showToast(t('admin.product.deleted'), { kind: 'success' });
       allowLeave();
       goBack('/admin/products');
-    } catch {
-      showToast(t('common.error'), { kind: 'error' });
+    } catch (e) {
+      showToast(classifyError(e) === 'permission' ? t('admin.product.conflict') : t('common.error'), { kind: 'error' });
     }
   };
 

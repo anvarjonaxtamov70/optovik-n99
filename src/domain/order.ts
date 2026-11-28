@@ -1,4 +1,4 @@
-import type { CartLine, CartSummary, DeliveryKind } from './cart.ts';
+import { MAX_LINES, MAX_QTY, validId, type CartLine, type CartSummary, type DeliveryKind } from './cart.ts';
 import { isValidLatLng, roundCoord } from './geo.ts';
 
 export type OrderStatus = 'yangi' | 'tasdiqlandi' | 'yolda' | 'tayyor' | 'yetkazildi' | 'bekor';
@@ -151,17 +151,26 @@ export function buildOrderWrite(args: {
   lang: 'uz' | 'ru'; platform: string; ts: object;
 }) {
   const { uid, orderId, raqam, lines, summary, form, ts } = args;
+  if (Object.keys(validateCheckout(form)).length || (form.turi !== 'olib' && form.turi !== 'kuryer')) throw new Error('Invalid checkout form');
+  if (!Number.isInteger(raqam) || raqam < 100000 || raqam > 999999) throw new Error('Invalid order number');
   const items: Record<string, Record<string, { nomi: string; narxi: number; soni: number; eskiNarx?: number }>> = {};
   let soni = 0;
+  let summa = 0;
+  let lineCount = 0;
   for (const l of lines) {
     if (!l.selected || !l.product) continue;
     const qty = Math.min(l.qty, l.product.qoldiq);
     if (qty <= 0) continue;
+    if (l.product.archived) throw new Error('Product archived');
+    if (++lineCount > MAX_LINES || qty > MAX_QTY || !validId(l.id) || !Number.isSafeInteger(qty) || !Number.isSafeInteger(l.product.narxi) || l.product.narxi < 0) throw new Error('Invalid order item');
     const [cat, pid] = l.id.split('/');
+    if (!cat || !pid || l.id !== l.product.id || items[cat]?.[pid]) throw new Error('Invalid or duplicate order item');
     items[cat] ??= {};
     items[cat][pid] = { nomi: l.product.nomi, narxi: l.product.narxi, soni: qty, ...(l.product.eskiNarx ? { eskiNarx: l.product.eskiNarx } : {}) };
     soni += qty;
+    summa += qty * l.product.narxi;
   }
+  if (!soni || lineCount !== summary.lines || !Number.isSafeInteger(summa + summary.delivery) || !Number.isSafeInteger(summa) || !Number.isSafeInteger(summary.delivery) || summary.delivery < 0 || summa !== summary.subtotal || soni !== summary.count || summa + summary.delivery !== summary.total) throw new Error('Checkout totals changed');
   const point = { lat: form.lat, lng: form.lng };
   const yetkazish = form.turi === 'kuryer'
     ? {
@@ -173,10 +182,10 @@ export function buildOrderWrite(args: {
     raqam, createdAt: ts, updatedAt: ts, holat: 'yangi', tarix: { yangi: ts },
     mijoz: { ism: form.ism.trim(), telefon: form.telefon },
     yetkazish, tolov: 'naqd', ...(form.izoh.trim() ? { izoh: form.izoh.trim().slice(0, 500) } : {}),
-    items, summa: summary.subtotal, yetkazishNarxi: summary.delivery, jami: summary.total, soni,
+    items, summa, yetkazishNarxi: summary.delivery, jami: summa + summary.delivery, soni,
     til: args.lang, platforma: args.platform,
   };
-  const index = { uid, raqam, createdAt: ts, holat: 'yangi', jami: summary.total, ism: form.ism.trim(), telefon: form.telefon, soni, turi: form.turi };
+  const index = { uid, raqam, createdAt: ts, holat: 'yangi', jami: summa + summary.delivery, ism: form.ism.trim(), telefon: form.telefon, soni, turi: form.turi };
   return {
     [`orders/${uid}/${orderId}`]: order,
     [`orderIndex/${orderId}`]: index,
@@ -186,4 +195,39 @@ export function buildOrderWrite(args: {
 
 export function orderNumber(raqam: number): string {
   return 'N' + String(raqam).padStart(6, '0');
+}
+
+/** Validate stock plans before writing the order and all inventory revisions atomically. */
+export function planStockChanges(items: OrderItem[], products: ReadonlyMap<string, { qoldiq: number; revision: number }>, reserve: boolean) {
+  if (!items.length || items.length > MAX_LINES) throw new Error('Invalid order items');
+  const seen = new Set<string>();
+  return items.map((item) => {
+    if (!validId(item.id) || seen.has(item.id) || !Number.isSafeInteger(item.soni) || item.soni < 1 || item.soni > MAX_QTY) throw new Error('Invalid order item');
+    seen.add(item.id);
+    const product = products.get(item.id);
+    if (!product || !Number.isSafeInteger(product.qoldiq) || product.qoldiq < 0 || !Number.isSafeInteger(product.revision) || product.revision < 0) throw new Error('Order product missing or invalid');
+    const stock = product.qoldiq + (reserve ? -item.soni : item.soni);
+    if (!Number.isSafeInteger(stock) || stock < 0 || stock > 1_000_000 || !Number.isSafeInteger(product.revision + 1)) throw new Error('Invalid resulting stock');
+    return { id: item.id, stock, revision: product.revision + 1 };
+  });
+}
+
+/** Preserve exact server stock; do not round invalid historical inventory. */
+export function readStockSnapshot(value: unknown): { qoldiq: number; revision: number } {
+  if (!isRecord(value) || typeof value.qoldiq !== 'number' || !Number.isSafeInteger(value.qoldiq) || value.qoldiq < 0 || value.qoldiq > 1_000_000) throw new Error('Invalid stock snapshot');
+  const revision = value.revision === undefined ? 0 : value.revision;
+  if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 0) throw new Error('Invalid stock revision');
+  return { qoldiq: value.qoldiq, revision };
+}
+
+/** Reject inconsistent stored orders before an administrator commits a fulfillment transition. */
+export function assertFulfillableOrder(o: Pick<Order, 'items' | 'yetkazishNarxi' | 'summa' | 'jami' | 'soni'>) {
+  if (!o.items.length || o.items.length > MAX_LINES || !Number.isSafeInteger(o.yetkazishNarxi) || o.yetkazishNarxi < 0) throw new Error('Invalid order totals');
+  const seen = new Set<string>();
+  for (const item of o.items) {
+    if (!validId(item.id) || seen.has(item.id) || !Number.isSafeInteger(item.narxi) || item.narxi < 0 || !Number.isSafeInteger(item.soni) || item.soni < 1 || item.soni > MAX_QTY) throw new Error('Invalid order item');
+    seen.add(item.id);
+  }
+  const totals = recomputeTotals(o);
+  if (!Number.isSafeInteger(totals.jami) || totals.summa > 1_000_000_000_000 || totals.jami !== o.jami || totals.summa !== o.summa || totals.soni !== o.soni) throw new Error('Order totals mismatch');
 }
