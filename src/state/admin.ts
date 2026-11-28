@@ -240,5 +240,8 @@ export async function uploadToImgbb(image: Blob | string, key: string): Promise<
 
 export async function loadCandidateAdminBanners(uid:string){
  const result=await candidateRequest<{banners:unknown}>('/v1/admin/banners/list',{},uid);
- return readBanners(result.banners,true);
+ if(!result.banners||typeof result.banners!=='object'||Array.isArray(result.banners))throw new Error('Invalid banner response');
+ const banners=readBanners(result.banners,true);
+ if(banners.length!==Object.keys(result.banners).length||auth.currentUser?.uid!==uid)throw new Error('Invalid banner response');
+ return banners;
 }

@@ -34,3 +34,21 @@ test('candidate banner mutations and read permissions survive batched dataset gu
  await mutateBanner(run,'admin',{id,action:'delete'});
  assert.deepEqual(await listBanners(run,'guest'),{banners:{},bannersConfigured:false});
 });
+
+test('real API route lifecycle exposes only active banners to customer',async()=>{
+ const {createFirestoreApi}=await import('../backend/firestore-api.mjs');
+ const docs=new Map([[paths.dataset,{kind:'synthetic-only',version:1}],[paths.admin('admin'),true],[paths.banners,{}]]);
+ const api=createFirestoreApi({enabled:()=>true,authenticate:async req=>req.headers.get('Authorization'),runner:async()=>syntheticDatasetRunner(async task=>{
+  const writes=new Map();const value=await task({get:async p=>docs.get(p)??null,getAll:async ps=>ps.map(p=>docs.get(p)??null),set:(p,v)=>writes.set(p,v)});for(const [p,v] of writes)docs.set(p,v);return value;
+ })});
+ const call=async(path,body,actor='guest')=>api.fetch(new Request('https://test.invalid'+path,{method:'POST',headers:{Authorization:actor,'Content-Type':'application/json'},body:JSON.stringify(body)}),{});
+ assert.equal((await call('/v1/admin/banner',{id,action:'save',banner})).status,403);
+ assert.equal((await call('/v1/admin/banner',{id,action:'save',banner},'admin')).status,200);
+ assert.equal((await (await call('/v1/banners/list',{})).json()).banners[id].title.uz,'TEST');
+ assert.equal((await call('/v1/admin/banner',{id,action:'save',banner:{...banner,active:false}},'admin')).status,200);
+ assert.deepEqual(await (await call('/v1/banners/list',{})).json(),{banners:{},bannersConfigured:true});
+ assert.equal((await call('/v1/admin/banners/list',{})).status,403);
+ assert.equal((await (await call('/v1/admin/banners/list',{},'admin')).json()).banners[id].active,false);
+ assert.equal((await call('/v1/admin/banner',{id,action:'delete'},'admin')).status,200);
+ assert.deepEqual(await (await call('/v1/banners/list',{})).json(),{banners:{},bannersConfigured:false});
+});

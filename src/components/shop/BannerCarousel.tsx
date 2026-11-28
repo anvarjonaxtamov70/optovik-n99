@@ -1,11 +1,9 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useIsFocused } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, {
-  Extrapolation, interpolate, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, type SharedValue,
-} from 'react-native-reanimated';
+import { useEffect, useRef, useState } from 'react';
+import { AppState, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { bannerIndex } from '../../domain/bannerUi';
 
 import type { Banner, BannerTheme } from '../../domain/content';
 import { useT } from '../../i18n';
@@ -33,94 +31,71 @@ const GAP = 10;
 const AUTO_MS = 4800;
 
 /**
- * Bosh sahifa bannerlari: o'zi aylanadi, surilganda to'xtaydi, rasm parallaks bilan siljiydi.
- * Boshqa bo'lim yoki tovar sahifasi ochilganda (ekran ko'rinmay qolganda) aylanish to'xtaydi —
- * aks holda yashirin banner har 4,8 soniyada telefonni ishlatib, ko'rinib turgan ro'yxatni sekinlashtirardi.
+ * Native scrolling on both web and phone; admin preview never navigates or auto-rotates.
+ * Stop automatic rotation while unfocused/backgrounded or shortly after user interaction.
  */
-export function BannerCarousel({ banners }: { banners: Banner[] }) {
+export function BannerCarousel({ banners, preview=false }: { banners: Banner[]; preview?:boolean }) {
   const { width } = useWindowDimensions();
-  const cardW = Math.min(width, 760) - 32;
-  const cardH = Math.round(Math.max(156, Math.min(cardW * 0.46, 230)));
-  const interval = cardW + GAP;
-  const ref = useAnimatedRef<Animated.ScrollView>();
-  const x = useSharedValue(0);
-  const touching = useRef(false);
-  const indexRef = useRef(0);
-  const focused = useIsFocused();
-
-  const onScroll = useAnimatedScrollHandler({ onScroll: (e) => { x.value = e.contentOffset.x; } });
-
-  useEffect(() => {
-    if (banners.length < 2 || !focused) return;
-    const id = setInterval(() => {
-      if (touching.current) return;
-      const next = (indexRef.current + 1) % banners.length;
-      indexRef.current = next;
-      ref.current?.scrollTo({ x: next * interval, animated: true });
-    }, AUTO_MS);
-    return () => clearInterval(id);
-  }, [banners.length, focused, interval, ref]);
-
-  if (!banners.length) return null;
+  const [measured,setMeasured]=useState(0);
+  const cardW=Math.max(1,Math.min(measured||width,760)-32);
+  const cardH=Math.round(Math.max(156,Math.min(cardW*0.46,230)));
+  const interval=cardW+GAP;
+  const ref=useRef<ScrollView>(null);
+  const indexRef=useRef(0);
+  const lastTouch=useRef(0);
+  const [index,setIndex]=useState(0);
+  const focused=useIsFocused();
+  const signature=JSON.stringify(banners.map(b=>b.id));
+  const count=banners.length;
+  useEffect(()=>{
+    indexRef.current=0;setIndex(0);ref.current?.scrollTo({x:0,animated:false});
+  },[signature,interval]);
+  useEffect(()=>{
+    if(preview||!focused||count<2)return;
+    const timer=setInterval(()=>{
+      if(AppState.currentState==='background'||AppState.currentState==='inactive'||Date.now()-lastTouch.current<AUTO_MS)return;
+      const next=(indexRef.current+1)%count;
+      ref.current?.scrollTo({x:next*interval,animated:true});
+    },AUTO_MS);
+    return ()=>clearInterval(timer);
+  },[count,focused,interval,preview]);
+  if(!count)return null;
   return (
-    <View>
-      <Animated.ScrollView
-        ref={ref}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        decelerationRate="fast"
-        snapToInterval={interval}
-        disableIntervalMomentum
-        contentContainerStyle={{ paddingHorizontal: 16, gap: GAP }}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        onScrollBeginDrag={() => { touching.current = true; }}
-        onMomentumScrollEnd={(e) => {
-          touching.current = false;
-          indexRef.current = Math.round(e.nativeEvent.contentOffset.x / interval);
-        }}
-      >
-        {banners.map((b, i) => <BannerCard key={b.id} banner={b} i={i} x={x} interval={interval} width={cardW} height={cardH} />)}
-      </Animated.ScrollView>
-      {banners.length > 1 ? (
-        <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {banners.map((b, i) => <Dot key={b.id} i={i} x={x} interval={interval} />)}
-        </View>
-      ) : null}
+    <View onLayout={e=>setMeasured(e.nativeEvent.layout.width)}>
+      <ScrollView ref={ref} horizontal showsHorizontalScrollIndicator={false}
+        scrollEnabled={count>1} decelerationRate="fast" snapToInterval={interval}
+        disableIntervalMomentum contentContainerStyle={{paddingHorizontal:16,gap:GAP}}
+        scrollEventThrottle={32}
+        onTouchStart={()=>{lastTouch.current=Date.now();}}
+        onScrollBeginDrag={()=>{lastTouch.current=Date.now();}}
+        onScrollEndDrag={()=>{lastTouch.current=Date.now();}}
+        onScroll={e=>{
+          const next=bannerIndex(e.nativeEvent.contentOffset.x,interval,count);
+          if(next!==indexRef.current){indexRef.current=next;setIndex(next);}
+        }}>
+        {banners.map(b=><BannerCard key={b.id} banner={b} width={cardW} height={cardH} preview={preview}/>)}
+      </ScrollView>
+      {count>1?<View style={styles.dots}>
+        {banners.map((b,i)=><Pressable key={b.id} accessibilityRole="button" accessibilityLabel={String(i+1)} accessibilityState={{selected:index===i}} hitSlop={5} onPress={()=>{lastTouch.current=Date.now();ref.current?.scrollTo({x:i*interval,animated:true});}} style={[styles.dot,{width:index===i?22:7,opacity:index===i?1:0.35}]}/>)}
+      </View>:null}
     </View>
   );
 }
 
-function Dot({ i, x, interval }: { i: number; x: SharedValue<number>; interval: number }) {
-  const style = useAnimatedStyle(() => {
-    const d = Math.abs(x.value / interval - i);
-    const t = interpolate(d, [0, 1], [1, 0], Extrapolation.CLAMP);
-    return { width: 7 + t * 15, opacity: 0.35 + t * 0.65 };
-  });
-  return <Animated.View style={[styles.dot, style]} />;
-}
-
-function BannerCard({ banner: b, i, x, interval, width, height }: {
-  banner: Banner; i: number; x: SharedValue<number>; interval: number; width: number; height: number;
-}) {
+function BannerCard({banner:b,width,height,preview}:{banner:Banner;width:number;height:number;preview:boolean}){
   const { lang } = useT();
   const theme = THEMES[b.theme];
   const fg = theme.dark ? colors.white : colors.ink;
-  const art = useAnimatedStyle(() => {
-    const d = x.value - i * interval;
-    // Yengil parallaks: rasm kartadan sekinroq suriladi (faqat surish paytida, tinch turganda harakat yo'q).
-    return { transform: [{ translateX: d * -0.16 }, { scale: interpolate(Math.abs(d), [0, interval], [1, 0.94], Extrapolation.CLAMP) }] };
-  });
   return (
-    <PressableScale onPress={() => openLink(b.link, b.title[lang].replace(/\n/g, ' '))} scaleTo={0.98} feedback="tap" unstable_pressDelay={110}
+    <PressableScale disabled={preview} dimWhenDisabled={false} onPress={preview?undefined:() => openLink(b.link, b.title[lang].replace(/\n/g, ' '))} scaleTo={0.98} feedback="tap" unstable_pressDelay={110}
       accessibilityLabel={`${b.title[lang].replace(/\n/g, ' ')}. ${b.cta[lang]}`}
       style={[styles.card, { width, height }]}>
       <LinearGradient colors={theme.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       <View style={[styles.circle, { width: height * 1.3, height: height * 1.3, right: -height * 0.45, top: -height * 0.5, borderColor: theme.dark ? 'rgba(255,255,255,0.10)' : 'rgba(33,115,177,0.08)' }]} />
       <View style={[styles.circle, { width: height * 0.7, height: height * 0.7, right: width * 0.32, bottom: -height * 0.42, borderColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(33,115,177,0.07)' }]} />
-      <Animated.View style={[styles.art, art]} pointerEvents="none">
+      <View style={styles.art} pointerEvents="none">
         <BannerArt banner={b} height={height} width={width} dark={theme.dark} warm={b.theme === 'sunrise'} />
-      </Animated.View>
+      </View>
       <View style={styles.copy}>
         <Txt style={[styles.title, { color: fg, fontSize: height > 190 ? 24 : 20, lineHeight: height > 190 ? 29 : 25 }]} numberOfLines={3}>{b.title[lang]}</Txt>
         {b.text[lang] ? <Txt variant="small" color={theme.dark ? colors.onBrandMuted : colors.muted} numberOfLines={2} style={styles.text}>{b.text[lang]}</Txt> : null}
@@ -133,11 +108,12 @@ function BannerCard({ banner: b, i, x, interval, width, height }: {
   );
 }
 
-/** Banner rasmi: tinch turadi (avvalgi tinimsiz tebranayotgan "%" olib tashlandi), faqat surilganda biroz siljiydi. */
+/** Invalid external images fall back to the selected built-in art. */
 function BannerArt({ banner: b, height, width, dark, warm }: { banner: Banner; height: number; width: number; dark: boolean; warm: boolean }) {
   // Rasm kartaning o'ng yarmidan chiqmaydi — chapdagi matn ustiga tushmaydi.
   const maxW = width * 0.46;
-  if (b.image) return <Image source={{ uri: b.image }} style={{ width: Math.min(height * 1.05, maxW), height: height * 0.9 }} contentFit="contain" />;
+  const [failed,setFailed]=useState<string|null>(null);
+  if (b.image&&failed!==b.image) return <Image source={{ uri: b.image }} onError={()=>setFailed(b.image??null)} style={{ width: Math.min(height * 1.05, maxW), height: height * 0.9 }} contentFit="contain" />;
   if (b.art === 'gm' || b.art === 'accessories') {
     return <Image source={ART[b.art]} style={{ width: Math.min(height * 1.25, maxW), height: height * 0.84 }} contentFit="contain" />;
   }

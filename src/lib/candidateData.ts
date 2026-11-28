@@ -1,7 +1,7 @@
 import {auth} from './firebase';
 import {candidateRequest,usesFirestoreCandidate} from './orderBackend';
 import {CANDIDATE_CATALOG_CAP,collectPages,type Page} from '../domain/candidateBackend';
-import {candidateBannerCache} from '../domain/content';
+import {candidateBannerCache,readBanners} from '../domain/content';
 import {readProduct,type Product,defaultOrder} from '../domain/products';
 import {readOrder,readOrderIndex,type Order,type OrderIndex} from '../domain/order';
 type Row={id:string;uid:string;data:unknown};
@@ -28,6 +28,12 @@ export async function candidateCatalogSnapshot(uid:string){
  if(content){active(uid);return {products,...content};}
  const [shop,banners]=await Promise.all([candidateRequest<{settings:unknown}>('/v1/shop/get',{},uid),candidateRequest<{banners:unknown;bannersConfigured?:boolean}>('/v1/banners/list',{},uid)]);
  active(uid);return {products,settings:shop.settings,banners:candidateBannerCache(banners.banners,banners.bannersConfigured)};
+}
+export async function candidatePublicBanners(uid:string){
+ const result=await candidateRequest<{banners:unknown;bannersConfigured?:boolean}>('/v1/banners/list',{},uid);
+ active(uid);
+ const raw=candidateBannerCache(result.banners,result.bannersConfigured);
+ return raw===null?null:readBanners(raw);
 }
 export async function candidateOrders(uid:string,admin:boolean,limit:number){
  const rows=await collectPages<Row,Cursor>((cursor,limit)=>candidateRequest<Page<Row,Cursor>>(admin?'/v1/admin/orders/list':'/v1/orders/list',{cursor,limit},uid),limit,false);

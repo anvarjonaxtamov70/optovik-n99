@@ -28,8 +28,10 @@ import { useT } from '../i18n';
 import { callPhone } from '../lib/links';
 import { openList } from '../lib/nav';
 import { usesFirestoreCandidate } from '../lib/orderBackend';
-import { catalogStore, retryCatalog, useBanners, useCatalogStatus, useProducts, useSettings } from '../state/catalog';
+import { catalogStore, retryCatalog, useCatalogStatus, useProducts, useSettings } from '../state/catalog';
 import { useMyCar } from '../state/prefs';
+import {useHomeBanners} from '../state/homeBanners';
+import type {Banner} from '../domain/content';
 import { colors, fill, gradients, radius, shadow } from '../theme/tokens';
 
 const TOP_ROW = 50;
@@ -39,6 +41,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useT();
   const products = useProducts();
+  const {banners:remoteBanners,refresh:refreshBanners}=useHomeBanners();
   const status = useCatalogStatus();
   const settings = useSettings();
   const car = useMyCar();
@@ -60,12 +63,12 @@ export default function HomeScreen() {
   const refresh = useCallback(() => {
     setRefreshing(true);
     const from = catalogStore.get().version;
-    retryCatalog();
+    retryCatalog();refreshBanners();
     let done = false;
     const stop = () => { if (done) return; done = true; off(); clearTimeout(timer); setRefreshing(false); };
     const off = catalogStore.subscribe(() => { if (catalogStore.get().version !== from) stop(); });
     const timer = setTimeout(stop, 6000);
-  }, []);
+  }, [refreshBanners]);
 
   return (
     <View style={styles.root}>
@@ -82,7 +85,7 @@ export default function HomeScreen() {
         initialNumToRender={6}
         windowSize={9}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} progressViewOffset={headerH} tintColor={colors.primary} colors={[colors.primary]} />}
-        ListHeaderComponent={<HomeSections products={products} loading={loading} carSlug={carModel?.slug ?? null} />}
+        ListHeaderComponent={<HomeSections products={products} loading={loading} carSlug={carModel?.slug ?? null} remote={remoteBanners} />}
         ListEmptyComponent={loading ? (
           <View style={[styles.skeletons, { gap }]}>{[0, 1, 2, 3].map((i) => <ProductCardSkeleton key={i} width={cardWidth} />)}</View>
         ) : (
@@ -125,9 +128,8 @@ const RAILS_FROM = 12;
 /** Kategoriyalar to'ri kamida shuncha bo'lim bo'lganda ko'rinadi (bitta katak yolg'iz turib qolmasin). */
 const GRID_FROM = 4;
 
-function HomeSections({ products, loading, carSlug }: { products: Product[]; loading: boolean; carSlug: string | null }) {
+function HomeSections({ products, loading, carSlug,remote }: { products: Product[]; loading: boolean; carSlug: string | null;remote:Banner[]|null }) {
   const { t } = useT();
-  const remote = useBanners();
   // Bo'sh javonni reklama qilmaymiz: bosilganda bo'sh ro'yxat ochadigan banner ko'rsatilmaydi.
   const banners = useMemo(() => {
     if(usesFirestoreCandidate)return candidateHomeBanners(remote,products);
