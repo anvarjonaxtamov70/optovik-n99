@@ -11,6 +11,7 @@ import { readLocal, saveLocal } from '../lib/storage';
 import { candidateRequest,usesFirestoreCandidate } from '../lib/orderBackend';
 import { candidateAck } from '../lib/candidateData';
 import { ownedProfile } from '../domain/customerIdentity';
+import {createProfileWriteQueue} from '../domain/profileWriteQueue';
 import { resetDeliveryDraft } from './delivery';
 
 /** Mijoz ma'lumotlari: keyingi buyurtmada manzil (xaritadagi nuqta bilan) qayta yozilmaydi. */
@@ -39,6 +40,8 @@ let pending: Promise<string> | null = null;
 let offAdmin: (() => void) | null = null;
 const scopedProfile = !IS_WEB && process.env.EXPO_PUBLIC_N99_ENV === 'staging' && app.options.projectId === 'optovik-n99-staging';
 let profileRevision=0;
+const profileWrites=createProfileWriteQueue();
+let localDraftUid:string|null=null;
 
 function readProfile(v: unknown): Profile {
   const p = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
@@ -60,11 +63,16 @@ export async function startAccount() {
     // Old staging profile has no owner. Never guess which customer owns it.
     await saveLocal('profile',null).catch(()=>{});
   }
+  if(scopedProfile)AppState.addEventListener('change',state=>{
+    const uid=auth.currentUser?.uid;
+    // Refresh server profile on return from another device, not while an edit is pending.
+    if(state==='active'&&uid&&!profileWrites.busy()&&localDraftUid!==uid)void hydrateOwnedProfile(uid,false);
+  });
   onAuthStateChanged(auth, (user) => {
     offAdmin?.();
     offAdmin = null;
     const changed=accountStore.get().uid!==(user?.uid??null);
-    if(scopedProfile&&changed){profileRevision++;resetDeliveryDraft();}
+    if(scopedProfile&&changed){profileRevision++;localDraftUid=null;resetDeliveryDraft();}
     accountStore.set((s) => ({
       ...s, ready: true, uid: user?.uid ?? null, anonymous: user?.isAnonymous ?? true, email: user?.email ?? null, emailVerified: user?.emailVerified ?? false, admin: false,
       adminChecked: !user || user.isAnonymous, problem: user ? null : s.problem,
@@ -112,10 +120,16 @@ export function ensureCustomer(): Promise<string> {
 }
 
 export async function saveProfile(profile: Profile, expectedUid=auth.currentUser?.uid) {
+  // Capture the owner and value before entering the queue.
+  const snapshot={...profile};
+  return profileWrites.run(()=>saveProfileInternal(snapshot,expectedUid));
+}
+async function saveProfileInternal(profile:Profile,expectedUid:string|undefined){
   const uid = auth.currentUser?.uid;
   if(uid!==expectedUid||(scopedProfile&&!uid))throw new Error('Account changed');
   profileRevision++;
   const clean = readProfile(profile);
+  if(scopedProfile&&uid)localDraftUid=uid;
   accountStore.set((s) => ({ ...s, profile: clean }));
   await saveLocal(scopedProfile?'ownedProfile':'profile', scopedProfile?{uid,profile:clean}:clean).catch(() => {});
   if (uid && auth.currentUser?.uid === uid && clean.name.trim().length >= 2 && clean.phone) {
@@ -124,6 +138,8 @@ export async function saveProfile(profile: Profile, expectedUid=auth.currentUser
     const body = { ...rest, ...(lat != null && lng != null ? { lat, lng } : {}), updatedAt: Date.now() };
     if(usesFirestoreCandidate){const {updatedAt: _updatedAt,...profileBody}=body;await candidateAck('/v1/profile/save',profileBody,uid);}
     else await withTimeout(set(ref(db, `customers/${uid}/profile`), body), 8000).catch(() => {});
+    if(auth.currentUser?.uid!==uid)throw new Error('Account changed');
+    if(scopedProfile&&localDraftUid===uid)localDraftUid=null;
   }
 }
 
@@ -141,12 +157,15 @@ export const useIsAdmin = () => useStore(accountStore, (s) => s.admin);
 export const useUid = () => useStore(accountStore, (s) => s.uid);
 
 /** Account changes and newer edits invalidate stale reads. */
-async function hydrateOwnedProfile(uid:string){
+async function hydrateOwnedProfile(uid:string,readCache=true){
+  if(!readCache&&(profileWrites.busy()||localDraftUid===uid))return;
   const revision=++profileRevision;
   const active=()=>auth.currentUser?.uid===uid&&profileRevision===revision;
-  const cached=ownedProfile(await readLocal('ownedProfile'),uid);
-  if(!active())return;
-  if(cached)accountStore.set(s=>({...s,profile:readProfile(cached)}));
+  if(readCache){
+    const cached=ownedProfile(await readLocal('ownedProfile'),uid);
+    if(!active())return;
+    if(cached)accountStore.set(s=>({...s,profile:readProfile(cached)}));
+  }
   try{
     const raw=usesFirestoreCandidate?(await candidateRequest<{profile:unknown}>('/v1/profile/get',{},uid)).profile:await readServerJson(`customers/${uid}/profile`,uid);
     if(!active()||raw===null)return;
@@ -160,7 +179,7 @@ export async function replaceCustomerProfile(uid:string){
   if(scopedProfile)await hydrateOwnedProfile(uid);
 }
 export async function clearCustomerProfile(){
-  profileRevision++;
+  profileRevision++;localDraftUid=null;
   accountStore.set(s=>({...s,profile:emptyProfile}));
   resetDeliveryDraft();
   await saveLocal('ownedProfile',null);

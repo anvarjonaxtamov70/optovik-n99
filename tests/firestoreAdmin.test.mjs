@@ -54,7 +54,8 @@ test('order notes and private order reads preserve access and order index',async
  await assert.rejects(saveFirestoreOrderNote(f.run,uid,{id,uid,note:'test'}),/forbidden/);
  await assert.rejects(readFirestoreOrder(f.run,'other',id),/forbidden/);
  await saveFirestoreOrderNote(f.run,admin,{id,uid,note:'  Synthetic  '});
- assert.equal((await readFirestoreOrder(f.run,uid,id)).adminIzoh,'Synthetic');
+ assert.equal((await readFirestoreOrder(f.run,uid,id)).adminIzoh,undefined);
+ assert.equal((await readFirestoreOrder(f.run,admin,id,uid)).adminIzoh,'Synthetic');
  assert.deepEqual(f.data.get(paths.order(id)).index,before);
 });
 test('delivery settings preserve other values and reject unknown fields',async()=>{
@@ -64,4 +65,18 @@ test('delivery settings preserve other values and reject unknown fields',async()
  assert.equal(f.data.get(paths.settings).courierFee,5000);
  await assert.rejects(updateFirestoreDelivery(f.run,uid,{courierFee:0}),/forbidden/);
  await assert.rejects(updateFirestoreDelivery(f.run,admin,{imgbbApiKey:'synthetic'}),/invalid-settings/);
+});
+
+test('archive blocks a new reservation but leaves an unreserved order cancellable',async()=>{
+ const f=fixture();
+ await executeFirestoreOrder(f.run,'create',uid,request(),now);
+ await edit(f,admin,'archive',1);
+ await assert.rejects(executeFirestoreOrder(f.run,'change',admin,{uid,id,expected:'yangi',next:'tasdiqlandi'},now+1),/stock-unavailable/);
+ assert.equal(f.data.get(product).qoldiq,2);
+ assert.equal(f.data.get(paths.order(id)).order.holat,'yangi');
+ await saveFirestoreOrderNote(f.run,admin,{uid,id,note:'Internal only'});
+ const result=await executeFirestoreOrder(f.run,'change',uid,{uid,id,expected:'yangi',next:'bekor',includeOrder:true},now+2);
+ assert.equal(result.order.adminIzoh,undefined);
+ assert.equal(f.data.get(paths.order(id)).order.adminIzoh,'Internal only');
+ assert.equal(f.data.get(product).qoldiq,2);
 });

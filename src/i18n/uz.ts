@@ -315,6 +315,8 @@ export const uz = {
   'identity.providerError': "Pochta orqali bog‘lash hozir mavjud emas. Sinov muhiti autentifikatsiya sozlamalarini tekshirish kerak.",
   'identity.networkError': "Tarmoq xatosi. Internetni tekshirib, qayta urining.",
   'identity.rateError': "Juda ko‘p urinish. Birozdan keyin qayta urining.",
+  'identity.sessionExpired': "Hisob sessiyasi eskirgan. Ilovani qayta oching va zarur bo‘lsa qayta kiring.",
+  'admin.orderConflict': 'Buyurtma holati boshqa qurilmada o‘zgargan. Yangilangan holatni tekshiring.',
   'identity.linkConflict': "Bu pochta bilan bog‘lab bo‘lmadi. Boshqa o‘zingizga tegishli pochta bilan urining. Mehmon hisobingiz va buyurtmalaringiz saqlanadi.",
   'identity.loginError': "Pochta yoki parol noto‘g‘ri.",
   'identity.changeEmail': "Elektron pochtani o‘zgartirish",

@@ -30,6 +30,7 @@ export function identityErrorKey(error:unknown,mode:'link'|'login'|'resend'|'ref
  if(code==='auth/operation-not-allowed'||code==='auth/admin-restricted-operation'||code==='auth/configuration-not-found')return 'identity.providerError';
  if(code==='auth/network-request-failed'||code==='network'||code==='timeout')return 'identity.networkError';
  if(code==='auth/too-many-requests')return 'identity.rateError';
+ if(code==='auth/user-token-expired'||code==='auth/invalid-user-token'||code==='auth/user-disabled')return 'identity.sessionExpired';
  if(mode==='link'&&(code==='auth/email-already-in-use'||code==='auth/credential-already-in-use'||code==='auth/account-exists-with-different-credential'||code==='auth/provider-already-linked'))return 'identity.linkConflict';
  if(mode==='changeEmail'&&(code==='auth/email-already-in-use'||code==='auth/credential-already-in-use'))return 'identity.linkConflict';
  if(mode==='changeEmail'&&(code==='auth/invalid-credential'||code==='auth/invalid-login-credentials'||code==='auth/wrong-password'||code==='auth/requires-recent-login'))return 'identity.changePasswordError';

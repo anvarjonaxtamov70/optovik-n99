@@ -7,7 +7,7 @@ import { readLocalStrict } from '../lib/storage';
 import { accountStore, replaceCustomerProfile, clearCustomerProfile } from './account';
 import { resetDeliveryDraft } from './delivery';
 import { withCustomerIdentityChange } from './orders';
-import { maySwitchGuest, maySignOutCustomer, validAccountEmail, validAccountPassword, validEmailCorrection } from '../domain/customerIdentity';
+import { maySwitchGuest, maySignOutCustomer, validAccountEmail, validAccountPassword, validEmailCorrection, neutralPasswordReset } from '../domain/customerIdentity';
 
 export const customerIdentityEnabled=!IS_WEB&&process.env.EXPO_PUBLIC_N99_ENV==='staging'&&app.options.projectId==='optovik-n99-staging';
 function assertEnabled(){if(!customerIdentityEnabled)throw new Error('Unavailable');}
@@ -82,7 +82,7 @@ export async function refreshCustomerVerification(){
 export async function resetCustomerPassword(email:string){
   assertEnabled();
   if(!validAccountEmail(email))throw new Error('Invalid email');
-  await sendPasswordResetEmail(auth,email.trim());
+  try{await sendPasswordResetEmail(auth,email.trim());}catch(error){if(!neutralPasswordReset(error))throw error;}
 }
 
 export async function signOutCustomer(){

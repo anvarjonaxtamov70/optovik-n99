@@ -38,3 +38,10 @@ test('catalog query filters archive and validates bounded cursor',async()=>{
  const invalid=fixture([{path:a,value:{nomi:'Synthetic',narxi:100,qoldiq:1,archived:true}}]);
  await assert.rejects(listFirestoreProducts(invalid.run),/invalid-product-data/);
 });
+
+test('customer list strips staff note without modifying the stored order',async()=>{
+ const row=order(id);row.value.order.adminIzoh='Internal only';
+ const result=await listFirestoreOrders(fixture([row]).run,uid);
+ assert.equal(result.items[0].data.adminIzoh,undefined);
+ assert.equal(row.value.order.adminIzoh,'Internal only');
+});

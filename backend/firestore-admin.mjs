@@ -1,6 +1,7 @@
 // Server-only operations. Actor must be the UID of a verified Firebase ID token.
 // Never call directly from a client, or alongside a second inventory authority.
 import { paths } from './firestore-orders.mjs';
+import {customerOrderView} from './firestore-order-view.mjs';
 const rec=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const int=(v,min,max)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
 const fail=(code,status=400)=>{throw Object.assign(new Error(code),{status});};
@@ -88,8 +89,11 @@ export async function readFirestoreOrder(run,actor,id,expectedUid){
     const entry=initial[0];
     if(entry===null)return null;
     ok(rec(entry)&&rec(entry.order)&&rec(entry.index),'invalid-data',503);
-    ok(entry.index.uid===actor||(initialPaths.length===2?initial[1]:await tx.get(paths.admin(actor)))===true,'forbidden',403);
+    const own=entry.index.uid===actor;
+    // Avoid an extra role read for ordinary owner detail requests with no internal note.
+    const admin=initialPaths.length===2?initial[1]===true:(!own||Object.hasOwn(entry.order,'adminIzoh'))&&await tx.get(paths.admin(actor))===true;
+    ok(own||admin,'forbidden',403);
     if(expectedUid!==undefined&&entry.index.uid!==expectedUid)fail('order-missing',409);
-    return entry.order;
+    return admin?entry.order:customerOrderView(entry.order);
   },initialPaths);
 }

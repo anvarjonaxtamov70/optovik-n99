@@ -40,3 +40,12 @@ test('candidate backup rejects missing marker, repeated paths, unsupported docum
  const unknown=structuredClone(snapshot);unknown.documents.push({path:'n99Other/test',value:{}});assert.throws(()=>verifyCandidateBackup(unknown));
  const wrongProject=structuredClone(snapshot);wrongProject.project='production';assert.throws(()=>verifyCandidateBackup(wrongProject));
 });
+
+test('backup rejects impossible reservation status and inconsistent timestamps',async()=>{
+ const snapshot=makeCandidateBackup(await fixture());
+ for(const patch of [{zaxira:false},{updatedAt:0},{holat:'unknown'},{tarix:{}}]){
+  const damaged=structuredClone(snapshot);
+  Object.assign(damaged.documents.find(d=>d.path===paths.order(id)).value.order,patch);
+  assert.throws(()=>verifyCandidateBackup(damaged));
+ }
+});

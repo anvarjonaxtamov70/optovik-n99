@@ -1,6 +1,7 @@
 // Internal Firestore read service. Actor comes only from verified Firebase authentication.
 // Never accept arbitrary query, collection, UID filter, or document reference from clients.
 import { paths } from './firestore-orders.mjs';
+import {customerOrderView} from './firestore-order-view.mjs';
 import {publicSettings} from './firestore-aux.mjs';
 import {publicBannerSnapshot} from './firestore-isolation.mjs';
 const rec=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
@@ -33,7 +34,7 @@ export async function listFirestoreOrders(run,actor,{admin=false,limit=30,cursor
       const id=path.split('/')[1];
       ok(orderId(id)&&paths.order(id)===path&&rec(value?.index)&&rec(value?.order)&&timestamp(value.index.createdAt)&&value.index.createdAt===value.order.createdAt,'invalid-order-data',503);
       ok(admin||value.index.uid===actor,'invalid-order-owner',503);
-      return {id,uid:value.index.uid,createdAt:value.index.createdAt,data:admin?value.index:value.order};
+      return {id,uid:value.index.uid,createdAt:value.index.createdAt,data:admin?value.index:customerOrderView(value.order)};
     });
     const more=items.length>limit, page=items.slice(0,limit),last=page.at(-1);
     return {items:page,next:more?{id:last.id,createdAt:last.createdAt}:null};

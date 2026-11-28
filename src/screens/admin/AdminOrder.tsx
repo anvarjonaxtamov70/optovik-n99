@@ -17,6 +17,7 @@ import { displayPhone } from '../../domain/phone';
 import { useT } from '../../i18n';
 import { confirmAsync } from '../../lib/confirm';
 import { classifyError } from '../../lib/firebase';
+import {adminTransitionErrorKey} from '../../domain/candidateError';
 import { haptic } from '../../lib/haptics';
 import { callPhone } from '../../lib/links';
 import { adminSaveNote, adminSetStatus, useOrder } from '../../state/orders';
@@ -56,7 +57,8 @@ function AdminPanel({ order: o }: { order: Order }) {
       showToast(t('admin.updated'), { kind: 'success' });
     } catch (e) {
       haptic.warning();
-      showToast(classifyError(e) === 'permission' ? (s === 'tasdiqlandi' || !o.zaxira ? t('admin.stockError') : t('admin.err.permission')) : t('common.error'), { kind: 'error' });
+      const key=adminTransitionErrorKey(e);
+      showToast(key?t(key):classifyError(e) === 'permission' ? (s === 'tasdiqlandi' || !o.zaxira ? t('admin.stockError') : t('admin.err.permission')) : t('common.error'), { kind: 'error' });
     } finally {
       setBusy(null);
     }

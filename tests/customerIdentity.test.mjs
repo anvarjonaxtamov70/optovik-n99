@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validAccountEmail, validAccountPassword, maySwitchGuest, ownedProfile, maySignOutCustomer, identityErrorKey, validEmailCorrection } from '../src/domain/customerIdentity.ts';
+import { validAccountEmail, validAccountPassword, maySwitchGuest, ownedProfile, maySignOutCustomer, identityErrorKey, validEmailCorrection, neutralPasswordReset } from '../src/domain/customerIdentity.ts';
 test('identity form validates bounded email and password without trimming passwords',()=>{
  assert.equal(validAccountEmail(' test@example.test '),true);
  for(const value of ['test','a@b','a b@example.test','x'.repeat(255)+'@a.test'])assert.equal(validAccountEmail(value),false);

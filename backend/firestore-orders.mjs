@@ -1,6 +1,7 @@
 // Server-side bounded Firestore transaction adapter. Not connected to live traffic.
 // The runner supplies atomic get/set operations; never expose this module to Expo clients.
 import { createOrder, transition, abandonOrder } from './staging-worker.mjs';
+import {customerOrderView} from './firestore-order-view.mjs';
 const rec=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const own=(v,k)=>rec(v)&&Object.hasOwn(v,k)?v[k]:undefined;
 const map=()=>Object.create(null);
@@ -78,13 +79,20 @@ export async function executeFirestoreOrder(run,operation,actor,body,now){
     if(initial[1]===true)root.admins[actor]=true;
     const order=own(root.orders[uid],id);
     const authorized=root.admins[actor]===true||(actor===uid&&body.next==='bekor'&&body.expected==='yangi');
-    if(authorized&&order&&order.holat===body.expected&&order.holat!==body.next&&(body.next==='tasdiqlandi'||(body.next==='bekor'&&order.zaxira===true)))await loadProducts(tx,root,order.items);
+    if(authorized&&order&&order.holat===body.expected&&order.holat!==body.next&&(body.next==='tasdiqlandi'||(body.next==='bekor'&&order.zaxira===true))){
+      await loadProducts(tx,root,order.items);
+      // An archived item cannot be newly reserved; cancellation of an existing reservation remains valid.
+      if(body.next==='tasdiqlandi')for(const [cat,group] of Object.entries(order.items))for(const pid of Object.keys(group)){
+        const product=own(root.tovarlar[cat],pid);
+        if(product&&product.archived!==undefined&&product.archived!==false)fail('stock-unavailable',409);
+      }
+    }
     const result=transition(root,actor,body,now);
     if(result.changed){
       for(const [cat,group] of Object.entries(root.tovarlar))for(const [pid,p] of Object.entries(group))tx.set(paths.product(cat,pid),p);
       putOrder(tx,root,uid,id);
     }
     // Snapshot is returned only to an authorized caller, after the runner commits.
-    return body.includeOrder===true?{...result.value,order:root.orders[uid][id]}:result.value;
+    return body.includeOrder===true?{...result.value,order:root.admins[actor]===true?root.orders[uid][id]:customerOrderView(root.orders[uid][id])}:result.value;
   },initialPaths);
 }

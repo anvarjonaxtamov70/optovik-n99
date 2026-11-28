@@ -14,6 +14,7 @@ export function verifyCandidateBackup(snapshot){
  ok(typeof snapshot.capturedAt==='string'&&Number.isFinite(Date.parse(snapshot.capturedAt)));
  const root={tovarlar:map(),orders:map(),orderIndex:map()};
  const seen=new Set();let customers=0,admins=0,banners=0,markers=0;
+ const timestamp=v=>Number.isSafeInteger(v)&&v>=0;
  for(const doc of snapshot.documents){
   ok(rec(doc)&&Object.keys(doc).length===2&&typeof doc.path==='string'&&Object.hasOwn(doc,'value')&&!seen.has(doc.path));
   const {path,value}=doc;seen.add(path);
@@ -26,9 +27,14 @@ export function verifyCandidateBackup(snapshot){
   }else if(collection==='n99Orders'&&parts.length===2){
    ok(paths.order(a)===path&&rec(value)&&rec(value.order)&&rec(value.index)&&typeof value.index.uid==='string');
    const uid=value.index.uid;paths.customer(uid);segment(encodeURIComponent(uid));
+   const o=value.order;
+   ok(['yangi','tasdiqlandi','yolda','tayyor','yetkazildi','bekor'].includes(o.holat)&&timestamp(o.createdAt)&&timestamp(o.updatedAt)&&o.updatedAt>=o.createdAt&&rec(o.tarix)&&timestamp(o.tarix[o.holat])&&o.tarix[o.holat]>=o.createdAt&&o.tarix[o.holat]<=o.updatedAt);
+   ok(['yangi','bekor'].includes(o.holat)?o.zaxira!==true:o.zaxira===true);
+   ok(o.zaxira===undefined||typeof o.zaxira==='boolean');
+   ok(Number.isSafeInteger(o.raqam)&&o.raqam>=100000&&o.raqam<=999999);
    root.orders[uid]??=map();root.orders[uid][a]=value.order;root.orderIndex[a]=value.index;
   }else if(collection==='n99Customers'&&parts.length===2){
-   ok(paths.customer(segment(a))===path&&rec(value));customers++;
+   ok(paths.customer(segment(a))===path&&rec(value)&&(value.lastOrderAt===undefined||timestamp(value.lastOrderAt)));customers++;
   }else if(collection==='n99Admins'&&parts.length===2){
    ok(paths.admin(segment(a))===path&&value===true);admins++;
   }else if(collection==='n99Abandoned'&&parts.length===2){

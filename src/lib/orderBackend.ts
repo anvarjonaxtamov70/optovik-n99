@@ -2,6 +2,7 @@ import { app, auth, withTimeout } from './firebase';
 
 import {candidateBackendEnabled} from '../domain/candidateBackend';
 import {isBannerRoute,safeBannerError} from '../domain/bannerUi';
+import {safeCandidateError} from '../domain/candidateError';
 
 export const usesFirestoreCandidate=candidateBackendEnabled(process.env.EXPO_PUBLIC_N99_BACKEND,process.env.EXPO_PUBLIC_N99_ENV,app.options.projectId,process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST);
 const enabled = process.env.EXPO_PUBLIC_N99_BACKEND === 'worker'||usesFirestoreCandidate;
@@ -43,7 +44,10 @@ async function requestBackend(path: '/v1/orders' | '/v1/transition' | '/v1/aband
       if(__DEV__)console.info('[N99 banners]',{route:path,status:response.status,ms:Date.now()-started,error:bannerError,server:response.headers.get('Server-Timing')});
       if(!response.ok)throw Object.assign(new Error('Banner request failed'),{code:response.status===429?'too-many-requests':response.status<500?'permission-denied':'network',bannerError});
     }
-    if (!response.ok) throw Object.assign(new Error('Order service rejected request'), { code: response.status === 429 ? 'too-many-requests' : response.status < 500 ? 'permission-denied' : 'network' });
+    if (!response.ok) {
+      const detail=usesFirestoreCandidate?await response.json().catch(()=>null):null;
+      throw Object.assign(new Error('Order service rejected request'), { code: response.status === 429 ? 'too-many-requests' : response.status < 500 ? 'permission-denied' : 'network',candidateError:safeCandidateError(detail?.error) });
+    }
     const result: unknown = await response.json();
     if (!result || typeof result !== 'object' || (path === '/v1/transition' && (result as {ok?: unknown}).ok !== true) || (path === '/v1/orders' && ((result as {id?: unknown}).id !== (body as {id?: unknown})?.id || (result as {raqam?: unknown}).raqam !== (body as {raqam?: unknown})?.raqam || typeof (result as {recovered?: unknown}).recovered !== 'boolean'))) throw new Error('Invalid acknowledgement');
     if (path === '/v1/abandon') {
@@ -55,6 +59,6 @@ async function requestBackend(path: '/v1/orders' | '/v1/transition' | '/v1/aband
     return result;
   } catch (error) {
     const code = (error as { code?: string })?.code;
-    throw Object.assign(new Error('Order service failed'), { code: code === 'permission-denied' || code === 'too-many-requests' ? code : 'network',...(isBannerRoute(path)?{bannerError:safeBannerError((error as {bannerError?:unknown})?.bannerError)}:{}) });
+    throw Object.assign(new Error('Order service failed'), { code: code === 'permission-denied' || code === 'too-many-requests' ? code : 'network',...(isBannerRoute(path)?{bannerError:safeBannerError((error as {bannerError?:unknown})?.bannerError)}:{}),candidateError:safeCandidateError((error as {candidateError?:unknown})?.candidateError) });
   } finally { clearTimeout(timer); }
 }
