@@ -38,7 +38,7 @@ export function createTelegramIdentityCore({run,secret,clock=Date.now,random=cry
   const now=clock(),token=newToken(),challenge=await hash('challenge',token),number=await hash('phone',phone);
   await run(async tx=>{
    const [role,raw,linked]=await batch(tx,[paths.admin(actor.uid),statePath,uidPath(actor.uid)]);
-   ok(role!==true,'forbidden',403);ok(linked===null,'telegram-already-linked',409);
+   ok(role!==true,'forbidden',403);ok(linked===null||mode==='bind','telegram-already-linked',409);
    const state=readState(raw,now);
    ok(state.count<DAILY_CAP&&state.items.length<DAILY_CAP*2,'telegram-rate',429);
    ok(!state.items.some(x=>(x.actor===actor.uid||same(x.number,number))&&x.created+COOLDOWN_MS>now),'telegram-rate',429);
@@ -86,7 +86,12 @@ export function createTelegramIdentityCore({run,secret,clock=Date.now,random=cry
    // Once verified, consume the challenge even on conflicts; never merge accounts.
    item.status='closed';delete item.code;
    if(item.mode==='bind'){
-    if(byTg!==null||byPhone!==null||byActor!==null){tx.set(statePath,state);return {status:'conflict'};}
+    if(byTg!==null||byPhone!==null||byActor!==null){
+     // A fresh full proof can recover a lost bind acknowledgement for the exact same UID.
+     const matches=b=>rec(b)&&b.uid===actor.uid&&same(b.telegram,item.telegram)&&same(b.number,item.number);
+     tx.set(statePath,state);
+     return matches(byTg)&&matches(byPhone)&&matches(byActor)?{status:'bound',uid:actor.uid}:{status:'conflict'};
+    }
     const binding={uid:actor.uid,telegram:item.telegram,number:item.number};
     tx.set(tgPath(item.telegram),binding);tx.set(phonePath(item.number),binding);tx.set(uidPath(actor.uid),binding);
     tx.set(statePath,state);return {status:'bound',uid:actor.uid};

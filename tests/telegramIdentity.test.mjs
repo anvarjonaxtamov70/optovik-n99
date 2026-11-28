@@ -69,3 +69,11 @@ test('concurrent same proof has exactly one successful redemption',async()=>{
  const out=await Promise.all([f.core.finish(actor,b),f.core.finish(actor,b)]);
  assert.equal(out.filter(x=>x.status==='bound').length,1);
 });
+
+test('fresh proof recovers only the exact same committed binding after lost response',async()=>{
+ const f=fixture();await f.core.finish(actor,await proof(f,actor));
+ f.advance(COOLDOWN_MS+1);
+ assert.deepEqual(await f.core.finish(actor,await proof(f,actor)),{status:'bound',uid:actor.uid});
+ f.advance(COOLDOWN_MS+1);
+ assert.deepEqual(await f.core.finish(actor,await proof(f,actor,'bind','+998911111111',tg+1)),{status:'conflict'});
+});

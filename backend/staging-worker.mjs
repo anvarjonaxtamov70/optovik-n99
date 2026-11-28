@@ -42,8 +42,8 @@ async function atStage(stage, task) {
 }
 let cachedToken;
 export async function accessToken(env,deadline,service='rtdb') {
-  requireOk(service==='rtdb'||service==='firestore','invalid-environment',503);
-  const scope=service==='firestore'?'https://www.googleapis.com/auth/datastore':'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email';
+  requireOk(service==='rtdb'||service==='firestore'||service==='auth-read','invalid-environment',503);
+  const scope=service==='auth-read'?'https://www.googleapis.com/auth/identitytoolkit':service==='firestore'?'https://www.googleapis.com/auth/datastore':'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email';
   const a=JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
   requireOk(env.FIREBASE_PROJECT_ID===PROJECT && env.FIREBASE_DATABASE_URL===DATABASE && a.project_id===PROJECT && a.client_email.endsWith('@'+PROJECT+'.iam.gserviceaccount.com'),'invalid-environment',503);
   if(cachedToken?.scope===scope && cachedToken?.email===a.client_email && cachedToken?.keyId===a.private_key_id && cachedToken.until>Date.now()+60000) return cachedToken.value;
@@ -59,7 +59,7 @@ export async function accessToken(env,deadline,service='rtdb') {
   cachedToken={scope,email:a.client_email,keyId:a.private_key_id,value:t.access_token,until:Date.now()+t.expires_in*1000};
   return t.access_token;
 }
-export async function identity(request,env,deadline) {
+export async function identityDetails(request,env,deadline) {
   const token=request.headers.get('Authorization')?.match(/^Bearer ([A-Za-z0-9_.-]{1,8192})$/)?.[1];
   requireOk(token,'unauthenticated',401);
   let claims;
@@ -72,7 +72,10 @@ export async function identity(request,env,deadline) {
   const result=await res.json();
   const user=result.users?.[0];
   requireOk(user?.localId===claims.sub && !user.disabled && (!user.validSince || Number(claims.auth_time)>=Number(user.validSince)),'unauthenticated',401);
-  return claims.sub;
+  return {uid:claims.sub,anonymous:claims.firebase?.sign_in_provider==='anonymous'&&!user.email&&!user.phoneNumber&&!(user.providerUserInfo?.length),emailVerified:user.emailVerified===true};
+}
+export async function identity(request,env,deadline) {
+  return (await identityDetails(request,env,deadline)).uid;
 }
 export async function boundedJson(response,limit) {
   const reader=response.body?.getReader();
