@@ -122,7 +122,7 @@ function subscribeCandidate(){
    const {products,settings,banners}=await candidateCatalogSnapshot(uid);
    if(disposed||current!==generation||auth.currentUser?.uid!==uid||AppState.currentState==='background'||AppState.currentState==='inactive')return;
    // Publish one consistent update; never reconcile the cart against stale products.
-   catalogStore.set(s=>({...s,products,byId:new Map(products.map(p=>[p.id,p])),settings:readSettings(settings),banners:readBanners(banners),connected:true,live:true,status:'ready',placeholder:isPlaceholderCatalog(products),version:s.version+1}));
+   catalogStore.set(s=>({...s,products,byId:new Map(products.map(p=>[p.id,p])),settings:readSettings(settings),banners:banners===null?null:readBanners(banners),connected:true,live:true,status:'ready',placeholder:isPlaceholderCatalog(products),version:s.version+1}));
    void saveLocal('catalog',toCache(products)).catch(()=>{});
    void saveLocal('settings',settings).catch(()=>{});
    void saveLocal('banners',banners).catch(()=>{});

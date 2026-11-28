@@ -85,6 +85,21 @@ export function bannerHasContent(link: string, products: Product[]): boolean {
   return true;
 }
 
+/** Candidate distinguishes no custom banners (null) from all custom banners inactive ({}).
+ * Older candidate servers omit the metadata; preserve their empty-map default behavior. */
+export function candidateBannerCache(raw:unknown,configured?:boolean):Record<string,unknown>|null{
+ if(!isRecord(raw))throw new Error('Invalid banner snapshot');
+ if(configured===false&&Object.keys(raw).length)throw new Error('Inconsistent banner snapshot');
+ return configured===true||Object.keys(raw).length?raw:null;
+}
+
+/** Explicit active custom banners are admin-controlled. Only built-in ads are
+ * filtered by available products; all-disabled custom banners remain hidden. */
+export function candidateHomeBanners(remote:Banner[]|null,products:Product[]):Banner[]{
+ if(remote!==null)return remote.filter(b=>b.active);
+ return products.length?DEFAULT_BANNERS.filter(b=>bannerHasContent(b.link,products)):DEFAULT_BANNERS;
+}
+
 /** Admin hali banner qo'shmagan bo'lsa ko'rsatiladigan tayyor bannerlar. */
 export const DEFAULT_BANNERS: Banner[] = [
   {

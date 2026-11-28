@@ -21,12 +21,13 @@ import { Icon, PartIcon, type IconName } from '../components/ui/Icon';
 import { IconButton } from '../components/ui/IconButton';
 import { PressableScale, PressOverlay } from '../components/ui/PressableScale';
 import { Txt } from '../components/ui/Txt';
-import { bannerHasContent, DEFAULT_BANNERS } from '../domain/content';
+import { bannerHasContent, candidateHomeBanners, DEFAULT_BANNERS } from '../domain/content';
 import { discountPercent, type Product } from '../domain/products';
 import { modelBySlug } from '../domain/taxonomy';
 import { useT } from '../i18n';
 import { callPhone } from '../lib/links';
 import { openList } from '../lib/nav';
+import { usesFirestoreCandidate } from '../lib/orderBackend';
 import { catalogStore, retryCatalog, useBanners, useCatalogStatus, useProducts, useSettings } from '../state/catalog';
 import { useMyCar } from '../state/prefs';
 import { colors, fill, gradients, radius, shadow } from '../theme/tokens';
@@ -129,6 +130,7 @@ function HomeSections({ products, loading, carSlug }: { products: Product[]; loa
   const remote = useBanners();
   // Bo'sh javonni reklama qilmaymiz: bosilganda bo'sh ro'yxat ochadigan banner ko'rsatilmaydi.
   const banners = useMemo(() => {
+    if(usesFirestoreCandidate)return candidateHomeBanners(remote,products);
     const list = remote && remote.length ? remote : DEFAULT_BANNERS;
     return products.length ? list.filter((b) => bannerHasContent(b.link, products)) : list;
   }, [remote, products]);

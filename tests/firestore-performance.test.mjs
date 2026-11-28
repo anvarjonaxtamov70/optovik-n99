@@ -94,6 +94,6 @@ test('catalog bootstrap shares dataset and content reads, excludes private setti
  // Add only a bounded internal product query to the synthetic fixture.
  const page=await listFirestoreProducts((task,initial)=>run((tx,values)=>task({...tx,query:async()=>[]},values),initial),{includeContent:true});
  assert.deepEqual(batches,[[paths.dataset,paths.settings,paths.banners]]);
- assert.equal(page.settings.imgbbApiKey,undefined);assert.deepEqual(page.banners,{});assert.deepEqual(page.items,[]);
+ assert.equal(page.settings.imgbbApiKey,undefined);assert.deepEqual(page.banners,{});assert.equal(page.bannersConfigured,true);assert.deepEqual(page.items,[]);
  await assert.rejects(listFirestoreProducts(run,{cursor:paths.product('cat','p'),includeContent:true}),/invalid-request/);
 });

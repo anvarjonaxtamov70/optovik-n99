@@ -28,25 +28,32 @@ function validatedBannerMap(raw){
  for(const [id,v] of Object.entries(raw)){ok(bannerId(id),'invalid-data',503);validatedBanner(v);}
  return raw;
 }
-async function bannerMap(tx){return validatedBannerMap(await tx.get(paths.banners));}
-export function publicBanners(raw){return Object.fromEntries(Object.entries(validatedBannerMap(raw)).filter(([,b])=>b.active));}
+export function publicBannerSnapshot(raw){
+ const entries=Object.entries(validatedBannerMap(raw));
+ return {banners:Object.fromEntries(entries.filter(([,b])=>b.active)),bannersConfigured:entries.length>0};
+}
+export function publicBanners(raw){return publicBannerSnapshot(raw).banners;}
 export async function listBanners(run,actor,admin=false){
- return run(async tx=>{
-  if(admin)ok(await tx.get(paths.admin(actor))===true,'forbidden',403);
-  const raw=await bannerMap(tx);
-  return {banners:Object.fromEntries(Object.entries(raw).filter(([,b])=>admin||b.active))};
- });
+ const requested=admin?[paths.admin(actor),paths.banners]:[paths.banners];
+ return run(async (tx,initial)=>{
+  const values=initial??(tx.getAll?await tx.getAll(requested):await Promise.all(requested.map(path=>tx.get(path))));
+  if(admin)ok(values[0]===true,'forbidden',403);
+  const raw=validatedBannerMap(values[admin?1:0]);
+  return admin?{banners:raw}:publicBannerSnapshot(raw);
+ },requested);
 }
 export async function mutateBanner(run,actor,b){
  ok(record(b)&&bannerId(b.id)&&['save','delete'].includes(b.action),'invalid-request');
  const value=b.action==='save'?validatedBanner(b.banner):null;
- return run(async tx=>{
-  ok(await tx.get(paths.admin(actor))===true,'forbidden',403);
-  const current=await bannerMap(tx);
+ const requested=[paths.admin(actor),paths.banners];
+ return run(async (tx,initial)=>{
+  const [role,raw]=initial??(tx.getAll?await tx.getAll(requested):await Promise.all(requested.map(path=>tx.get(path))));
+  ok(role===true,'forbidden',403);
+  const current=validatedBannerMap(raw);
   const next={...current};
   if(value===null)delete next[b.id];else next[b.id]=value;
   ok(Object.keys(next).length<=40,'banner-limit',409);
   tx.set(paths.banners,next);
   return {ok:true};
- });
+ },requested);
 }

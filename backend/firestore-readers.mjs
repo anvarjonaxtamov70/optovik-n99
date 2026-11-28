@@ -2,7 +2,7 @@
 // Never accept arbitrary query, collection, UID filter, or document reference from clients.
 import { paths } from './firestore-orders.mjs';
 import {publicSettings} from './firestore-aux.mjs';
-import {publicBanners} from './firestore-isolation.mjs';
+import {publicBannerSnapshot} from './firestore-isolation.mjs';
 const rec=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const fail=(code,status=400)=>{throw Object.assign(new Error(code),{status});};
 const ok=(v,code,status)=>{if(!v)fail(code,status);};
@@ -55,6 +55,6 @@ export async function listFirestoreProducts(run,{limit=30,cursor=null,includeCon
       return {path,cat,id,data:value};
     });
     const more=items.length>limit,page=items.slice(0,limit);
-    return {items:page,next:more?page.at(-1).path:null,...(content?{settings:publicSettings(content[0]),banners:publicBanners(content[1])}:{})};
+    return {items:page,next:more?page.at(-1).path:null,...(content?{settings:publicSettings(content[0]),...publicBannerSnapshot(content[1])}:{})};
   },includeContent?[paths.settings,paths.banners]:[]);
 }

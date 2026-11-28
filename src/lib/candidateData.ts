@@ -1,18 +1,19 @@
 import {auth} from './firebase';
 import {candidateRequest,usesFirestoreCandidate} from './orderBackend';
 import {CANDIDATE_CATALOG_CAP,collectPages,type Page} from '../domain/candidateBackend';
+import {candidateBannerCache} from '../domain/content';
 import {readProduct,type Product,defaultOrder} from '../domain/products';
 import {readOrder,readOrderIndex,type Order,type OrderIndex} from '../domain/order';
 type Row={id:string;uid:string;data:unknown};
 type Cursor={id:string;createdAt:number};
 function active(uid:string){if(auth.currentUser?.uid!==uid)throw new Error('Account changed');}
 type CatalogRow={cat:string;id:string;data:unknown};
-type CatalogPage=Page<CatalogRow,string>&{settings?:unknown;banners?:unknown};
+type CatalogPage=Page<CatalogRow,string>&{settings?:unknown;banners?:unknown;bannersConfigured?:boolean};
 async function readCatalog(uid:string,includeContent:boolean){
  let content:{settings:unknown;banners:unknown}|undefined;
  const rows=await collectPages<CatalogRow,string>(async(cursor,limit)=>{
   const page=await candidateRequest<CatalogPage>('/v1/catalog/list',{cursor,limit,...(includeContent&&cursor===null?{includeContent:true}:{})},uid);
-  if(includeContent&&cursor===null&&page&&Object.hasOwn(page,'settings')&&Object.hasOwn(page,'banners'))content={settings:page.settings,banners:page.banners};
+  if(includeContent&&cursor===null&&page&&Object.hasOwn(page,'settings')&&Object.hasOwn(page,'banners'))content={settings:page.settings,banners:candidateBannerCache(page.banners,page.bannersConfigured)};
   return page;
  },CANDIDATE_CATALOG_CAP,true);
  active(uid);
@@ -25,8 +26,8 @@ export async function candidateCatalogSnapshot(uid:string){
  const {products,content}=await readCatalog(uid,true);
  // Rolling staging deploy compatibility; never use another backend or cached stock.
  if(content){active(uid);return {products,...content};}
- const [shop,banners]=await Promise.all([candidateRequest<{settings:unknown}>('/v1/shop/get',{},uid),candidateRequest<{banners:unknown}>('/v1/banners/list',{},uid)]);
- active(uid);return {products,settings:shop.settings,banners:banners.banners};
+ const [shop,banners]=await Promise.all([candidateRequest<{settings:unknown}>('/v1/shop/get',{},uid),candidateRequest<{banners:unknown;bannersConfigured?:boolean}>('/v1/banners/list',{},uid)]);
+ active(uid);return {products,settings:shop.settings,banners:candidateBannerCache(banners.banners,banners.bannersConfigured)};
 }
 export async function candidateOrders(uid:string,admin:boolean,limit:number){
  const rows=await collectPages<Row,Cursor>((cursor,limit)=>candidateRequest<Page<Row,Cursor>>(admin?'/v1/admin/orders/list':'/v1/orders/list',{cursor,limit},uid),limit,false);

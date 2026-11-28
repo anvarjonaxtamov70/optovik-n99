@@ -30,14 +30,17 @@ import { colors, layout, radius, shadow } from '../../theme/tokens';
 function useAdminBannerSource(){
  const legacy=useBanners();
  const uid=useUid();
- const [state,setState]=useState<{uid:string;items:Banner[]}|null>(null);
+ const [state,setState]=useState<{uid:string;items:Banner[];error:boolean}|null>(null);
+ const [attempt,setAttempt]=useState(0);
  useFocusEffect(useCallback(()=>{
   if(!usesFirestoreCandidate||!uid)return;
   let active=true;
-  void loadCandidateAdminBanners(uid).then(items=>{if(active)setState({uid,items});}).catch(()=>{if(active)setState(null);});
+  setState(null);
+  void loadCandidateAdminBanners(uid).then(items=>{if(active)setState({uid,items,error:false});}).catch(()=>{if(active)setState({uid,items:[],error:true});});
   return ()=>{active=false;};
- },[uid]));
- return usesFirestoreCandidate?(state?.uid===uid?state?.items??null:null):legacy;
+ },[uid,attempt]));
+ const current=state?.uid===uid?state:null;
+ return {items:usesFirestoreCandidate?(current&&!current.error?current.items:null):legacy,loading:usesFirestoreCandidate&&!current,error:usesFirestoreCandidate&&current?.error===true,retry:()=>{setState(null);setAttempt(n=>n+1);}};
 }
 
 export function AdminBannerList() {
@@ -46,22 +49,25 @@ export function AdminBannerList() {
   const { sidebar } = useAdminShell();
   const { width } = useWindowDimensions();
   const wide = width >= layout.wide;
-  const remote = useAdminBannerSource();
-  const list = remote ?? [];
+  const source = useAdminBannerSource();
+  const list = source.items ?? [];
   const add = () => router.push('/admin/banner');
   return (
     <View style={styles.root}>
       <Header title={t('admin.banners')} back={!sidebar}
         right={wide ? <Button title={t('admin.banner.new')} icon="add" size="sm" full={false} onPress={add} /> : undefined} />
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + (wide ? 30 : 100) }]}>
-        {!list.length ? <Notice icon="images-outline" text={t('admin.banner.defaults')} /> : null}
-        <View style={styles.preview}><BannerCarousel banners={list.length ? list : DEFAULT_BANNERS} /></View>
+        {source.loading ? <Txt variant="small">{t('common.loading')}</Txt> : source.error ? <Notice icon="images-outline" tone="warning" text={t('admin.banner.loadError')} action={t('common.retry')} onAction={source.retry} /> : <>
+          {!list.length ? <Notice icon="images-outline" text={t('admin.banner.defaults')} /> : null}
+          <View style={styles.preview}><BannerCarousel banners={list.length ? list : DEFAULT_BANNERS} /></View>
+        </>}
         {list.map((b) => (
           <PressableScale key={b.id} onPress={() => router.push({ pathname: '/admin/banner', params: { id: b.id } })} scaleTo={0.98} style={[styles.row, shadow.soft]} accessibilityLabel={b.title[lang]}>
             <View style={styles.flex}>
               <Txt variant="bodyStrong" numberOfLines={1}>{b.title[lang].replace(/\n/g, ' ')}</Txt>
               <Txt variant="tiny">{b.link} · #{b.order}</Txt>
             </View>
+            <Pill text={t(b.active?'admin.banner.active':'admin.banner.inactive')} tone={b.active?'success':'muted'} />
             <Pill text={t(`admin.banner.theme.${b.theme}` as TKey)} tone="tint" />
           </PressableScale>
         ))}
@@ -80,10 +86,11 @@ const empty: Draft = { title: { uz: '', ru: '' }, text: { uz: '', ru: '' }, cta:
 
 export function AdminBannerEdit() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const remote = useAdminBannerSource();
-  const existing = remote?.find((b) => b.id === id);
-  if(usesFirestoreCandidate&&id&&!existing)return <View style={styles.root}><Header title="Banner"/><Txt>Banner unavailable / Banner mavjud emas</Txt></View>;
-  return <BannerEditor key={existing?.id ?? 'new'} id={existing?.id} initial={existing ?? { ...empty, order: (remote?.length ?? 0) }} />;
+  const source = useAdminBannerSource();
+  const {t}=useT();
+  const existing = source.items?.find((b) => b.id === id);
+  if(usesFirestoreCandidate&&(source.loading||source.error||(id&&!existing)))return <View style={styles.root}><Header title={t('admin.banner.title')}/><View style={styles.body}>{source.loading?<Txt>{t('common.loading')}</Txt>:<Notice icon="images-outline" tone="warning" text={t(source.error?'admin.banner.loadError':'admin.banner.missing')} action={t('common.retry')} onAction={source.retry}/>}</View></View>;
+  return <BannerEditor key={existing?.id ?? 'new'} id={existing?.id} initial={existing ?? { ...empty, link:usesFirestoreCandidate?'catalog':empty.link, order: (source.items?.length ?? 0) }} />;
 }
 
 function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
@@ -95,17 +102,18 @@ function BannerEditor({ id, initial }: { id?: string; initial: Draft }) {
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
   const links: { value: string; label: string }[] = [
-    { value: 'sale', label: t('home.sale') }, { value: 'new', label: t('home.new') }, { value: 'popular', label: t('home.popular') },
+    { value: 'catalog', label: t('catalog.title') }, { value: 'sale', label: t('home.sale') }, { value: 'new', label: t('home.new') }, { value: 'popular', label: t('home.popular') },
     { value: 'group:parts', label: t('catalog.parts') }, { value: 'group:accessories', label: t('catalog.accessories') },
     { value: 'contact', label: t('profile.contact') }, { value: 'delivery', label: t('profile.delivery') },
     ...CATEGORIES.map((c) => ({ value: `cat:${c.slug}`, label: c.label[lang] })),
     ...CAR_MODELS.slice(0, 10).map((m) => ({ value: `model:${m.slug}`, label: m.name })),
   ];
-  const valid = !!(d.title.uz.trim() || d.title.ru.trim()) && isSafeLink(d.link) && (!d.image || /^https:\/\/\S+$/.test(d.image));
+  const valid = !!(d.title.uz.trim() || d.title.ru.trim()) && isSafeLink(d.link) && (!d.image || (d.image.length<=2000&&/^https:\/\/\S+$/.test(d.image))) && Number.isSafeInteger(d.order)&&d.order>=0&&d.order<=1000000;
   const save = async () => {
+    if(busy||!valid)return;
     setBusy(true);
     try {
-      await saveBanner({ ...d, title: { uz: d.title.uz || d.title.ru, ru: d.title.ru || d.title.uz } }, id);
+      await saveBanner({ ...d, title: { uz: d.title.uz.trim() || d.title.ru.trim(), ru: d.title.ru.trim() || d.title.uz.trim() } }, id);
       haptic.success();
       showToast(t('admin.banner.saved'), { kind: 'success' });
       goBack('/admin/banners');
