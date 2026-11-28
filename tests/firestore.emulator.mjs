@@ -105,3 +105,50 @@ test('catalog bootstrap returns bounded catalog and public content in one isolat
  const page=await listFirestoreProducts((task,initial)=>isolated(task,initial,{readOnly:true}),{limit:1,includeContent:true});
  assert.equal(page.items.length,1);assert.equal(page.settings.pickupEnabled,true);assert.deepEqual(page.banners,{});
 });
+
+test('parallel confirmations of the last unit cannot oversell; repeated cancellation restores once',async()=>{
+ const cat='race',pid='last-unit',a='race-customer-a',b='race-customer-b';
+ const first='-EEEEEEEEEEEEEEEEEEE',second='-FFFFFFFFFFFFFFFFFFF';
+ const productPath=paths.product(cat,pid);
+ await run(async tx=>tx.set(productPath,{nomi:'Synthetic concurrency',narxi:100,qoldiq:1,revision:1,archived:false}));
+ const isolated=syntheticDatasetRunner(run);
+ const make=id=>{const body=request(id);body.order.items={[cat]:{[pid]:{narxi:100,soni:1}}};return body;};
+ const submit=(actor,id)=>executeFirestoreOrder(isolated,'create',actor,make(id),now+180000);
+ // Separate customer orders are both legitimate until reservation at confirmation.
+ await Promise.all([submit(a,first),submit(b,second)]);
+ const change=(uid,id,expected,next)=>executeFirestoreOrder(isolated,'change',admin,{uid,id,expected,next},now+180001);
+ const out=await Promise.allSettled([change(a,first,'yangi','tasdiqlandi'),change(b,second,'yangi','tasdiqlandi')]);
+ assert.equal(out.filter(x=>x.status==='fulfilled').length,1);
+ const rejected=out.find(x=>x.status==='rejected');
+ assert.equal(rejected.reason.message,'stock-unavailable');
+ const [product,one,two]=await run(tx=>tx.getAll([productPath,paths.order(first),paths.order(second)]));
+ assert.equal(product.qoldiq,0);assert.equal(product.revision,2);
+ assert.deepEqual([one.index.holat,two.index.holat].sort(),['tasdiqlandi','yangi']);
+ const winner=one.index.holat==='tasdiqlandi'?[a,first]:[b,second];
+ const loser=one.index.holat==='tasdiqlandi'?[b,second]:[a,first];
+ await Promise.all([change(...winner,'tasdiqlandi','bekor'),change(...winner,'tasdiqlandi','bekor')]);
+ const restored=await run(tx=>tx.get(productPath));
+ assert.equal(restored.qoldiq,1);assert.equal(restored.revision,3);
+ await change(...loser,'yangi','tasdiqlandi');
+ assert.equal((await run(tx=>tx.get(productPath))).qoldiq,0);
+ await change(...loser,'tasdiqlandi','bekor');
+ assert.equal((await run(tx=>tx.get(productPath))).qoldiq,1);
+});
+
+test('concurrent identical checkout recovers the same order without a second reservation',async()=>{
+ const actor='race-replay',id='-GGGGGGGGGGGGGGGGGGG',cat='race',pid='replay-unit';
+ const productPath=paths.product(cat,pid);
+ await run(tx=>{tx.set(productPath,{nomi:'Synthetic replay',narxi:100,qoldiq:2,revision:1,archived:false});});
+ const isolated=syntheticDatasetRunner(run);
+ const body=request(id);body.order.items={[cat]:{[pid]:{narxi:100,soni:1}}};
+ const submit=()=>executeFirestoreOrder(isolated,'create',actor,body,now+240000);
+ const results=await Promise.all([submit(),submit()]);
+ assert.deepEqual(results.map(x=>x.recovered).sort(),[false,true]);
+ assert.equal((await run(tx=>tx.get(productPath))).qoldiq,2);
+ const confirm=()=>executeFirestoreOrder(isolated,'change',admin,{uid:actor,id,expected:'yangi',next:'tasdiqlandi'},now+240001);
+ await Promise.all([confirm(),confirm()]);
+ const product=await run(tx=>tx.get(productPath));
+ assert.equal(product.qoldiq,1);assert.equal(product.revision,2);
+ const orders=await listFirestoreOrders(isolated,actor,{limit:10});
+ assert.equal(orders.items.length,1);assert.equal(orders.items[0].id,id);
+});
