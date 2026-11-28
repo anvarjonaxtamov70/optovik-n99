@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useIsFocused } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { AppState, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { bannerIndex } from '../../domain/bannerUi';
 
@@ -39,17 +39,21 @@ export function BannerCarousel({ banners, preview=false }: { banners: Banner[]; 
   const [measured,setMeasured]=useState(0);
   const cardW=Math.max(1,Math.min(measured||width,760)-32);
   const cardH=Math.round(Math.max(156,Math.min(cardW*0.46,230)));
+  const signature=JSON.stringify(banners.map(b=>b.id));
+  if(!banners.length)return null;
+  return <View style={{width:'100%',maxWidth:760,alignSelf:'center'}} onLayout={e=>setMeasured(e.nativeEvent.layout.width)}>
+    <BannerTrack key={signature+':'+cardW} banners={banners} preview={preview} cardW={cardW} cardH={cardH}/>
+  </View>;
+}
+
+function BannerTrack({banners,preview,cardW,cardH}:{banners:Banner[];preview:boolean;cardW:number;cardH:number}){
   const interval=cardW+GAP;
-  const ref=useRef<ScrollView>(null);
+  const ref=useRef<ComponentRef<typeof ScrollView>>(null);
   const indexRef=useRef(0);
   const lastTouch=useRef(0);
   const [index,setIndex]=useState(0);
   const focused=useIsFocused();
-  const signature=JSON.stringify(banners.map(b=>b.id));
   const count=banners.length;
-  useEffect(()=>{
-    indexRef.current=0;setIndex(0);ref.current?.scrollTo({x:0,animated:false});
-  },[signature,interval]);
   useEffect(()=>{
     if(preview||!focused||count<2)return;
     const timer=setInterval(()=>{
@@ -61,7 +65,7 @@ export function BannerCarousel({ banners, preview=false }: { banners: Banner[]; 
   },[count,focused,interval,preview]);
   if(!count)return null;
   return (
-    <View style={{width:'100%',maxWidth:760,alignSelf:'center'}} onLayout={e=>setMeasured(e.nativeEvent.layout.width)}>
+    <View>
       <ScrollView ref={ref} horizontal showsHorizontalScrollIndicator={false}
         scrollEnabled={count>1} decelerationRate="fast" snapToInterval={interval}
         disableIntervalMomentum contentContainerStyle={{paddingHorizontal:16,gap:GAP}}
