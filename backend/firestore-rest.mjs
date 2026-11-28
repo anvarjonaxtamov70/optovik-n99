@@ -6,8 +6,8 @@ const documentPath=path=>{
   if(typeof path!=='string'||!/^n99[A-Za-z]+\/[A-Za-z0-9_%.!~*'()-]+(?:\/products\/[A-Za-z0-9_%.!~*'()-]+)?$/.test(path))fail('invalid-document-path',400);
   return path.split('/').map(encodeURIComponent).join('/');
 };
-export function firestoreRunner({token,deadline,fetcher=fetch,clock=Date.now}){
-  return makeRunner({token,deadline,fetcher,clock,database:STAGING_DATABASE,origin:'https://firestore.googleapis.com'});
+export function firestoreRunner({token,deadline,fetcher=fetch,clock=Date.now,onTiming}){
+  return makeRunner({token,deadline,fetcher,clock,onTiming,database:STAGING_DATABASE,origin:'https://firestore.googleapis.com'});
 }
 // Explicit disposable emulator only; cannot select a remote endpoint or project.
 export function isLocalFirestoreHost(host){return host==='127.0.0.1:8080'||host==='localhost:8080';}
@@ -15,15 +15,18 @@ export function localFirestoreRunner({host,deadline}){
   if(!isLocalFirestoreHost(host))fail('local-emulator-required');
   return makeRunner({token:'owner',deadline,fetcher:fetch,clock:Date.now,database:'projects/demo-n99-firestore/databases/(default)',origin:'http://'+host});
 }
-function makeRunner({token,deadline,fetcher,clock,database,origin}){
+function makeRunner({token,deadline,fetcher,clock,database,origin,onTiming}){
   const BASE=origin+'/v1/'+database+'/documents';
   const name=path=>database+'/documents/'+path;
   if(typeof token!=='string'||!token||!Number.isSafeInteger(deadline))fail('invalid-runner');
   async function request(url,body,method='POST'){
     const ms=Math.min(8000,deadline-clock());
     if(ms<=0)fail('request-deadline');
+    const phase={beginTransaction:'fs_begin',batchGet:'fs_read',runQuery:'fs_query',commit:'fs_commit',rollback:'fs_rollback'}[url.slice(BASE.length+1)];
+    const started=performance.now();
     try{return await fetcher(url,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','Cache-Control':'no-store'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(ms)});}
     catch(error){if(error?.name==='TimeoutError'||error?.name==='AbortError')fail('firestore-request-timeout');throw error;}
+    finally{if(phase&&onTiming){try{onTiming(phase,Math.max(0,performance.now()-started));}catch{/* diagnostics must not alter transaction outcome */}}}
   }
   return async task=>{
     for(let attempt=0;attempt<4;attempt++){

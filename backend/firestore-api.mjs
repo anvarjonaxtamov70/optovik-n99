@@ -32,7 +32,8 @@ export function createFirestoreApi({authenticate,runner,enabled,clock=Date.now})
       const b=await boundedJson(request,32768);
       if(!rec(b))fail('invalid-request');
       remainingBudget(deadline,24000,clock());
-      const rawRun=await measure('runner',()=>runner(env,deadline));
+      const onTiming=(name,ms)=>{if(['fs_begin','fs_read','fs_query','fs_commit','fs_rollback'].includes(name)&&Number.isFinite(ms)&&ms>=0&&timings.length<40)timings.push(name+';dur='+ms.toFixed(1));};
+      const rawRun=await measure('runner',()=>runner(env,deadline,onTiming));
       const run=(...args)=>measure('firestore',()=>rawRun(...args));
       const now=clock();
       let value;

@@ -6,5 +6,5 @@ import {createFirestoreApi} from './firestore-api.mjs';
 export default createFirestoreApi({
   enabled:env=>env?.FIREBASE_PROJECT_ID==='optovik-n99-staging'&&env?.N99_FIRESTORE_CANDIDATE==='enabled'&&env?.N99_DATASET==='synthetic-only',
   authenticate:identity,
-  runner:async(env,deadline)=>syntheticDatasetRunner(firestoreRunner({token:await accessToken(env,deadline,'firestore'),deadline})),
+  runner:async(env,deadline,onTiming)=>syntheticDatasetRunner(firestoreRunner({token:await accessToken(env,deadline,'firestore'),deadline,onTiming})),
 });

@@ -48,3 +48,38 @@ test('timings expose only named durations, including failures',async()=>{
  assert.equal(res.status,401);
  assert.match(res.headers.get('Server-Timing'),/^auth;dur=\d+\.\d, total;dur=\d+\.\d$/);
 });
+
+test('admin detail batches marker, order and role without trusting the claimed owner',async()=>{
+ const {readFirestoreOrder}=await import('../backend/firestore-admin.mjs');
+ const {run,batches}=setup();
+ assert.equal((await readFirestoreOrder(run,actor,id,uid)).raqam,123456);
+ assert.deepEqual(batches,[[paths.dataset,paths.order(id),paths.admin(actor)]]);
+ batches.length=0;
+ await assert.rejects(readFirestoreOrder(run,'stranger',id,uid),/forbidden/);
+ await assert.rejects(readFirestoreOrder(run,'stranger',id,'stranger'),/forbidden/);
+ assert.equal((await readFirestoreOrder(run,uid,id,uid)).raqam,123456);
+});
+test('REST phases report only bounded names and observer failures never alter commit',async()=>{
+ const {firestoreRunner}=await import('../backend/firestore-rest.mjs');
+ const phases=[];
+ const run=firestoreRunner({token:'synthetic',deadline:10000,clock:()=>0,
+  onTiming:(name,ms)=>{phases.push(name);assert.ok(Number.isFinite(ms)&&ms>=0);throw Error('observer');},
+  fetcher:async(url,options)=>{
+   if(url.endsWith(':beginTransaction'))return Response.json({transaction:'tx'});
+   if(url.endsWith(':batchGet'))return Response.json([{missing:JSON.parse(options.body).documents[0]}]);
+   if(url.endsWith(':commit'))return Response.json({});
+   throw Error('unexpected');
+  }});
+ await run(async tx=>{await tx.get(paths.order(id));tx.set(paths.order(id),{synthetic:true});});
+ assert.deepEqual(phases,['fs_begin','fs_read','fs_commit']);
+});
+test('API reports fixed upstream phase names and suppresses unrecognized diagnostics',async()=>{
+ const api=createFirestoreApi({enabled:()=>true,authenticate:async()=>uid,runner:async(_env,_deadline,onTiming)=>{
+  onTiming('fs_begin',12);onTiming('unknown-private-data',8);
+  return async task=>task({get:async()=>null});
+ }});
+ const res=await api.fetch(new Request('https://test.invalid/v1/orders/get',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}),{});
+ assert.equal(res.status,200);
+ assert.match(res.headers.get('Server-Timing'),/fs_begin;dur=12\.0/);
+ assert.doesNotMatch(res.headers.get('Server-Timing'),/unknown-private-data/);
+});

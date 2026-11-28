@@ -108,6 +108,7 @@ async function placeOrderInternal(lines: CartLine[], summary: CartSummary, form:
     await saveLocal(rateKey(uid), Date.now());
     await saveLocal(pendingKey, null);
     forgetIntent(uid,id);
+    if(usesFirestoreCandidate)notifyCandidateRefresh({actor:uid,uid,id,inventoryMayChange:false});
     return { id, uid, raqam, phone, recovered };
   };
   if (validPending) {
@@ -348,7 +349,7 @@ export async function adminSetStatus(o: Order, next: OrderStatus) {
 }
 
 async function candidateTransition(o:Order,next:OrderStatus,actor:string){
- const event={actor,uid:o.uid,id:o.id};
+ const event={actor,uid:o.uid,id:o.id,inventoryMayChange:next==='tasdiqlandi'||(next==='bekor'&&o.zaxira===true)};
  try{
   const ack=await candidateRequest<{ok:true;order?:unknown}>('/v1/transition',{uid:o.uid,id:o.id,expected:o.holat,next,includeOrder:true},actor);
   const order=readOrder(o.uid,o.id,ack.order);
@@ -375,11 +376,12 @@ function pollCandidate<T>(uid:string,read:()=>Promise<T>,success:(value:T)=>void
   if(timer!==undefined)clearTimeout(timer);
   if(AppState.currentState==='background'||AppState.currentState==='inactive')return;
   running=true;queued=false;const current=generation;
-  try{const v=await read();if(!stopped&&current===generation&&auth.currentUser?.uid===uid)success(v);}
-  catch{if(!stopped&&current===generation&&auth.currentUser?.uid===uid)failure();}
+  const canPublish=()=>!stopped&&current===generation&&auth.currentUser?.uid===uid&&AppState.currentState!=='background'&&AppState.currentState!=='inactive';
+  try{const v=await read();if(canPublish())success(v);}
+  catch{if(canPublish())failure();}
   finally{running=false;if(!stopped&&AppState.currentState!=='background'&&AppState.currentState!=='inactive'){if(queued)void tick();else timer=setTimeout(()=>{void tick();},interval);}}
  };
- const sub=AppState.addEventListener('change',state=>{if(state==='active')void tick();else if(timer!==undefined)clearTimeout(timer);});
+ const sub=AppState.addEventListener('change',state=>{if(state==='active'){if(running)queued=true;else void tick();}else{generation++;queued=true;if(timer!==undefined)clearTimeout(timer);}});
  const off=subscribeCandidateRefresh(event=>{if(stopped||event.actor!==uid||auth.currentUser?.uid!==uid||!onRefresh?.(event))return;generation++;queued=true;void tick();});
  void tick();
  return ()=>{stopped=true;if(timer!==undefined)clearTimeout(timer);sub.remove();off();};

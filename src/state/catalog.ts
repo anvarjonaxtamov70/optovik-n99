@@ -126,13 +126,13 @@ function subscribeCandidate(){
    void saveLocal('catalog',toCache(products)).catch(()=>{});
    void saveLocal('settings',shop.settings).catch(()=>{});
    void saveLocal('banners',content.banners).catch(()=>{});
-  }catch{if(!disposed&&current===generation&&auth.currentUser?.uid===uid)catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'error'}));}
+  }catch{if(!disposed&&current===generation&&auth.currentUser?.uid===uid&&AppState.currentState!=='background'&&AppState.currentState!=='inactive')catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'error'}));}
   finally{running=false;if(!disposed&&AppState.currentState!=='background'&&AppState.currentState!=='inactive'){if(queued)void refresh();else timer=setTimeout(()=>{void refresh();},CANDIDATE_CATALOG_REFRESH_MS);}}
  };
  const invalidate=()=>{generation++;queued=true;void refresh();};
- const offRefresh=subscribeCandidateRefresh(event=>{if(event.actor===auth.currentUser?.uid)invalidate();});
+ const offRefresh=subscribeCandidateRefresh(event=>{if(event.inventoryMayChange&&event.actor===auth.currentUser?.uid)invalidate();});
  const off=onAuthStateChanged(auth,()=>{if(disposed)return;catalogStore.set(s=>({...s,connected:false,status:s.products.length?'offline':'loading'}));invalidate();});
- const sub=AppState.addEventListener('change',s=>{if(s==='active')void refresh();else{clear();catalogStore.set(v=>({...v,connected:false}));}});
+ const sub=AppState.addEventListener('change',s=>{if(s==='active'){if(running)queued=true;else void refresh();}else{generation++;queued=true;clear();catalogStore.set(v=>({...v,connected:false}));}});
  unsubs=[()=>{disposed=true;clear();off();offRefresh();sub.remove();}];
  void refresh();
 }

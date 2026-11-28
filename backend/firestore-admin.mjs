@@ -80,12 +80,16 @@ export async function updateFirestoreDelivery(run,actor,patch){
 }
 export async function readFirestoreOrder(run,actor,id,expectedUid){
   const path=paths.order(id);
-  return run(async tx=>{
-    const entry=await tx.get(path);
+  // The usual admin detail request already identifies the customer. Batch the
+  // dataset marker, order and role without trusting that claimed owner for access.
+  const initialPaths=expectedUid!==undefined&&expectedUid!==actor?[path,paths.admin(actor)]:[path];
+  return run(async (tx,initial)=>{
+    if(!initial)initial=tx.getAll?await tx.getAll(initialPaths):await Promise.all(initialPaths.map(p=>tx.get(p)));
+    const entry=initial[0];
     if(entry===null)return null;
     ok(rec(entry)&&rec(entry.order)&&rec(entry.index),'invalid-data',503);
-    ok(entry.index.uid===actor||await tx.get(paths.admin(actor))===true,'forbidden',403);
+    ok(entry.index.uid===actor||(initialPaths.length===2?initial[1]:await tx.get(paths.admin(actor)))===true,'forbidden',403);
     if(expectedUid!==undefined&&entry.index.uid!==expectedUid)fail('order-missing',409);
     return entry.order;
-  });
+  },initialPaths);
 }
