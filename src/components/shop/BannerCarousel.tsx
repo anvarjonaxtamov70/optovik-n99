@@ -61,7 +61,7 @@ export function BannerCarousel({ banners, preview=false }: { banners: Banner[]; 
   },[count,focused,interval,preview]);
   if(!count)return null;
   return (
-    <View onLayout={e=>setMeasured(e.nativeEvent.layout.width)}>
+    <View style={{width:'100%',maxWidth:760,alignSelf:'center'}} onLayout={e=>setMeasured(e.nativeEvent.layout.width)}>
       <ScrollView ref={ref} horizontal showsHorizontalScrollIndicator={false}
         scrollEnabled={count>1} decelerationRate="fast" snapToInterval={interval}
         disableIntervalMomentum contentContainerStyle={{paddingHorizontal:16,gap:GAP}}
