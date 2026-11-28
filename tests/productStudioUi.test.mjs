@@ -10,10 +10,12 @@ test('studio is web-only with native stub and editor reset after save-next',()=>
 });
 test('studio preview requires explicit review and never saves or uploads products',()=>{
  const ui=read('src/components/admin/ProductStudio.web.tsx');
- assert.match(ui,/if\(!source\|\|active.current\|\|!review\)return/);
+ assert.match(ui,/if\(!source\|\|active.current\|\|!review\|\|attaching\)return/);
  assert.match(ui,/fitmentConfirmed:fit/);
  assert.match(ui,/download="optovik-n99-reklama.png"/);
  assert.doesNotMatch(ui,/saveProduct|uploadToImgbb|candidateRequest|fetch\(/);
+ assert.match(ui,/onAttach\(artwork\)/);
+ assert.match(ui,/studioAnalysisEnabled/);
 });
 test('studio uses local worker only on loopback and cleans up work and object URLs',()=>{
  const ui=read('src/components/admin/ProductStudio.web.tsx');

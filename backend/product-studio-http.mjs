@@ -12,7 +12,7 @@ const errors=new Map([
  ['studio-disabled',503],['provider-config',503],['provider-access',503],['provider-unavailable',503],
  ['provider-invalid-response',503],['studio-quota-unavailable',503]
 ]);
-const headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Access-Control-Allow-Origin':'*'};
+const headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Access-Control-Allow-Origin':'*','X-N99-Backend':'firestore-candidate','Access-Control-Expose-Headers':'X-N99-Backend'};
 const json=(body,status=200)=>Response.json(body,{status,headers});
 function remaining(deadline,clock){const ms=deadline-clock();if(!Number.isSafeInteger(ms)||ms<1)fail('request-timeout',408);return ms;}
 async function readPng(request,deadline,clock){
