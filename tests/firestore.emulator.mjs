@@ -152,3 +152,28 @@ test('concurrent identical checkout recovers the same order without a second res
  const orders=await listFirestoreOrders(isolated,actor,{limit:10});
  assert.equal(orders.items.length,1);assert.equal(orders.items[0].id,id);
 });
+
+test('encrypted synthetic candidate backup restores into a separate disposable emulator namespace',async()=>{
+ const {syntheticSeed}=await import('../backend/firestore-seed.mjs');
+ const {documentFields}=await import('../backend/firestore-rest.mjs');
+ const {makeCandidateBackup}=await import('../scripts/firestore-backup-format.mjs');
+ const {sealBackup,openBackup}=await import('../scripts/backup-crypto.mjs');
+ const {randomBytes}=await import('node:crypto');
+ const seed=syntheticSeed('backup-restore-admin');
+ const key=randomBytes(32);
+ const original=Buffer.from(JSON.stringify(makeCandidateBackup(seed)));
+ const restored=JSON.parse(openBackup(sealBackup(original,key),key).bytes.toString());
+ const target='projects/demo-n99-firestore-restore/databases/(default)/documents';
+ const base='http://'+host+'/v1/'+target;
+ const names=restored.documents.map(d=>target+'/'+d.path);
+ const request=async(method,body)=>{
+  const res=await fetch(base+':'+method,{method:'POST',headers:{Authorization:'Bearer owner','Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+  assert.equal(res.status,200);return res.json();
+ };
+ // Create-only writes: even an accidentally reused local namespace cannot be overwritten.
+ await request('commit',{writes:restored.documents.map((d,i)=>({update:{name:names[i],fields:documentFields(d.path,d.value)},currentDocument:{exists:false}}))});
+ const rows=await request('batchGet',{documents:names});
+ assert.equal(rows.length,names.length);
+ const actual=new Map(rows.map(row=>[row.found.name.slice(target.length+1),JSON.parse(row.found.fields.payload.stringValue)]));
+ assert.deepEqual(actual,seed);
+});
