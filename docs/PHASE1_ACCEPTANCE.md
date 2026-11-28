@@ -29,3 +29,18 @@ Added local Firestore emulator concurrency acceptance: two independent customers
 
 ### Remaining combined operator gate (after consolidated green CI)
 Use the same candidate Worker and branch, never the legacy/production endpoint. First pull once and deploy candidate only with N99_FIRESTORE_CANDIDATE enabled and SMS/Telegram disabled. Start Expo Go and web admin once. Verify: existing customer history and self-service reset on verified mailbox; profile on second device and foreground refresh; two test buyers/last stock unit, stale admin screen, repeated cancellation; archive pending item and cancel without stock loss; private note visible only to admin. Record counts and latency, then execute one read-only encrypted export with gcloud in private storage and verify it. Never share credentials or backup files. If any test fails, stop the candidate release, keep RTDB/production unchanged and report the exact failing step. No merge is authorized. SMS and Payme are a separate final integration stage.
+
+
+## Final staging acceptance evidence — 2026-11-28
+Reviewed code revision: b1fc0e5432086660f28266aba44c68b4a43aeeac. Both CI workflows succeeded; 183/183 unit tests passed, zero failed or skipped. RTDB rules and isolated restore, Firestore emulator concurrency and encrypted restore rehearsal, TypeScript, lint and all three Expo bundle builds passed.
+Operator reported the following against the staging candidate:
+1. Existing verified account, re-login and historical orders: PASS.
+2. Self-service password reset, re-login and history: PASS.
+3. Second-device account/profile synchronization: NOT RUN (no second device; operator chose to defer). Not represented as a pass.
+4. Two orders competing for one unit: PASS for sequential live admin confirmation (one succeeded, one refused). Simultaneous live requests and two independent buyers were not exercised; concurrency is covered by local emulator CI.
+5. Cancellation and confirmation stock cycle 0 -> 1 -> 0 -> 1: PASS as reported. Repeated simultaneous cancellation is covered by emulator, not independently measured live.
+6. Archive before confirmation, reject confirmation and permit cancellation: PASS as reported.
+7. Admin note visible in admin UI, not in customer UI: PASS as reported; server projection also has automated coverage.
+8. Real read-only encrypted staging Firestore export and verification: PASS. Operator Cloud Shell screenshot reports capturedAt 2026-11-28T09:44:53.854Z, products 3, orders 6, linked 6, documents 14, customers 1, admins 1, banners 1, markers 0. Verify returned matching counts. No plaintext export or remote restore performed.
+
+Seven operator checks passed; one deferred. These are reported results, not independent live test execution by the coding agent. Actual backup is in private Cloud Shell storage; independent encrypted copy and separately secured key still need operator confirmation. Firebase Auth export, external image backup, multi-device test, live simultaneous contention and production cutover remain outside the demonstrated acceptance. No production writes, deploy or merge by this change. Eskiz and Payme remain deferred. Owner must explicitly approve any merge or later production rollout.
