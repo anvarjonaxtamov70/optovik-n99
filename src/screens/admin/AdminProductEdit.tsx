@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ADMIN_WIDE } from '../../components/admin/AdminShell';
 import { ImageManager } from '../../components/admin/ImageManager';
+import { ProductStudio } from '../../components/admin/ProductStudio';
 import { Button } from '../../components/ui/Button';
 import { Card, Chip, SwitchRow } from '../../components/ui/Controls';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -62,6 +63,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
   const products = useProducts();
   const scroll = useRef<ScrollViewInstance>(null);
   const [touched, setTouched] = useState(false);
+  const [studioVersion, setStudioVersion] = useState(0);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -105,6 +107,7 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
         const next = nextNewForm(form);
         setForm(next);
         setBaseline(next);
+        setStudioVersion(v => v + 1);
         setTouched(false);
         scroll.current?.scrollTo({ y: 0, animated: true });
       } else {
@@ -217,11 +220,11 @@ function Editor({ existing, initial, copied }: { existing?: Product; initial: Pr
         <ScrollView ref={scroll} contentContainerStyle={[styles.body, wide && styles.bodyWide, { paddingBottom: insets.bottom + (stacked ? 170 : 110) }]} keyboardShouldPersistTaps="handled">
           {wide ? (
             <View style={styles.columns}>
-              <Column>{images}{main}</Column>
+              <Column>{images}{IS_WEB && <ProductStudio key={studioVersion} nomi={form.nomi} model={form.model} />}{main}</Column>
               <Column>{details}{flags}</Column>
             </View>
           ) : (
-            <>{images}{main}{details}{flags}</>
+            <>{images}{IS_WEB && <ProductStudio key={studioVersion} nomi={form.nomi} model={form.model} />}{main}{details}{flags}</>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
